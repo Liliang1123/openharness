@@ -9,7 +9,7 @@
     {
       "changeId": "add-subagent-dispatcher",
       "title": "Add Subagent Dispatcher",
-      "status": "verified",
+      "status": "archived",
       "date": "2026-06-22",
       "type": "feature",
       "summary": "为 fork_agent 技能新增隔离子智能体分发器。子执行使用独立 history/trace attribution，父 Agent 只接收 summary tool result，并强制执行 forbidden_tools 降权、特权元工具过滤、abort/timeout 传播与 usage/cost 归因。",
@@ -21,17 +21,18 @@
         "cost-attribution"
       ],
       "openspec": {
-        "proposal": "openspec/changes/add-subagent-dispatcher/proposal.md",
-        "design": "openspec/changes/add-subagent-dispatcher/design.md",
-        "tasks": "openspec/changes/add-subagent-dispatcher/tasks.md",
+        "proposal": "openspec/changes/archive/2026-06-22-add-subagent-dispatcher/proposal.md",
+        "design": "openspec/changes/archive/2026-06-22-add-subagent-dispatcher/design.md",
+        "tasks": "openspec/changes/archive/2026-06-22-add-subagent-dispatcher/tasks.md",
         "specDeltas": [
-          "openspec/changes/add-subagent-dispatcher/specs/agent-loop/spec.md",
-          "openspec/changes/add-subagent-dispatcher/specs/agent-runtime/spec.md"
+          "openspec/changes/archive/2026-06-22-add-subagent-dispatcher/specs/agent-loop/spec.md",
+          "openspec/changes/archive/2026-06-22-add-subagent-dispatcher/specs/agent-runtime/spec.md"
         ],
         "currentSpecs": [
           "openspec/specs/agent-loop/spec.md",
           "openspec/specs/agent-runtime/spec.md"
-        ]
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-22-add-subagent-dispatcher/"
       },
       "superpowers": {
         "plan": "docs/superpowers/plans/2026-06-22-add-subagent-dispatcher.md"
@@ -39,11 +40,13 @@
       "implementation": {
         "sourceFiles": [
           "agent-runtime/src/subagent/dispatcher.ts",
-          "agent-runtime/src/agentExecutionRunner.ts"
+          "agent-runtime/src/agentExecutionRunner.ts",
+          "agent-runtime/src/toolRegistry.ts"
         ],
         "testFiles": [
           "agent-runtime/test/subagentDispatcher.test.ts",
-          "agent-runtime/test/agentExecutionRunner.test.ts"
+          "agent-runtime/test/agentExecutionRunner.test.ts",
+          "agent-runtime/test/toolRegistryMerge.test.ts"
         ]
       },
       "verification": [
@@ -61,13 +64,45 @@
           "command": "npx openspec validate add-subagent-dispatcher --strict --no-interactive",
           "result": "passed",
           "note": "Change 'add-subagent-dispatcher' is valid."
+        },
+        {
+          "command": "npx openspec archive add-subagent-dispatcher --yes",
+          "result": "passed",
+          "note": "Archived as 2026-06-22-add-subagent-dispatcher and updated current specs."
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "Post-archive validation passed: 22 specs passed, 0 failed."
+        },
+        {
+          "command": "npx openspec list",
+          "result": "passed",
+          "note": "No active changes found."
+        },
+        {
+          "command": "pnpm dashboard:check",
+          "result": "passed",
+          "note": "Dashboard generated artifacts are current after archived sync."
         }
       ],
       "closeout": "docs/design/2026-06-22-add-subagent-dispatcher-closeout.md",
       "notes": [
         "配套设计方案：docs/design/2026-06-22-add-subagent-dispatcher-design.md",
         "Implementation plan created; Antigravity brief sequence docs/agent-collab/add-subagent-dispatcher/01-brief.md to 07-brief.md completed.",
-        "All tests passing under both standalone test command and full workspace test."
+        "All tests passing under both standalone test command and full workspace test.",
+        "Archived in commit 4d34d60 feat(subagent): archive add-subagent-dispatcher.",
+        "Parent history only receives the final subagent summary tool result; child intermediate context remains isolated."
+      ],
+      "next": [
+        "真实 Java Gateway 联调与 trace tree 视图优化",
+        "按独立 OpenSpec 评估子智能体系统级隔离能力",
+        "如需更细粒度成本归因，扩展 token usage 聚合契约"
+      ],
+      "nonGoals": [
+        "容器化或进程级沙箱隔离",
+        "公开外联子 Agent API 或 UI",
+        "TS Runtime 接管 provider credential 或 Java model router"
       ]
     },
     {

@@ -7,7 +7,7 @@
 
 ### 2026-06-22
 
-- ✅ verified **add-subagent-dispatcher** — 为 fork_agent 技能新增隔离子智能体分发器。子执行使用独立 history/trace attribution，父 Agent 只接收 summary tool result，并强制执行 forbidden_tools 降权、特权元工具过滤、abort/timeout 传播与 usage/cost 归因。
+- 📦 archived **add-subagent-dispatcher** — 为 fork_agent 技能新增隔离子智能体分发器。子执行使用独立 history/trace attribution，父 Agent 只接收 summary tool result，并强制执行 forbidden_tools 降权、特权元工具过滤、abort/timeout 传播与 usage/cost 归因。
 - 📦 archived **add-skill-invocation-sandbox** — 实现自进化技能（Skill）执行沙箱。包含 YAML 元数据解析器、`invoke_skill` 拦截与延迟注入引擎、兼容 Alternating Roles 门禁适配以及商业敏感脚本的 best-effort 物理碎纸销毁机制。
 - 📦 archived **add-runtime-cache-stability** — 重构运行时缓存机制以优化 Prompt Cache 命中率并防范资源泄漏。引入策略化双缓存断点、System Prompt 字节级静止与 [session context] 动态注入，并对 Tools Schema 锁定进行内存上限 FIFO 淘汰控制及持久化 transient 隔离。
 
@@ -53,7 +53,7 @@
 
 | 功能点 | 状态 | Spec | Plan | Code | Tests | Closeout |
 |---|---|---|---|---|---|---|
-| add-subagent-dispatcher | ✅ verified | agent-loop, agent-runtime | [plan](docs/superpowers/plans/2026-06-22-add-subagent-dispatcher.md) | 2 files | 2 files | [closeout](docs/design/2026-06-22-add-subagent-dispatcher-closeout.md) |
+| add-subagent-dispatcher | 📦 archived | agent-loop, agent-runtime | [plan](docs/superpowers/plans/2026-06-22-add-subagent-dispatcher.md) | 3 files | 3 files | [closeout](docs/design/2026-06-22-add-subagent-dispatcher-closeout.md) |
 | add-skill-invocation-sandbox | 📦 archived | agent-loop, provider-adapter | [plan](docs/superpowers/plans/2026-06-22-add-skill-invocation-sandbox.md) | 7 files | 5 files | [closeout](docs/design/2026-06-22-add-skill-invocation-sandbox-closeout.md) |
 | add-runtime-cache-stability | 📦 archived | cache-hints, context-builder, prompt-registry, agent-runtime | [plan](docs/superpowers/plans/2026-06-22-add-runtime-cache-stability.md) | 7 files | 3 files | [closeout](docs/design/2026-06-22-add-runtime-cache-stability-closeout.md) |
 | add-agent-definition-model-selection | 📦 archived | agent-definition | [plan](docs/superpowers/plans/2026-06-18-add-agent-definition-model-selection.md) | 1 files | 1 files | [closeout](docs/design/2026-06-18-add-agent-definition-model-selection-closeout.md) |
@@ -180,7 +180,7 @@
 
 ### cost-attribution
 
-- ✅ verified add-subagent-dispatcher
+- 📦 archived add-subagent-dispatcher
 
 ### deferred-injection
 
@@ -188,7 +188,7 @@
 
 ### dispatcher
 
-- ✅ verified add-subagent-dispatcher
+- 📦 archived add-subagent-dispatcher
 
 ### eval-cli
 
@@ -224,7 +224,7 @@
 
 ### isolation
 
-- ✅ verified add-subagent-dispatcher
+- 📦 archived add-subagent-dispatcher
 
 ### long-term-memory
 
@@ -392,7 +392,7 @@
 
 ### skills
 
-- ✅ verified add-subagent-dispatcher
+- 📦 archived add-subagent-dispatcher
 - 📦 archived add-skill-invocation-sandbox
 
 ### sse
@@ -410,7 +410,7 @@
 
 ### subagent
 
-- ✅ verified add-subagent-dispatcher
+- 📦 archived add-subagent-dispatcher
 
 ### tool-catalog
 
@@ -448,6 +448,9 @@
 
 ### 推荐下一步
 
+- 真实 Java Gateway 联调与 trace tree 视图优化 _(from add-subagent-dispatcher)_
+- 按独立 OpenSpec 评估子智能体系统级隔离能力 _(from add-subagent-dispatcher)_
+- 如需更细粒度成本归因，扩展 token usage 聚合契约 _(from add-subagent-dispatcher)_
 - 隔离子智能体分发器实施 (add-subagent-dispatcher) _(from add-skill-invocation-sandbox)_
 - 原地同模型热压缩 (ITC) 实施 (add-internal-context-compression) _(from add-skill-invocation-sandbox)_
 - 自进化技能（Skill）执行沙箱实施 (add-skill-invocation-sandbox) _(from add-runtime-cache-stability)_
@@ -505,6 +508,9 @@
 
 ### 暂不建议
 
+- 容器化或进程级沙箱隔离 _(from add-subagent-dispatcher)_
+- 公开外联子 Agent API 或 UI _(from add-subagent-dispatcher)_
+- TS Runtime 接管 provider credential 或 Java model router _(from add-subagent-dispatcher)_
 - 子智能体分发器 (Subagent Dispatcher)，已移至 add-subagent-dispatcher _(from add-skill-invocation-sandbox)_
 - 公开子 Agent API / SDK / UI _(from add-skill-invocation-sandbox)_
 - 容器级或系统级沙箱隔离 _(from add-skill-invocation-sandbox)_

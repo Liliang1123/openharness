@@ -1,12 +1,12 @@
 # Add Subagent Dispatcher Closeout
 
 文档类型：Closeout / Implementation Record  
-日志及版本：2026-06-22 v1  
-状态：归档前 closeout / pending user approval  
+日志及版本：2026-06-22 v2  
+状态：已归档 / archived in commit `4d34d60`  
 
 ## 结论
 
-通过。`add-subagent-dispatcher` 已完成设计、TDD 单元测试与核心运行逻辑实现，通过全量单元测试与类型检查，等待用户复审合并并进行 OpenSpec 归档。
+通过。`add-subagent-dispatcher` 已完成设计、TDD 单元测试与核心运行逻辑实现，通过全量单元测试与类型检查，并已完成 OpenSpec 归档与提交（`4d34d60 feat(subagent): archive add-subagent-dispatcher`）。
 
 ## 背景
 
@@ -35,7 +35,7 @@
 
 ## 规格与计划
 
-- OpenSpec spec 变动目录：[add-subagent-dispatcher](file:///Users/elvis/file/develop/opensource/openharness/openspec/changes/add-subagent-dispatcher)
+- OpenSpec 归档目录：[2026-06-22-add-subagent-dispatcher](file:///Users/elvis/file/develop/opensource/openharness/openspec/changes/archive/2026-06-22-add-subagent-dispatcher)
 - 关联规格文件：
   - [agent-loop spec.md](file:///Users/elvis/file/develop/opensource/openharness/openspec/specs/agent-loop/spec.md)
   - [agent-runtime spec.md](file:///Users/elvis/file/develop/opensource/openharness/openspec/specs/agent-runtime/spec.md)
@@ -57,7 +57,9 @@
 - **回归与全量验证**：
   - 单包测试 `pnpm --filter @openharness/agent-runtime test`：通过（219/219 tests passed）。
   - 类型检查 `pnpm --filter @openharness/agent-runtime typecheck`：通过（tsc zero errors）。
-  - 规格校验 `npx openspec validate add-subagent-dispatcher --strict --no-interactive`：通过（Change is valid）。
+  - 规格校验 `npx openspec validate add-subagent-dispatcher --strict --no-interactive`：归档前通过（Change is valid）。
+  - 归档命令 `npx openspec archive add-subagent-dispatcher --yes`：通过，生成归档目录 `openspec/changes/archive/2026-06-22-add-subagent-dispatcher/`。
+  - 归档后全量规格校验 `npx openspec validate --all --strict --no-interactive`：通过（22 passed, 0 failed）。
   - 导航台 check `pnpm dashboard:check`：通过（Dashboard current）。
 
 ## 后续演进建议

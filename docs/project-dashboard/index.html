@@ -255,10 +255,10 @@
     <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-06-22</div>
     <div class="stats">
       <div class="stat"><div class="number">29</div><div class="label">Total</div></div>
-      <div class="stat"><div class="number">14</div><div class="label">Archived</div></div>
+      <div class="stat"><div class="number">15</div><div class="label">Archived</div></div>
       <div class="stat"><div class="number">13</div><div class="label">Partial</div></div>
       <div class="stat"><div class="number">0</div><div class="label">Proposed</div></div>
-      <div class="stat"><div class="number">2</div><div class="label">Verified</div></div>
+      <div class="stat"><div class="number">1</div><div class="label">Verified</div></div>
     </div>
   </header>
 
@@ -276,7 +276,7 @@
         <div class="timeline-date">2026-06-22</div>
         <div class="timeline-items">
           <div class="timeline-item">
-            <span class="badge badge-verified">verified</span>
+            <span class="badge badge-archived">archived</span>
             <strong>add-subagent-dispatcher</strong>
             <span class="summary">为 fork_agent 技能新增隔离子智能体分发器。子执行使用独立 history/trace attribution，父 Agent 只接收 summary tool result，并强制执行 forbidden_tools 降权、特权元工具过滤、abort/timeout 传播与 usage/cost 归因。</span>
           </div>
@@ -460,14 +460,14 @@
       <tbody>
         <tr>
       <td><strong>add-subagent-dispatcher</strong></td>
-      <td><span class="badge badge-verified">verified</span></td>
+      <td><span class="badge badge-archived">archived</span></td>
       <td>2026-06-22</td>
       <td>agent-loop, agent-runtime</td>
       <td><a href="docs/superpowers/plans/2026-06-22-add-subagent-dispatcher.md">2026-06-22-add-subagent-dispatcher.md</a></td>
-      <td>dispatcher.ts, agentExecutionRunner.ts</td>
-      <td>subagentDispatcher.test.ts, agentExecutionRunner.test.ts</td>
+      <td>dispatcher.ts, agentExecutionRunner.ts, toolRegistry.ts</td>
+      <td>subagentDispatcher.test.ts, agentExecutionRunner.test.ts, toolRegistryMerge.test.ts</td>
       <td><a href="docs/design/2026-06-22-add-subagent-dispatcher-closeout.md">2026-06-22-add-subagent-dispatcher-closeout.md</a></td>
-      <td>—</td>
+      <td>真实 Java Gateway 联调与 trace tree 视图优化<br>按独立 OpenSpec 评估子智能体系统级隔离能力<br>如需更细粒度成本归因，扩展 token usage 聚合契约</td>
     </tr>
 <tr>
       <td><strong>add-skill-invocation-sandbox</strong></td>
@@ -926,7 +926,7 @@
       <div class="tag-group">
         <h3>cost-attribution</h3>
         <ul>
-          <li><span class="badge badge-verified">verified</span> add-subagent-dispatcher</li>
+          <li><span class="badge badge-archived">archived</span> add-subagent-dispatcher</li>
         </ul>
       </div>
 
@@ -940,7 +940,7 @@
       <div class="tag-group">
         <h3>dispatcher</h3>
         <ul>
-          <li><span class="badge badge-verified">verified</span> add-subagent-dispatcher</li>
+          <li><span class="badge badge-archived">archived</span> add-subagent-dispatcher</li>
         </ul>
       </div>
 
@@ -1000,7 +1000,7 @@
       <div class="tag-group">
         <h3>isolation</h3>
         <ul>
-          <li><span class="badge badge-verified">verified</span> add-subagent-dispatcher</li>
+          <li><span class="badge badge-archived">archived</span> add-subagent-dispatcher</li>
         </ul>
       </div>
 
@@ -1273,7 +1273,7 @@
       <div class="tag-group">
         <h3>skills</h3>
         <ul>
-          <li><span class="badge badge-verified">verified</span> add-subagent-dispatcher</li>
+          <li><span class="badge badge-archived">archived</span> add-subagent-dispatcher</li>
 <li><span class="badge badge-archived">archived</span> add-skill-invocation-sandbox</li>
         </ul>
       </div>
@@ -1303,7 +1303,7 @@
       <div class="tag-group">
         <h3>subagent</h3>
         <ul>
-          <li><span class="badge badge-verified">verified</span> add-subagent-dispatcher</li>
+          <li><span class="badge badge-archived">archived</span> add-subagent-dispatcher</li>
         </ul>
       </div>
 
@@ -1366,7 +1366,10 @@
 
   <section id="next">
     <h2>Next Work Queue</h2>
-    <h3>推荐下一步</h3><ul><li>隔离子智能体分发器实施 (add-subagent-dispatcher) <em>(from add-skill-invocation-sandbox)</em></li>
+    <h3>推荐下一步</h3><ul><li>真实 Java Gateway 联调与 trace tree 视图优化 <em>(from add-subagent-dispatcher)</em></li>
+<li>按独立 OpenSpec 评估子智能体系统级隔离能力 <em>(from add-subagent-dispatcher)</em></li>
+<li>如需更细粒度成本归因，扩展 token usage 聚合契约 <em>(from add-subagent-dispatcher)</em></li>
+<li>隔离子智能体分发器实施 (add-subagent-dispatcher) <em>(from add-skill-invocation-sandbox)</em></li>
 <li>原地同模型热压缩 (ITC) 实施 (add-internal-context-compression) <em>(from add-skill-invocation-sandbox)</em></li>
 <li>自进化技能（Skill）执行沙箱实施 (add-skill-invocation-sandbox) <em>(from add-runtime-cache-stability)</em></li>
 <li>隔离子智能体（Subagent）分发器实施 (add-subagent-dispatcher) <em>(from add-runtime-cache-stability)</em></li>
@@ -1420,7 +1423,10 @@
 <li>Add dynamic MCP-tool permission configurations <em>(from add-p3d-injection-guard)</em></li>
 <li>Operator budgets and daily rate limits enforcement <em>(from add-p3b-cost-and-router)</em></li>
 <li>Logical intent based logical routing mappings <em>(from add-p3b-cost-and-router)</em></li></ul>
-    <h3>暂不建议</h3><ul><li>子智能体分发器 (Subagent Dispatcher)，已移至 add-subagent-dispatcher <em>(from add-skill-invocation-sandbox)</em></li>
+    <h3>暂不建议</h3><ul><li>容器化或进程级沙箱隔离 <em>(from add-subagent-dispatcher)</em></li>
+<li>公开外联子 Agent API 或 UI <em>(from add-subagent-dispatcher)</em></li>
+<li>TS Runtime 接管 provider credential 或 Java model router <em>(from add-subagent-dispatcher)</em></li>
+<li>子智能体分发器 (Subagent Dispatcher)，已移至 add-subagent-dispatcher <em>(from add-skill-invocation-sandbox)</em></li>
 <li>公开子 Agent API / SDK / UI <em>(from add-skill-invocation-sandbox)</em></li>
 <li>容器级或系统级沙箱隔离 <em>(from add-skill-invocation-sandbox)</em></li>
 <li>Provider Adapter alternating roles 门禁适配（本 change 收窄移至后续 change） <em>(from add-runtime-cache-stability)</em></li>
