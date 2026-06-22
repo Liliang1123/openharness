@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V1 / V2 Chat 与 SSE 差异梳理</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #5e687a;
+      --line: #d8dee8;
+      --panel: #ffffff;
+      --page: #f5f7fb;
+      --blue: #2563eb;
+      --green: #138a5b;
+      --amber: #b7791f;
+      --red: #c24132;
+      --code: #101827;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--page);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.55;
+    }
+
+    .wrap {
+      width: min(1180px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 32px 0 56px;
+    }
+
+    header {
+      padding: 28px 0 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 32px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 34px 0 14px;
+      font-size: 22px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 20px 0 10px;
+      font-size: 17px;
+      letter-spacing: 0;
+    }
+
+    p { margin: 8px 0; }
+
+    .lead {
+      max-width: 880px;
+      color: var(--muted);
+      font-size: 17px;
+    }
+
+    .badge-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      min-height: 30px;
+      padding: 4px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      color: var(--muted);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px;
+    }
+
+    .callout {
+      border-left: 4px solid var(--blue);
+      background: #eef4ff;
+      padding: 14px 16px;
+      border-radius: 6px;
+      margin: 18px 0;
+    }
+
+    .callout.warn {
+      border-left-color: var(--amber);
+      background: #fff7e6;
+    }
+
+    .callout.good {
+      border-left-color: var(--green);
+      background: #ebf8f1;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: top;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    th {
+      color: #2b3342;
+      background: #eef2f7;
+      font-weight: 650;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    code {
+      padding: 2px 5px;
+      border-radius: 4px;
+      color: var(--code);
+      background: #eef2f7;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    pre {
+      margin: 12px 0 0;
+      padding: 14px;
+      overflow-x: auto;
+      color: #dbeafe;
+      background: #101827;
+      border-radius: 8px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    ul {
+      margin: 8px 0 0;
+      padding-left: 20px;
+    }
+
+    li { margin: 6px 0; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .step {
+      min-height: 108px;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .step strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--blue);
+      font-size: 14px;
+    }
+
+    .step span {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .ok { color: var(--green); font-weight: 650; }
+    .risk { color: var(--red); font-weight: 650; }
+    .note { color: var(--muted); font-size: 13px; }
+
+    footer {
+      margin-top: 34px;
+      padding-top: 18px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .grid, .grid-3, .flow { grid-template-columns: 1fr; }
+      h1 { font-size: 26px; }
+      .wrap { width: min(100% - 24px, 1180px); padding-top: 18px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>V1 / V2 Chat 与 SSE 差异梳理</h1>
+      <p class="lead">
+        当前系统的 V1 / V2 不是 URL 层面的版本切换。正式聊天入口仍然是
+        <code>/api/v1/chat/{agent_id}/stream</code>，真正决定执行引擎的是
+        <code>AgentSession.loop_version</code>。
+      </p>
+      <div class="badge-row">
+        <span class="badge">checkout: coagents_service_release</span>
+        <span class="badge">branch: release/v1.8.0</span>
+        <span class="badge">date: 2026-05-25</span>
+        <span class="badge">scope: chat stream + session events</span>
+      </div>
+    </header>
+
+    <section>
+      <h2>核心结论</h2>
+      <div class="callout">
+        <strong>一句话：</strong>
+        调用 URL 基本不变；V2 变化在后端执行引擎、事件总线、断线恢复语义和 active stream 草稿补偿。
+        如果客户端只接主 <code>POST /stream</code>，请求仍可运行，但断线后的实时恢复能力不完整。
+      </div>
+
+      <div class="grid-3">
+        <div class="panel">
+          <h3>路由依据</h3>
+          <p>后端读取 <code>session.loop_version</code>。值为 <code>v2</code> 进入新 Agent Loop，否则进入 legacy V1 执行路径。</p>
+        </div>
+        <div class="panel">
+          <h3>客户端入口</h3>
+          <p>主聊天仍是 <code>POST /api/v1/chat/{agent_id}/stream</code>。外部 legacy 接口也会转到同一个平台 chat stream。</p>
+        </div>
+        <div class="panel">
+          <h3>SSE 重点</h3>
+          <p>V2 需要配合 <code>GET /api/v1/chat/sessions/{session_id}/events</code> 和 <code>last_event_id</code> 做恢复。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>请求方式对比</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>场景</th>
+            <th>V1</th>
+            <th>V2</th>
+            <th>调用方感知</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>主聊天流</td>
+            <td><code>POST /api/v1/chat/{agent_id}/stream</code></td>
+            <td><code>POST /api/v1/chat/{agent_id}/stream</code></td>
+            <td>URL 不变，按 session 的 <code>loop_version</code> 分流。</td>
+          </tr>
+          <tr>
+            <td>外部 legacy 聊天</td>
+            <td><code>/api/openapi/v1/external/chat/{agent_id}/stream</code></td>
+            <td>同一接口，内部委托到平台 chat stream</td>
+            <td>URL 不变，但运行路径可能是 V2。</td>
+          </tr>
+          <tr>
+            <td>会话事件订阅</td>
+            <td><code>GET /api/v1/chat/sessions/{session_id}/events</code></td>
+            <td><code>GET /api/v1/chat/sessions/{session_id}/events?last_event_id=...</code></td>
+            <td>V2 下建议必须接入，用于断线恢复和异步事件回流。</td>
+          </tr>
+          <tr>
+            <td>新会话分配</td>
+            <td>无灰度命中或灰度暂停时写入 <code>v1</code></td>
+            <td>灰度配置命中时写入 <code>v2</code></td>
+            <td>同一调用方可能因 org/session 灰度结果不同而走不同引擎。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>执行模型对比</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>维度</th>
+            <th>V1</th>
+            <th>V2</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>执行引擎</td>
+            <td><code>LangGraphAgentExecutor</code> legacy stream path。</td>
+            <td><code>run_session_turn(...)</code> 新 Agent Loop。</td>
+          </tr>
+          <tr>
+            <td>事件模型</td>
+            <td>主要围绕主 SSE 输出、DB writer、ConversationMessage 落库。</td>
+            <td>围绕 <code>RolloutEventKind</code>：文本增量、工具执行、产出物提交、halt、done/error。</td>
+          </tr>
+          <tr>
+            <td>运行态锁</td>
+            <td>有 session run lock / runtime root 兼容逻辑。</td>
+            <td>更明确地绑定 <code>execution_id</code>、active execution、run lock、abort signal。</td>
+          </tr>
+          <tr>
+            <td>中间态恢复</td>
+            <td>主流断了后主要靠 DB 最终消息和轮询。</td>
+            <td>多了 active stream 草稿快照和非持久 runtime event。</td>
+          </tr>
+          <tr>
+            <td>异步协作</td>
+            <td>兼容旧链路，部分结果通过 DB polling 暴露。</td>
+            <td>EventBus + BackgroundTask / rollout events 更适合多智能体、审批、产出物回流。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>SSE 对比</h2>
+      <div class="grid">
+        <div class="panel">
+          <h3>主聊天 SSE：POST /stream</h3>
+          <ul>
+            <li>V1 和 V2 都会返回 <code>start</code>、文本 chunk、工具事件、产出物事件、<code>done</code> 或 <code>error</code>。</li>
+            <li>V1 的事件来自 legacy executor。</li>
+            <li>V2 的事件来自 <code>RolloutEventKind</code>，再投影成兼容的 SSE payload。</li>
+            <li>主流断开后，后端使用 detached streaming 思路继续 drain，避免“看的人断了，执行就立刻死掉”。</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>会话事件 SSE：GET /sessions/{id}/events</h3>
+          <ul>
+            <li>V1：保持 DB polling，用于兼容旧 session。</li>
+            <li>V2：走 EventBus，先订阅实时事件，再按 <code>last_event_id</code> replay Redis Stream。</li>
+            <li>V2 可推 <code>stream_text_delta</code>、<code>stream_snapshot</code>、<code>stream_done</code>、<code>stream_error</code>。</li>
+            <li>如果 cursor gap 无法补齐，会发 <code>stream_resync_required</code>，客户端应重拉消息列表。</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>V2 断线恢复流程</h3>
+      <div class="flow">
+        <div class="step">
+          <strong>1. 主流开始</strong>
+          <span>客户端发 <code>POST /chat/{agent_id}/stream</code>，拿到 <code>session_id</code> 和实时输出。</span>
+        </div>
+        <div class="step">
+          <strong>2. 订阅会话事件</strong>
+          <span>页面同时订阅 <code>GET /sessions/{session_id}/events</code>。</span>
+        </div>
+        <div class="step">
+          <strong>3. 主流断开</strong>
+          <span>后端继续执行；客户端实时 token 展示会中断。</span>
+        </div>
+        <div class="step">
+          <strong>4. 事件流补偿</strong>
+          <span>客户端用 <code>last_event_id</code> 重连，收到 missed events 或 <code>stream_snapshot</code>。</span>
+        </div>
+        <div class="step">
+          <strong>5. 结束刷新</strong>
+          <span>收到 <code>stream_done</code> / <code>stream_error</code> 或最终消息创建事件后，刷新消息列表。</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>客户端适配清单</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>能力</th>
+            <th>是否必须</th>
+            <th>说明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>继续调用 <code>POST /api/v1/chat/{agent_id}/stream</code></td>
+            <td class="ok">必须</td>
+            <td>主聊天入口不变，不需要改成 <code>/api/v2</code>。</td>
+          </tr>
+          <tr>
+            <td>保存 <code>session_id</code></td>
+            <td class="ok">必须</td>
+            <td>后续事件订阅、断线恢复、消息刷新都依赖 session。</td>
+          </tr>
+          <tr>
+            <td>订阅 <code>GET /api/v1/chat/sessions/{session_id}/events</code></td>
+            <td class="ok">V2 强烈要求</td>
+            <td>只接主 stream 时，断线后实时展示会丢；订阅会话事件才能补偿。</td>
+          </tr>
+          <tr>
+            <td>维护 <code>last_event_id</code></td>
+            <td class="ok">V2 强烈要求</td>
+            <td>当前前端因要带 Authorization，用 <code>fetch + ReadableStream</code>，不是原生 EventSource，所以 cursor 要自己传。</td>
+          </tr>
+          <tr>
+            <td>处理 <code>stream_snapshot</code> / <code>stream_text_delta</code></td>
+            <td class="ok">推荐</td>
+            <td>用于主流断开后恢复“正在生成中”的草稿展示。</td>
+          </tr>
+          <tr>
+            <td>处理 <code>stream_resync_required</code></td>
+            <td class="ok">必须</td>
+            <td>表示 cursor 已无法完整 replay，应清 cursor 并重新拉取消息列表。</td>
+          </tr>
+          <tr>
+            <td>只依赖 POST stream</td>
+            <td class="risk">不推荐</td>
+            <td>执行不会必然丢，但断线后的实时 UI 和中间态展示不完整。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>建议的外部调用方式</h2>
+      <div class="callout good">
+        外部或旧客户端如果要完整支持 V2，建议把主流和会话事件流视为一组协议：主流负责本次请求的即时输出，会话事件流负责断线恢复、异步协作结果、最终消息同步。
+      </div>
+      <pre>POST /api/v1/chat/{agent_id}/stream
+Content-Type: application/json
+Authorization: Bearer ...
+
+{
+  "message": "用户输入",
+  "session_id": "可选；续聊时传",
+  "attachments": []
+}
+
+GET /api/v1/chat/sessions/{session_id}/events?last_event_id={cursor}
+Authorization: Bearer ...
+
+需要处理的事件：
+- stream_text_delta
+- stream_snapshot
+- stream_done
+- stream_error
+- stream_resync_required
+- message_created
+- tool_call_event
+- submit_delivery</pre>
+    </section>
+
+    <section>
+      <h2>代码锚点</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>主题</th>
+            <th>文件 / 函数</th>
+            <th>用途</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>新会话 V1/V2 分配</td>
+            <td><code>backend/app/services/agent/rollout_assignment.py</code></td>
+            <td><code>assign_loop_version_for_new_session</code> 根据灰度控制写入 <code>loop_version</code>。</td>
+          </tr>
+          <tr>
+            <td>主聊天入口</td>
+            <td><code>backend/app/api/v1/chat.py::chat_stream</code></td>
+            <td>读取 <code>session.loop_version</code> 并分流到 V1/V2。</td>
+          </tr>
+          <tr>
+            <td>V2 执行</td>
+            <td><code>backend/app/services/agent/session_runner.py::run_session_turn</code></td>
+            <td>新 Agent Loop 的一轮执行入口。</td>
+          </tr>
+          <tr>
+            <td>会话事件流</td>
+            <td><code>backend/app/api/v1/chat.py::stream_session_events</code></td>
+            <td>V2 走 EventBus replay + realtime；V1 走 DB polling。</td>
+          </tr>
+          <tr>
+            <td>前端事件订阅</td>
+            <td><code>agents-frontend/src/api/chat.ts::subscribeSessionEvents</code></td>
+            <td>使用 <code>fetch + ReadableStream</code>，维护 <code>last_event_id</code>。</td>
+          </tr>
+          <tr>
+            <td>active stream 恢复</td>
+            <td><code>agents-frontend/src/utils/activeStreamResume.ts</code></td>
+            <td>处理 <code>stream_snapshot</code>、<code>stream_text_delta</code>、terminal events。</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <footer>
+      生成目的：给 V1/V2 请求方式、SSE 行为、断线恢复与客户端适配边界做一页可共享说明。
+    </footer>
+  </main>
+</body>
+</html>

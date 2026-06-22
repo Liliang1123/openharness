@@ -1,0 +1,107 @@
+import {
+  ModelChatResponseSchema,
+  ToolCallResponseSchema,
+  TraceEventSchema
+} from "@openharness/shared-schema";
+import type {
+  CatalogResponse,
+  ModelChatRequest,
+  ModelChatResponse,
+  ToolCallRequest,
+  ToolCallResponse,
+  TraceEvent,
+  AgentMessage
+} from "./types";
+
+export interface PolicyEvaluateRequest {
+  requestId: string;
+  conversationId: string;
+  userId: string;
+  tenantId: string;
+  traceId: string;
+  toolCalls: { id: string; name: string; argumentsRaw: string; source?: string }[];
+  context: { catalogVersion: string; catalogHash: string; [key: string]: unknown };
+}
+
+export interface PolicyEvaluateResponse {
+  requestId: string;
+  conversationId: string;
+  decisions: {
+    toolCallId: string;
+    decision: string;
+    source?: string;
+    reason?: string;
+    approvalToken?: string;
+  }[];
+}
+
+export interface JavaClient {
+  getCatalog(headers: Record<string, string>): Promise<CatalogResponse>;
+  chat(request: ModelChatRequest, headers: Record<string, string>): Promise<ModelChatResponse>;
+  executeTool(request: ToolCallRequest, headers: Record<string, string>): Promise<ToolCallResponse>;
+  postTrace(event: TraceEvent, headers: Record<string, string>): Promise<void>;
+  evaluatePolicy(request: PolicyEvaluateRequest, headers: Record<string, string>): Promise<PolicyEvaluateResponse>;
+  compress?(messages: AgentMessage[], headers: Record<string, string>): Promise<string>;
+}
+
+export class HttpJavaClient implements JavaClient {
+  constructor(private readonly baseUrl: string) {}
+
+  async getCatalog(headers: Record<string, string>): Promise<CatalogResponse> {
+    return this.request<CatalogResponse>("/api/v1/tools/catalog", { method: "GET", headers });
+  }
+
+  async chat(request: ModelChatRequest, headers: Record<string, string>): Promise<ModelChatResponse> {
+    const response = await this.request<unknown>("/api/v1/model/chat", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+    return ModelChatResponseSchema.parse(response);
+  }
+
+  async executeTool(request: ToolCallRequest, headers: Record<string, string>): Promise<ToolCallResponse> {
+    const response = await this.request<unknown>("/api/v1/tools/execute", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+    return ToolCallResponseSchema.parse(response);
+  }
+
+  async postTrace(event: TraceEvent, headers: Record<string, string>): Promise<void> {
+    TraceEventSchema.parse(event);
+    await this.request<unknown>("/api/v1/trace/events", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(event)
+    });
+  }
+
+  async evaluatePolicy(request: PolicyEvaluateRequest, headers: Record<string, string>): Promise<PolicyEvaluateResponse> {
+    return this.request<PolicyEvaluateResponse>("/api/v1/policies/tool-review/evaluate", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+  }
+
+  async compress(messages: AgentMessage[], headers: Record<string, string>): Promise<string> {
+    const response = await this.request<{ summary: string }>("/api/v1/model/compress", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ messages })
+    });
+    return response.summary;
+  }
+
+  private async request<T>(path: string, init: RequestInit): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${path}`, init);
+    const text = await response.text();
+    const body = text ? JSON.parse(text) : undefined;
+    if (!response.ok) {
+      throw new Error(JSON.stringify(body));
+    }
+    return body as T;
+  }
+}

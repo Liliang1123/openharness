@@ -1,0 +1,213 @@
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  deleteSession,
+  getSession,
+  listSessions,
+  sendAgentChatStream,
+  type SSEEvent,
+  type PendingApproval,
+  type SessionMeta
+} from "./api";
+import { ApprovalCard } from "./ApprovalCard";
+import { SessionList } from "./SessionList";
+import { newId } from "./trace";
+import "./App.css";
+
+interface ChatMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+  approval?: PendingApproval & { conversationId: string };
+}
+
+const userId = (import.meta.env.VITE_DEV_USER_ID as string | undefined) ?? "user-001";
+const tenantId = (import.meta.env.VITE_DEV_TENANT_ID as string | undefined) ?? "tenant-001";
+
+export function App() {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [events, setEvents] = useState<SSEEvent[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [sessions, setSessions] = useState<SessionMeta[]>([]);
+  const [conversationId, setConversationId] = useState<string>(() => newId("conv"));
+
+  const refreshSessions = useCallback(async () => {
+    try {
+      const list = await listSessions(userId, tenantId);
+      setSessions(list);
+    } catch (caught) {
+      console.error("[sessions] list failed:", caught);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshSessions();
+  }, [refreshSessions]);
+
+  const sessionMessagesToChat = useMemo(
+    () =>
+      (raw: { role: string; content: unknown }[], pendingApprovals: PendingApproval[] = [], id = conversationId): ChatMessage[] => {
+        const chat = raw
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({
+            role: m.role as "user" | "assistant",
+            content: typeof m.content === "string" ? m.content : JSON.stringify(m.content)
+          }));
+        return [
+          ...chat,
+          ...pendingApprovals.map((approval) => ({
+            role: "system" as const,
+            content: "",
+            approval: { ...approval, conversationId: id }
+          }))
+        ];
+      },
+    [conversationId]
+  );
+
+  async function selectSession(id: string) {
+    if (busy) return;
+    setError("");
+    setEvents([]);
+    setConversationId(id);
+    try {
+      const data = await getSession(userId, tenantId, id);
+      setMessages(data ? sessionMessagesToChat(data.messages, data.pendingApprovals ?? [], id) : []);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Load failed");
+    }
+  }
+
+  function newSession() {
+    if (busy) return;
+    setError("");
+    setEvents([]);
+    setMessages([]);
+    setConversationId(newId("conv"));
+  }
+
+  async function removeSession(id: string) {
+    try {
+      await deleteSession(userId, tenantId, id);
+      if (id === conversationId) newSession();
+      await refreshSessions();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Delete failed");
+    }
+  }
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const text = input.trim();
+    if (!text || busy) return;
+
+    setBusy(true);
+    setError("");
+    setEvents([]);
+    setMessages((m) => [...m, { role: "user", content: text }]);
+    setInput("");
+
+    try {
+      await sendAgentChatStream(
+        {
+          conversationId,
+          message: text,
+          traceId: newId("trace"),
+          requestId: newId("req"),
+          userId,
+          tenantId
+        },
+        (ev) => {
+          setEvents((prev) => [...prev, ev]);
+          if (ev.event === "model_call_start") {
+            setMessages((m) => [...m, { role: "system", content: "🤔 思考中..." }]);
+          } else if (ev.event === "tool_call") {
+            setMessages((m) => [...m, { role: "system", content: `🔧 调用工具: ${ev.data.toolName}` }]);
+          } else if (ev.event === "tool_result" && ev.data.status === "denied") {
+            setMessages((m) => [...m, { role: "system", content: `❌ 工具被拒绝: ${ev.data.toolName}` }]);
+          } else if (ev.event === "approval_requested" || (ev.event === "tool_result" && ev.data.status === "pending_approval")) {
+            setMessages((m) => [
+              ...m,
+              {
+                role: "system",
+                content: "",
+                approval: {
+                  askUserId: String(ev.data.askUserId ?? ""),
+                  conversationId,
+                  executionId: String(ev.data.executionId ?? ""),
+                  toolCallId: String(ev.data.toolCallId ?? ""),
+                  toolName: String(ev.data.toolName ?? ""),
+                  reason: ev.data.reason ? String(ev.data.reason) : undefined
+                }
+              }
+            ]);
+          } else if (ev.event === "final_answer") {
+            setMessages((m) => [...m, { role: "assistant", content: String(ev.data.answer ?? "") }]);
+          }
+        }
+      );
+      await refreshSessions();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Request failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="app-shell">
+      <SessionList
+        sessions={sessions}
+        activeId={conversationId}
+        onSelect={selectSession}
+        onNew={newSession}
+        onDelete={removeSession}
+      />
+      <section className="chat-pane" aria-label="Chat">
+        <div className="messages">
+          {messages.length === 0 ? (
+            <div className="empty-state">OpenHarness P2</div>
+          ) : (
+            messages.map((msg, i) => {
+              if (msg.approval) {
+                return (
+                  <ApprovalCard
+                    key={`approval-${i}`}
+                    askUserId={msg.approval.askUserId}
+                    conversationId={msg.approval.conversationId}
+                    executionId={msg.approval.executionId}
+                    toolCallId={msg.approval.toolCallId}
+                    toolName={msg.approval.toolName}
+                    reason={msg.approval.reason}
+                    onResolved={() => {}}
+                  />
+                );
+              }
+              return (
+                <div className={`message ${msg.role}`} key={`${msg.role}-${i}`}>
+                  <span>{msg.content}</span>
+                </div>
+              );
+            })
+          )}
+        </div>
+        {error && <div className="error">{error}</div>}
+        <form className="composer" onSubmit={submit}>
+          <label htmlFor="message">Message</label>
+          <input
+            id="message"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="输入消息"
+            autoComplete="off"
+          />
+          <button type="submit" disabled={busy}>Send</button>
+        </form>
+      </section>
+      <aside className="trace-pane">
+        <h2>SSE Events</h2>
+        <pre>{JSON.stringify(events, null, 2)}</pre>
+      </aside>
+    </main>
+  );
+}

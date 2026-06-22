@@ -1,0 +1,1838 @@
+{
+  "schemaVersion": 1,
+  "project": {
+    "name": "openharness",
+    "root": ".",
+    "updatedAt": "2026-06-22"
+  },
+  "entries": [
+    {
+      "changeId": "add-skill-invocation-sandbox",
+      "title": "Add Skill Invocation Sandbox",
+      "status": "verified",
+      "date": "2026-06-22",
+      "type": "feature",
+      "summary": "实现自进化技能（Skill）执行沙箱。包含 YAML 元数据解析器、`invoke_skill` 拦截与延迟注入引擎、兼容 Alternating Roles 门禁适配以及商业敏感脚本的 best-effort 物理碎纸销毁机制。",
+      "tags": [
+        "skills",
+        "sandbox",
+        "deferred-injection",
+        "shredder"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/add-skill-invocation-sandbox/proposal.md",
+        "design": "openspec/changes/add-skill-invocation-sandbox/design.md",
+        "tasks": "openspec/changes/add-skill-invocation-sandbox/tasks.md",
+        "specDeltas": [
+          "openspec/changes/add-skill-invocation-sandbox/specs/agent-loop/spec.md",
+          "openspec/changes/add-skill-invocation-sandbox/specs/provider-adapter/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-loop/spec.md",
+          "openspec/specs/provider-adapter/spec.md"
+        ]
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-22-add-skill-invocation-sandbox.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/skills/types.ts",
+          "agent-runtime/src/skills/loader.ts",
+          "agent-runtime/src/skills/shredder.ts",
+          "agent-runtime/src/skills/capabilities.ts",
+          "agent-runtime/src/agentLoop.ts",
+          "agent-runtime/src/agentExecutionRunner.ts",
+          "agent-runtime/src/toolRegistry.ts"
+        ],
+        "testFiles": [
+          "agent-runtime/test/skills/loader.test.ts",
+          "agent-runtime/test/skills/shredder.test.ts",
+          "agent-runtime/test/skills/providerMessageCapabilities.test.ts",
+          "agent-runtime/test/agentExecutionRunner.test.ts",
+          "agent-runtime/test/toolRegistryMerge.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test",
+          "result": "passed",
+          "note": "205 tests passed across 39 files, including new tests for loader, shredder, and provider capabilities mapping."
+        },
+        {
+          "command": "npx openspec validate add-skill-invocation-sandbox --strict --no-interactive",
+          "result": "passed",
+          "note": "Change 'add-skill-invocation-sandbox' is valid."
+        }
+      ]
+    },
+    {
+      "changeId": "add-runtime-cache-stability",
+      "title": "Add Runtime Cache Stability",
+      "status": "archived",
+      "date": "2026-06-22",
+      "type": "feature",
+      "summary": "重构运行时缓存机制以优化 Prompt Cache 命中率并防范资源泄漏。引入策略化双缓存断点、System Prompt 字节级静止与 [session context] 动态注入，并对 Tools Schema 锁定进行内存上限 FIFO 淘汰控制及持久化 transient 隔离。",
+      "tags": [
+        "cache-stability",
+        "prompt-cache",
+        "agent-runtime",
+        "session-context"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-22-add-runtime-cache-stability/proposal.md",
+        "design": "openspec/changes/archive/2026-06-22-add-runtime-cache-stability/design.md",
+        "tasks": "openspec/changes/archive/2026-06-22-add-runtime-cache-stability/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-22-add-runtime-cache-stability/specs/cache-hints/spec.md",
+          "openspec/changes/archive/2026-06-22-add-runtime-cache-stability/specs/context-builder/spec.md",
+          "openspec/changes/archive/2026-06-22-add-runtime-cache-stability/specs/prompt-registry/spec.md",
+          "openspec/changes/archive/2026-06-22-add-runtime-cache-stability/specs/agent-runtime/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/cache-hints/spec.md",
+          "openspec/specs/context-builder/spec.md",
+          "openspec/specs/prompt-registry/spec.md",
+          "openspec/specs/agent-runtime/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-22-add-runtime-cache-stability/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-22-add-runtime-cache-stability.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/cacheHints.ts",
+          "agent-runtime/src/toolRegistry.ts",
+          "agent-runtime/src/contextBuilder.ts",
+          "agent-runtime/src/prompts/registry.ts",
+          "agent-runtime/src/agentLoop.ts",
+          "agent-runtime/src/agentExecutionRunner.ts",
+          "agent-runtime/src/jsonFileHistoryStore.ts"
+        ],
+        "testFiles": [
+          "agent-runtime/test/cacheHints.test.ts",
+          "agent-runtime/test/toolRegistryMerge.test.ts",
+          "agent-runtime/test/historyLayering.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test",
+          "result": "passed",
+          "note": "36 test files passed, 195 tests passed. Fully verified agent runtime cache and stability updates."
+        },
+        {
+          "command": "npx openspec validate add-runtime-cache-stability --strict --no-interactive",
+          "result": "passed",
+          "note": "Change 'add-runtime-cache-stability' is valid."
+        },
+        {
+          "command": "npx openspec archive add-runtime-cache-stability --yes",
+          "result": "passed",
+          "note": "archived as 2026-06-22-add-runtime-cache-stability"
+        }
+      ],
+      "closeout": "docs/design/2026-06-22-add-runtime-cache-stability-closeout.md",
+      "next": [
+        "自进化技能（Skill）执行沙箱实施 (add-skill-invocation-sandbox)",
+        "隔离子智能体（Subagent）分发器实施 (add-subagent-dispatcher)",
+        "原地同模型热压缩 (ITC) 实施 (add-internal-context-compression)"
+      ],
+      "nonGoals": [
+        "Provider Adapter alternating roles 门禁适配（本 change 收窄移至后续 change）",
+        "原地同模型热压缩 (ITC)",
+        "子智能体分发器 (Subagent Dispatcher)"
+      ]
+    },
+    {
+      "changeId": "add-agent-definition-model-selection",
+      "title": "Agent Definition Model Selection",
+      "status": "archived",
+      "date": "2026-06-18",
+      "type": "feature",
+      "summary": "让 selected Agent Definition 的可选 model 成为本轮 Java ModelChatRequest.model 逻辑模型 id；TS Runtime 不持有 provider credentials，也不复制 Java model-router 配置或校验 route 存在性。",
+      "tags": [
+        "agent-definition",
+        "model-selection",
+        "agent-runtime",
+        "model-router"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-18-add-agent-definition-model-selection/proposal.md",
+        "design": "openspec/changes/archive/2026-06-18-add-agent-definition-model-selection/design.md",
+        "tasks": "openspec/changes/archive/2026-06-18-add-agent-definition-model-selection/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-18-add-agent-definition-model-selection/specs/agent-definition/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-definition/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-18-add-agent-definition-model-selection/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-18-add-agent-definition-model-selection.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/agentExecutionRunner.ts"
+        ],
+        "testFiles": [
+          "agent-runtime/test/agentRuntime.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- agentRuntime",
+          "result": "passed",
+          "note": "TDD RED first failed with selected/unknown model still default; GREEN passed 21 tests after runtime model resolution"
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "npx openspec validate add-agent-definition-model-selection --strict --no-interactive",
+          "result": "passed",
+          "note": "valid; PostHog flush network error ignored after exit 0"
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": "shared-schema, agent-runtime, frontend typecheck passed"
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "sandbox run failed on 127.0.0.1 listen EPERM; escalated rerun passed 54 files / 250 tests across shared-schema, agent-runtime, frontend, integration-tests"
+        },
+        {
+          "command": "mvn test -f backend/pom.xml",
+          "result": "passed",
+          "note": "26 backend tests passed; Mockito dynamic agent warnings only"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "23 items passed; PostHog flush network error ignored after exit 0"
+        },
+        {
+          "command": "npx openspec archive add-agent-definition-model-selection --yes",
+          "result": "passed",
+          "note": "archived as 2026-06-18-add-agent-definition-model-selection; PostHog flush network error ignored after exit 0"
+        },
+        {
+          "command": "pnpm dashboard:check",
+          "result": "passed",
+          "note": "generated development-log.md and index.html are current after archived sync"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "post-archive validation passed: 22 specs passed, 0 failed; PostHog flush network error ignored after exit 0"
+        },
+        {
+          "command": "npx openspec list",
+          "result": "passed",
+          "note": "No active changes found"
+        }
+      ],
+      "closeout": "docs/design/2026-06-18-add-agent-definition-model-selection-closeout.md",
+      "next": [
+        "No active work remains for model selection",
+        "Future SDK/UI/YAML/CRUD/hot reload/tenant dynamic definitions require separate OpenSpec changes"
+      ],
+      "nonGoals": [
+        "Java model router implementation changes",
+        "Provider credential handling in TS Runtime or Frontend",
+        "TS-side Java route existence validation",
+        "SDK changes",
+        "Frontend UI",
+        "YAML support",
+        "Remote CRUD APIs",
+        "Hot reload",
+        "Tenant-scoped dynamic definitions"
+      ],
+      "notes": [
+        "Selected definition model is a logical model id forwarded to Java Backend",
+        "Omitted model preserves existing default logical model behavior",
+        "Unknown logical model handling remains Java Backend router/fallback behavior"
+      ]
+    },
+    {
+      "changeId": "harden-project-dashboard-validation",
+      "title": "Harden Project Dashboard Validation",
+      "status": "verified",
+      "date": "2026-06-18",
+      "type": "tooling",
+      "summary": "加固开发导航台 schema 与渲染脚本，新增内置语义校验、生成产物 check 模式、package scripts，并补齐 archived 记录 closeout 闭环。",
+      "tags": [
+        "project-dashboard",
+        "schema",
+        "renderer",
+        "validation",
+        "tooling"
+      ],
+      "implementation": {
+        "sourceFiles": [
+          "docs/project-dashboard/development-log.schema.json",
+          "docs/project-dashboard/scripts/render-dashboard.mjs",
+          "package.json",
+          "AGENTS.md",
+          "docs/project-dashboard/README.md",
+          "docs/project-dashboard/development-log.json",
+          "docs/design/2026-06-05-add-p5d-eval-cli-closeout.md",
+          "docs/design/2026-06-05-add-p5a-memory-and-eval-closeout.md",
+          "docs/design/2026-06-18-project-dashboard-hardening.md"
+        ],
+        "testFiles": []
+      },
+      "verification": [
+        {
+          "command": "node docs/project-dashboard/scripts/render-dashboard.mjs",
+          "result": "passed",
+          "note": "validated development-log.json and regenerated development-log.md/index.html"
+        },
+        {
+          "command": "AJV Draft-07 validation via local ajv@8.20.0",
+          "result": "passed",
+          "note": "development-log.schema.json compiled and development-log.json validated successfully"
+        },
+        {
+          "command": "pnpm dashboard:check",
+          "result": "passed",
+          "note": "generated outputs are current"
+        }
+      ],
+      "closeout": "docs/design/2026-06-18-project-dashboard-hardening.md",
+      "next": [
+        "Optionally wire pnpm dashboard:check into CI",
+        "Optionally add fixture tests for invalid dashboard data cases"
+      ],
+      "nonGoals": [
+        "Cross-project dashboard template extraction",
+        "Business runtime behavior changes",
+        "CI workflow changes"
+      ],
+      "notes": [
+        "Direct tooling hardening; no OpenSpec change created",
+        "Renderer remains dependency-free and requires Node.js >= 18"
+      ]
+    },
+    {
+      "changeId": "add-agent-definition-observability",
+      "title": "Agent Definition Observability",
+      "status": "archived",
+      "date": "2026-06-18",
+      "type": "feature",
+      "summary": "为 selected Agent Definition 增加 model request metadata 与 TS trace attribution，记录 agentId、promptRef、工具过滤模式和工具名称摘要，便于排查 prompt/tool-filtering 问题。",
+      "tags": [
+        "agent-definition",
+        "observability",
+        "agent-runtime",
+        "shared-schema",
+        "trace"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-18-add-agent-definition-observability/proposal.md",
+        "design": "openspec/changes/archive/2026-06-18-add-agent-definition-observability/design.md",
+        "tasks": "openspec/changes/archive/2026-06-18-add-agent-definition-observability/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-18-add-agent-definition-observability/specs/agent-definition/spec.md",
+          "openspec/changes/archive/2026-06-18-add-agent-definition-observability/specs/agent-runtime/spec.md",
+          "openspec/changes/archive/2026-06-18-add-agent-definition-observability/specs/shared-schema/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-definition/spec.md",
+          "openspec/specs/agent-runtime/spec.md",
+          "openspec/specs/shared-schema/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-18-add-agent-definition-observability/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-18-add-agent-definition-observability.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "packages/shared-schema/src/index.ts",
+          "agent-runtime/src/trace.ts",
+          "agent-runtime/src/agentExecutionRunner.ts"
+        ],
+        "testFiles": [
+          "packages/shared-schema/test/schema.test.ts",
+          "agent-runtime/test/agentRuntime.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/shared-schema test -- schema",
+          "result": "passed",
+          "note": "32 tests passed (TDD RED then GREEN)"
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- agentRuntime",
+          "result": "passed",
+          "note": "19 tests passed (TDD RED then GREEN)"
+        },
+        {
+          "command": "pnpm --filter @openharness/shared-schema typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "npx openspec validate add-agent-definition-observability --strict --no-interactive",
+          "result": "passed",
+          "note": "valid; PostHog flush network error ignored after exit 0"
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": "shared-schema, agent-runtime, frontend typecheck passed"
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "shared-schema 32, agent-runtime 188, frontend 11, integration-tests 17; rerun outside sandbox due listen EPERM"
+        },
+        {
+          "command": "mvn test -f backend/pom.xml",
+          "result": "passed",
+          "note": "BUILD SUCCESS, 26 tests; rerun outside sandbox due Mockito/ByteBuddy self-attach"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "23 passed / 0 failed; PostHog flush network error ignored after exit 0"
+        }
+      ],
+      "closeout": "docs/design/2026-06-18-add-agent-definition-observability-closeout.md",
+      "next": [
+        "Frontend display for selected agent / tool filtering summary (separate OpenSpec change)",
+        "AgentDefinition.model provider/model routing (separate OpenSpec change)",
+        "YAML support",
+        "SDK",
+        "remote CRUD",
+        "hot reload",
+        "tenant-scoped dynamic definitions"
+      ],
+      "nonGoals": [
+        "YAML support",
+        "SDK changes",
+        "Frontend UI",
+        "Remote CRUD APIs",
+        "Hot reload",
+        "Tenant-scoped dynamic definitions",
+        "Java model router or AgentDefinition.model enforcement",
+        "Java policy changes",
+        "Java Tool Catalog changes",
+        "Model-visible message changes"
+      ],
+      "notes": [
+        "Metadata is internal audit data on ModelChatRequest.meta, not model-visible messages",
+        "Tool metadata stores names only; it does not duplicate full tool schemas",
+        "Trace attribution uses top-level TraceEvent.agentId already present in shared schema/backend DTO"
+      ]
+    },
+    {
+      "changeId": "add-agent-definition-tool-filtering",
+      "title": "Agent Definition Tool Filtering",
+      "status": "archived",
+      "date": "2026-06-18",
+      "type": "feature",
+      "summary": "让 selected Agent Definition.tools 过滤本轮 model-visible tools，并在模型返回不在定义范围内的 tool call 时于 beforeToolUse/execute 前 fail closed。",
+      "tags": [
+        "agent-definition",
+        "tool-filtering",
+        "agent-runtime",
+        "mcp-tools",
+        "tool-registry"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-18-add-agent-definition-tool-filtering/proposal.md",
+        "design": "openspec/changes/archive/2026-06-18-add-agent-definition-tool-filtering/design.md",
+        "tasks": "openspec/changes/archive/2026-06-18-add-agent-definition-tool-filtering/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-18-add-agent-definition-tool-filtering/specs/agent-definition/spec.md",
+          "openspec/changes/archive/2026-06-18-add-agent-definition-tool-filtering/specs/mcp-tools/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-definition/spec.md",
+          "openspec/specs/mcp-tools/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-18-add-agent-definition-tool-filtering/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-18-add-agent-definition-tool-filtering.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/agentExecutionRunner.ts"
+        ],
+        "testFiles": [
+          "agent-runtime/test/agentRuntime.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- agentRuntime",
+          "result": "passed",
+          "note": "18 tests passed (TDD RED then GREEN)"
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "npx openspec validate add-agent-definition-tool-filtering --strict --no-interactive",
+          "result": "passed",
+          "note": "valid"
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": "shared-schema, agent-runtime, frontend typecheck passed"
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "shared-schema 29, agent-runtime 187, frontend 11, integration-tests 17; rerun outside sandbox due listen EPERM"
+        },
+        {
+          "command": "mvn test -f backend/pom.xml",
+          "result": "passed",
+          "note": "BUILD SUCCESS, 26 tests; rerun outside sandbox due Mockito/ByteBuddy self-attach"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "23 passed / 0 failed; PostHog flush network error ignored after exit 0"
+        }
+      ],
+      "closeout": "docs/design/2026-06-18-add-agent-definition-tool-filtering-closeout.md",
+      "next": [
+        "audit metadata/trace attributes for selected tool list (separate OpenSpec change)",
+        "YAML support",
+        "SDK",
+        "Frontend UI",
+        "remote CRUD",
+        "hot reload",
+        "tenant-scoped dynamic definitions"
+      ],
+      "nonGoals": [
+        "Java policy changes",
+        "Java Tool Catalog changes",
+        "MCP server configuration or mcpAllowList changes",
+        "YAML support",
+        "SDK changes",
+        "Frontend UI",
+        "Remote CRUD APIs",
+        "Hot reload",
+        "Tenant-scoped dynamic definitions",
+        "Java model router or AgentDefinition.model enforcement"
+      ],
+      "notes": [
+        "Filtering happens after ToolRegistry frozen catalog; source maps/catalog version/hash remain unchanged",
+        "built-in default-agent with tools: [] preserves current tool exposure for backward compatibility",
+        "custom selected definitions with tools: [] become no-tool agents",
+        "unknown tool names in definitions are tolerated and match no frozen tool",
+        "disallowed tool calls fail closed with POLICY_DENY before beforeToolUse or execution"
+      ]
+    },
+    {
+      "changeId": "add-agent-definition-runtime-selection",
+      "title": "Agent Definition Runtime Selection",
+      "status": "archived",
+      "date": "2026-06-18",
+      "type": "feature",
+      "summary": "让 sync/stream chat 请求通过可选 agentId 选择已加载的 Agent Definition，将选中定义的 promptRef 传递给 PromptRegistry 驱动 system prompt 解析，未知 agentId 返回 400 拒绝，未知 promptRef 在 Java model call 前 fail closed。",
+      "tags": [
+        "agent-definition",
+        "prompt-registry",
+        "agent-runtime",
+        "runtime-selection"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-18-add-agent-definition-runtime-selection/proposal.md",
+        "design": "openspec/changes/archive/2026-06-18-add-agent-definition-runtime-selection/design.md",
+        "tasks": "openspec/changes/archive/2026-06-18-add-agent-definition-runtime-selection/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-18-add-agent-definition-runtime-selection/specs/agent-definition/spec.md",
+          "openspec/changes/archive/2026-06-18-add-agent-definition-runtime-selection/specs/prompt-registry/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-definition/spec.md",
+          "openspec/specs/prompt-registry/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-18-add-agent-definition-runtime-selection/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-18-add-agent-definition-runtime-selection.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/types.ts",
+          "agent-runtime/src/server.ts",
+          "agent-runtime/src/agentExecutionRunner.ts",
+          "agent-runtime/src/agentStreamLoop.ts",
+          "agent-runtime/src/prompts/registry.ts"
+        ],
+        "testFiles": [
+          "agent-runtime/test/agentRuntime.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- agentRuntime",
+          "result": "passed",
+          "note": "13 tests passed (TDD RED then GREEN)"
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "npx openspec validate add-agent-definition-runtime-selection --strict --no-interactive",
+          "result": "passed",
+          "note": "valid"
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "shared-schema 29, agent-runtime 182, frontend 11, integration-tests 17"
+        },
+        {
+          "command": "mvn test -f backend/pom.xml",
+          "result": "passed",
+          "note": "BUILD SUCCESS, 26 tests"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "23 passed / 0 failed"
+        }
+      ],
+      "closeout": "docs/design/2026-06-18-add-agent-definition-runtime-selection-closeout.md",
+      "next": [
+        "tools allow-list enforcement via ToolRegistry filtering (new OpenSpec change)",
+        "YAML support",
+        "SDK",
+        "UI",
+        "remote CRUD",
+        "hot reload",
+        "tenant-scoped dynamic definitions"
+      ],
+      "nonGoals": [
+        "Tool allow-list enforcement / filtering",
+        "YAML support",
+        "SDK changes",
+        "Frontend UI",
+        "Remote CRUD APIs",
+        "Hot reload",
+        "Tenant-scoped dynamic definitions",
+        "Java model router changes or model hint enforcement"
+      ],
+      "notes": [
+        "agentId remains optional on chat requests for backward compatibility",
+        "Selection happens in route handler before runner.start() / streamLoop.stream()",
+        "Unknown agentId returns 400 AGENT_DEFINITION_NOT_FOUND",
+        "Unknown promptRef fails closed before Java /api/v1/model/chat with MODEL_ERROR"
+      ]
+    },
+    {
+      "changeId": "add-agent-definition-loader",
+      "title": "Add Agent Definition Loader",
+      "status": "archived",
+      "date": "2026-06-18",
+      "type": "feature",
+      "summary": "为 TS Runtime 添加本地 JSON Agent Definition Loader，定义 AgentDefinitionSchema 共享契约（agentId、promptRef、tools、model），从 agent-runtime/agents/ 读取 JSON 定义文件，支持 default fallback 和 fail-closed 校验。",
+      "tags": [
+        "agent-definition",
+        "shared-schema",
+        "agent-runtime",
+        "agent-loader"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-18-add-agent-definition-loader/proposal.md",
+        "design": "openspec/changes/archive/2026-06-18-add-agent-definition-loader/design.md",
+        "tasks": "openspec/changes/archive/2026-06-18-add-agent-definition-loader/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-18-add-agent-definition-loader/specs/agent-definition/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-definition/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-18-add-agent-definition-loader/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-18-add-agent-definition-loader.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/agentDefinitionLoader.ts",
+          "agent-runtime/src/server.ts",
+          "packages/shared-schema/src/index.ts",
+          "docs/design/2026-06-18-agent-definition-loader-design.md"
+        ],
+        "testFiles": [
+          "agent-runtime/test/agentDefinitionLoader.test.ts",
+          "agent-runtime/test/agentRuntime.test.ts",
+          "packages/shared-schema/test/schema.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/shared-schema test -- schema",
+          "result": "passed",
+          "note": "29 tests passed"
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- agentRuntime agentDefinitionLoader",
+          "result": "passed",
+          "note": "15 tests passed"
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "shared-schema 29, agent-runtime 177, frontend 11, integration-tests 17"
+        },
+        {
+          "command": "mvn test -f backend/pom.xml",
+          "result": "passed",
+          "note": "BUILD SUCCESS, 26 tests"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "22 passed / 0 failed"
+        }
+      ],
+      "closeout": "docs/design/2026-06-18-add-agent-definition-loader-closeout.md",
+      "next": [
+        "tools allow-list enforcement via ToolRegistry/PolicyContext (new OpenSpec change)",
+        "YAML support",
+        "SDK package",
+        "Agent Definition API/UI",
+        "tenant-scoped dynamic definitions"
+      ],
+      "nonGoals": [
+        "YAML support",
+        "SDK package",
+        "Frontend UI",
+        "Remote CRUD APIs",
+        "Hot reload",
+        "Tenant-scoped dynamic definitions"
+      ],
+      "notes": [
+        "v0 supports JSON only",
+        "Definitions stored under agent-runtime/agents/",
+        "promptRef format: promptId@version",
+        "tools is allow-list of tool names, currently metadata only"
+      ]
+    },
+    {
+      "changeId": "add-p5e-eval-fixtures",
+      "title": "Add eval fixtures and smoke script",
+      "status": "archived",
+      "date": "2026-06-18",
+      "type": "feature",
+      "summary": "为 Eval CLI 添加 canonical deterministic fixture 文件和 smoke script，通过 --mock-answer 模式实现本地 deterministic 验证，不依赖 Java Backend、Frontend 或真实 provider。",
+      "tags": [
+        "eval-replay",
+        "eval-fixtures",
+        "eval-cli",
+        "agent-runtime"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-18-add-p5e-eval-fixtures/proposal.md",
+        "design": "openspec/changes/archive/2026-06-18-add-p5e-eval-fixtures/design.md",
+        "tasks": "openspec/changes/archive/2026-06-18-add-p5e-eval-fixtures/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-18-add-p5e-eval-fixtures/specs/eval-replay/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/eval-replay/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-18-add-p5e-eval-fixtures/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p5e-eval-fixtures.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/evalCli.ts",
+          "agent-runtime/fixtures/eval/smoke.jsonl",
+          "agent-runtime/package.json"
+        ],
+        "testFiles": [
+          "agent-runtime/test/evalCli.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- evalCli",
+          "result": "passed",
+          "note": "7 tests passed including fixture parse and smoke"
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime run eval:smoke",
+          "result": "passed",
+          "note": "1 result + 1 summary, exit 0"
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "shared-schema 27, agent-runtime 168, frontend 11, integration-tests 17"
+        },
+        {
+          "command": "mvn test -f backend/pom.xml",
+          "result": "passed",
+          "note": "BUILD SUCCESS, 26 tests"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "21 specs passed"
+        }
+      ],
+      "closeout": "docs/design/2026-06-18-add-p5e-eval-fixtures-closeout.md",
+      "next": [
+        "CI pipeline wiring",
+        "production benchmark",
+        "dashboard",
+        "real-provider eval"
+      ],
+      "nonGoals": [
+        "CI workflow files",
+        "dashboards",
+        "production benchmark datasets",
+        "fixture auto-discovery",
+        "real-provider evals"
+      ],
+      "notes": [
+        "Fixtures stored under agent-runtime/fixtures/eval/",
+        "Added --mock-answer deterministic mode for smoke runs",
+        "Smoke is CLI-path validation only, not model-quality evaluation"
+      ]
+    },
+    {
+      "changeId": "add-p5d-eval-cli",
+      "title": "Add eval replay CLI",
+      "status": "archived",
+      "date": "2026-06-05",
+      "type": "feature",
+      "summary": "为 TS Runtime 添加本地 Eval CLI，支持从 JSON array 或 JSONL 文件读取 EvalCase fixtures，通过 EvalReplayHarness 顺序 replay，输出 per-case JSONL 结果和 summary，退出码映射 pass/fail 状态。",
+      "tags": [
+        "eval-replay",
+        "eval-cli",
+        "agent-runtime"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-05-add-p5d-eval-cli/proposal.md",
+        "design": "openspec/changes/archive/2026-06-05-add-p5d-eval-cli/design.md",
+        "tasks": "openspec/changes/archive/2026-06-05-add-p5d-eval-cli/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-05-add-p5d-eval-cli/specs/eval-replay/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/eval-replay/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-05-add-p5d-eval-cli/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p5d-eval-cli.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/evalCli.ts",
+          "agent-runtime/package.json"
+        ],
+        "testFiles": [
+          "agent-runtime/test/evalCli.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- evalCli",
+          "result": "passed",
+          "note": "JSON array, JSONL, fail exit code, invalid input, summary"
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "mvn test",
+          "result": "passed",
+          "note": "BUILD SUCCESS"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": ""
+        }
+      ],
+      "closeout": "docs/design/2026-06-05-add-p5d-eval-cli-closeout.md",
+      "next": [
+        "eval fixtures and smoke script (P5e)",
+        "CI pipeline wiring",
+        "real-provider evals with credentials/cost controls"
+      ],
+      "nonGoals": [
+        "frontend eval UI",
+        "remote eval service",
+        "production scheduler",
+        "benchmark dashboard",
+        "automatic fixture discovery",
+        "persistent eval history"
+      ],
+      "notes": [
+        "CLI is TS Runtime owned",
+        "Input supports JSON array and JSONL",
+        "Output uses JSONL for per-case results plus summary",
+        "CLI exits 0 only when all cases pass"
+      ]
+    },
+    {
+      "changeId": "add-p5a-memory-and-eval",
+      "title": "Add P5a memory store and eval replay harness",
+      "status": "archived",
+      "date": "2026-06-05",
+      "type": "feature",
+      "summary": "为 TS Runtime 添加租户/用户隔离的长期记忆存储原语（MemoryStore）和离线 eval replay harness，通过共享 Zod schema 定义 MemoryFact 和 EvalCase 契约，支持 literal search、JSON 持久化、deterministic replay pass/fail 判定。",
+      "tags": [
+        "long-term-memory",
+        "eval-replay",
+        "shared-schema",
+        "memory-store",
+        "agent-runtime"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-05-add-p5a-memory-and-eval/proposal.md",
+        "design": "openspec/changes/archive/2026-06-05-add-p5a-memory-and-eval/design.md",
+        "tasks": "openspec/changes/archive/2026-06-05-add-p5a-memory-and-eval/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-05-add-p5a-memory-and-eval/specs/eval-replay/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p5a-memory-and-eval/specs/long-term-memory/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p5a-memory-and-eval/specs/shared-schema/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/eval-replay/spec.md",
+          "openspec/specs/long-term-memory/spec.md",
+          "openspec/specs/shared-schema/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-05-add-p5a-memory-and-eval/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p5a-memory-and-eval.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/memoryStore.ts",
+          "agent-runtime/src/evalReplayHarness.ts",
+          "packages/shared-schema/src/index.ts"
+        ],
+        "testFiles": [
+          "agent-runtime/test/memoryStore.test.ts",
+          "agent-runtime/test/evalReplayHarness.test.ts",
+          "packages/shared-schema/test/schema.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/shared-schema test",
+          "result": "passed",
+          "note": "MemoryFactSchema and EvalCaseSchema tests"
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- memoryStore",
+          "result": "passed",
+          "note": "memory store unit tests"
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- evalReplayHarness",
+          "result": "passed",
+          "note": "eval replay harness tests"
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": ""
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": ""
+        }
+      ],
+      "closeout": "docs/design/2026-06-05-add-p5a-memory-and-eval-closeout.md",
+      "next": [
+        "vector database retrieval",
+        "online memory injection into ContextBuilder",
+        "memory context retrieval (P5b)",
+        "memory management API (P5c)"
+      ],
+      "nonGoals": [
+        "vector database retrieval",
+        "online memory injection into ContextBuilder",
+        "frontend UI",
+        "production eval service",
+        "embeddings",
+        "automatic memory extraction"
+      ],
+      "notes": [
+        "Memory is TS Runtime owned for P5a",
+        "P5a uses literal case-insensitive search over content and tags",
+        "JSON persistence follows existing JsonFileHistoryStore patterns"
+      ]
+    },
+    {
+      "changeId": "add-p5c-memory-management-api",
+      "title": "Add memory management API",
+      "status": "archived",
+      "date": "2026-06-05",
+      "type": "feature",
+      "summary": "P5a/P5b established scoped memory storage and deterministic memory retrieval, but memory facts can only be exercised through internal store APIs and tests. Add an explicit TS Runtime API under /api/v1/memory/facts to list, search, upsert, and delete scoped memory facts.",
+      "tags": [
+        "memory-management",
+        "api",
+        "long-term-memory",
+        "agent-runtime",
+        "shared-schema",
+        "p5"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-05-add-p5c-memory-management-api/proposal.md",
+        "design": "openspec/changes/archive/2026-06-05-add-p5c-memory-management-api/design.md",
+        "tasks": "openspec/changes/archive/2026-06-05-add-p5c-memory-management-api/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-05-add-p5c-memory-management-api/specs/long-term-memory/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p5c-memory-management-api/specs/shared-schema/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/long-term-memory/spec.md",
+          "openspec/specs/shared-schema/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-05-add-p5c-memory-management-api/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p5c-memory-management-api.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "packages/shared-schema/src/index.ts",
+          "agent-runtime/src/server.ts",
+          "agent-runtime/src/memoryStore.ts"
+        ],
+        "testFiles": [
+          "packages/shared-schema/test/schema.test.ts",
+          "agent-runtime/test/memoryApi.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/shared-schema test",
+          "result": "passed",
+          "note": "Verified memory search, upsert, and delete schemas under various payloads."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- memoryApi",
+          "result": "passed",
+          "note": "Verified scoped listing, header tenant extraction, IDOR deletion prevention, and tag search filters."
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "All 250 tests passed successfully."
+        }
+      ],
+      "closeout": "docs/design/2026-06-05-add-p5c-memory-management-api-closeout.md",
+      "next": [
+        "Online memory context building and retrieval (P5b)",
+        "Embedding and vector search integrations"
+      ],
+      "nonGoals": [
+        "LLM autonomous memory extraction",
+        "Frontend management UI implementation",
+        "Java Backend storage sync/write access"
+      ],
+      "notes": [
+        "Operations require X-Tenant-Id and X-User-Id request headers",
+        "Request payload tenant/user attributes are filtered out to prevent tenant bypasses"
+      ]
+    },
+    {
+      "changeId": "add-p5b-memory-context-retrieval",
+      "title": "Add P5b memory context retrieval",
+      "status": "partial",
+      "date": "2026-06-05",
+      "type": "feature",
+      "summary": "P5a added scoped long-term memory storage and eval replay, but online agent turns still cannot read memory facts. Add a deterministic memory retrieval layer in the Agent Runtime context builder.",
+      "tags": [
+        "memory",
+        "context-retrieval",
+        "context-builder",
+        "long-term-memory",
+        "agent-runtime",
+        "p5"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-05-add-p5b-memory-context-retrieval/proposal.md",
+        "design": "openspec/changes/archive/2026-06-05-add-p5b-memory-context-retrieval/design.md",
+        "tasks": "openspec/changes/archive/2026-06-05-add-p5b-memory-context-retrieval/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-05-add-p5b-memory-context-retrieval/specs/context-builder/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p5b-memory-context-retrieval/specs/long-term-memory/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-06-05-add-p5b-memory-context-retrieval"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p5b-memory-context-retrieval.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "add-p4c-tool-protocol",
+      "title": "Add Tool Protocol",
+      "status": "partial",
+      "date": "2026-06-05",
+      "type": "feature",
+      "summary": "OpenHarness tool catalog currently exposes business tools only. Add a tool protocol classification to shared ToolDefinition, add Java catalog entries for read_file, search, and run_command with bounded output and workspace path containment.",
+      "tags": [
+        "tool-protocol",
+        "tool-catalog",
+        "backend",
+        "shared-schema",
+        "p4"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-05-add-p4c-tool-protocol/proposal.md",
+        "design": "openspec/changes/archive/2026-06-05-add-p4c-tool-protocol/design.md",
+        "tasks": "openspec/changes/archive/2026-06-05-add-p4c-tool-protocol/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-05-add-p4c-tool-protocol/specs/backend-gateway/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p4c-tool-protocol/specs/shared-schema/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p4c-tool-protocol/specs/tool-protocol/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-06-05-add-p4c-tool-protocol"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p4c-tool-protocol.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "add-p4b-prompt-registry",
+      "title": "Add Prompt Registry",
+      "status": "partial",
+      "date": "2026-06-05",
+      "type": "feature",
+      "summary": "Agent Runtime currently sends conversation messages without a versioned system prompt owned by the harness. Add a TS Runtime prompt registry with versioned prompt templates.",
+      "tags": [
+        "prompt-registry",
+        "agent-runtime",
+        "shared-schema",
+        "p4"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-05-add-p4b-prompt-registry/proposal.md",
+        "design": "openspec/changes/archive/2026-06-05-add-p4b-prompt-registry/design.md",
+        "tasks": "openspec/changes/archive/2026-06-05-add-p4b-prompt-registry/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-05-add-p4b-prompt-registry/specs/agent-runtime/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p4b-prompt-registry/specs/prompt-registry/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p4b-prompt-registry/specs/shared-schema/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-06-05-add-p4b-prompt-registry"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p4b-prompt-registry.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "add-p4a-context-builder",
+      "title": "Add ContextBuilder Pipeline",
+      "status": "archived",
+      "date": "2026-06-05",
+      "type": "feature",
+      "summary": "Model calls currently use the full stable conversation history and only apply cache hints after that selection. Add an Agent Runtime ContextBuilder that constructs model-call messages from explicit layers with configurable token budget.",
+      "tags": [
+        "context-builder",
+        "agent-runtime",
+        "shared-schema",
+        "p4"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-05-add-p4a-context-builder/proposal.md",
+        "design": "openspec/changes/archive/2026-06-05-add-p4a-context-builder/design.md",
+        "tasks": "openspec/changes/archive/2026-06-05-add-p4a-context-builder/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-05-add-p4a-context-builder/specs/agent-runtime/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p4a-context-builder/specs/context-builder/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p4a-context-builder/specs/shared-schema/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-runtime/spec.md",
+          "openspec/specs/context-builder/spec.md",
+          "openspec/specs/shared-schema/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-05-add-p4a-context-builder/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p4a-context-builder.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "packages/shared-schema/src/index.ts",
+          "agent-runtime/src/contextBuilder.ts",
+          "agent-runtime/src/agentExecutionRunner.ts",
+          "agent-runtime/src/agentLoop.ts"
+        ],
+        "testFiles": [
+          "packages/shared-schema/test/schema.test.ts",
+          "agent-runtime/test/contextBuilder.test.ts",
+          "agent-runtime/test/agentExecutionRunner.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/shared-schema test",
+          "result": "passed",
+          "note": "Verified request schema context metadata parser succeeds."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- contextBuilder",
+          "result": "passed",
+          "note": "Verified multi-layer chronological context selection, memory system insertion, budget thresholding, and oversized newest message fallback."
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "All 250 tests passed successfully."
+        }
+      ],
+      "closeout": "docs/design/2026-06-05-add-p4a-context-builder-closeout.md",
+      "next": [
+        "Vector search engine retrieval integration",
+        "Online memory retrieval and injection (P5b)"
+      ],
+      "nonGoals": [
+        "Auto-compress chunk archive logic refactoring",
+        "Cache-hits matcher algorithm modifications"
+      ],
+      "notes": [
+        "MODEL_CONTEXT_BUDGET_TOKENS environment variable overrides the 8000 token default",
+        "Summary layer and memory layer are loaded with higher precedence than recent messages"
+      ]
+    },
+    {
+      "changeId": "add-p3d-injection-guard",
+      "title": "Add Prompt Injection Guard For Tool Results",
+      "status": "archived",
+      "date": "2026-06-05",
+      "type": "feature",
+      "summary": "Tool results are currently serialized directly into model-visible role:tool messages. Add tool result provenance, boundary wrapping, and policy escalation for untrusted tool output.",
+      "tags": [
+        "injection-guard",
+        "security",
+        "policy",
+        "agent-runtime",
+        "shared-schema",
+        "p3"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-05-add-p3d-injection-guard/proposal.md",
+        "design": "openspec/changes/archive/2026-06-05-add-p3d-injection-guard/design.md",
+        "tasks": "openspec/changes/archive/2026-06-05-add-p3d-injection-guard/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-05-add-p3d-injection-guard/specs/agent-runtime/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p3d-injection-guard/specs/policy-evaluate/spec.md",
+          "openspec/changes/archive/2026-06-05-add-p3d-injection-guard/specs/shared-schema/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-runtime/spec.md",
+          "openspec/specs/policy-evaluate/spec.md",
+          "openspec/specs/shared-schema/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-05-add-p3d-injection-guard/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p3d-injection-guard.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "packages/shared-schema/src/index.ts",
+          "agent-runtime/src/agentExecutionRunner.ts",
+          "agent-runtime/src/beforeToolUse.ts",
+          "backend/src/main/java/org/openharness/backend/model/Contracts.java",
+          "backend/src/main/java/org/openharness/backend/service/PolicyService.java",
+          "backend/src/main/java/org/openharness/backend/service/ToolExecutionService.java"
+        ],
+        "testFiles": [
+          "packages/shared-schema/test/schema.test.ts",
+          "agent-runtime/test/agentExecutionRunner.test.ts",
+          "agent-runtime/test/beforeToolUse.test.ts",
+          "backend/src/test/java/org/openharness/backend/service/PolicyServiceTest.java"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/shared-schema test",
+          "result": "passed",
+          "note": "Shared schema parsed provenance and policy contexts successfully."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- agentExecutionRunner beforeToolUse",
+          "result": "passed",
+          "note": "Tested XML wrapping of untrusted tool output, untrusted state detection, and policy escalation."
+        },
+        {
+          "command": "mvn test -f backend/pom.xml",
+          "result": "passed",
+          "note": "Tested sensitive/destructive tools require approval under untrusted contexts while safe tools are allowed."
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "All 250 tests passed successfully."
+        }
+      ],
+      "closeout": "docs/design/2026-06-05-add-p3d-injection-guard-closeout.md",
+      "next": [
+        "Audit metadata/trace attributes for injection guard state",
+        "Add dynamic MCP-tool permission configurations"
+      ],
+      "nonGoals": [
+        "Prompt-injection neural classifier integration",
+        "Certificate-based multi-tier trust registries",
+        "Frontend approval visual enhancements"
+      ],
+      "notes": [
+        "MCP tool results default to untrusted",
+        "Java catalog tools default to trusted",
+        "Only sensitive/destructive tools are upgraded to require approval, safe tools bypass the guard"
+      ]
+    },
+    {
+      "changeId": "add-p3b-cost-and-router",
+      "title": "Add cost tracking and model router",
+      "status": "archived",
+      "date": "2026-06-05",
+      "type": "feature",
+      "summary": "当前 Java ModelGatewayController 对所有请求使用硬编码的单一 provider。新增 ModelRouter 配置段支持按 model 名称映射 to provider，填充 costUsdMicros 字段以支持 per-tenant 计费和预算告警。",
+      "tags": [
+        "cost",
+        "model-router",
+        "provider-adapter",
+        "backend",
+        "p3"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-05-add-p3b-cost-and-router/proposal.md",
+        "design": null,
+        "tasks": "openspec/changes/archive/2026-06-05-add-p3b-cost-and-router/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-05-add-p3b-cost-and-router/specs/provider-adapter/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/provider-adapter/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-05-add-p3b-cost-and-router/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-05-add-p3b-cost-and-router.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "backend/src/main/resources/application.yml",
+          "backend/src/main/java/org/openharness/backend/service/provider/ModelRouter.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/CostCalculator.java",
+          "backend/src/main/java/org/openharness/backend/api/ModelController.java",
+          "agent-runtime/src/types.ts",
+          "agent-runtime/src/agentExecutionRunner.ts"
+        ],
+        "testFiles": [
+          "backend/src/test/java/org/openharness/backend/service/provider/ModelRouterTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/CostCalculatorTest.java",
+          "agent-runtime/test/agentRuntime.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "mvn test -Dtest=ModelRouterTest,CostCalculatorTest -f backend/pom.xml",
+          "result": "passed",
+          "note": "Verified model name resolution, fallback routing, and USD micro token multiplications."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- agentRuntime",
+          "result": "passed",
+          "note": "Verified cost parameter propagation in runner messages."
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "All 250 tests passed successfully."
+        }
+      ],
+      "closeout": "docs/design/2026-06-05-add-p3b-cost-and-router-closeout.md",
+      "next": [
+        "Operator budgets and daily rate limits enforcement",
+        "Logical intent based logical routing mappings"
+      ],
+      "nonGoals": [
+        "Java ModelRouter dynamic config hot reload",
+        "TS Runtime direct model routing configurations"
+      ],
+      "notes": [
+        "Unconfigured pricing maps gracefully return null cost metadata",
+        "Supports ZHIPU_API_KEY with legacy SENSENOVA_API_KEY configuration fallbacks"
+      ]
+    },
+    {
+      "changeId": "add-execution-lifecycle-and-stream-recovery",
+      "title": "Execution lifecycle and stream recovery",
+      "status": "partial",
+      "date": "2026-06-04",
+      "type": "feature",
+      "summary": "当前 Agent Runtime SSE 路径在多个稳定性维度上存在 gap，根因是 HTTP 连接生命周期与 agent execution 生命周期被错误耦合。解决断线恢复、审批不可恢复、HistoryStore 污染、同会话并发未定义、terminal 错误不可观测等 6 类问题。",
+      "tags": [
+        "execution-lifecycle",
+        "stream-recovery",
+        "sse",
+        "stability",
+        "agent-runtime"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-04-add-execution-lifecycle-and-stream-recovery/proposal.md",
+        "design": "openspec/changes/archive/2026-06-04-add-execution-lifecycle-and-stream-recovery/design.md",
+        "tasks": "openspec/changes/archive/2026-06-04-add-execution-lifecycle-and-stream-recovery/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-04-add-execution-lifecycle-and-stream-recovery/specs/agent-runtime/spec.md",
+          "openspec/changes/archive/2026-06-04-add-execution-lifecycle-and-stream-recovery/specs/agent-sse/spec.md",
+          "openspec/changes/archive/2026-06-04-add-execution-lifecycle-and-stream-recovery/specs/ask-user/spec.md",
+          "openspec/changes/archive/2026-06-04-add-execution-lifecycle-and-stream-recovery/specs/message-history/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-06-04-add-execution-lifecycle-and-stream-recovery"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-05-25-add-execution-lifecycle-and-stream-recovery-phase-1.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": [
+        "此 change 对应 4 个 phase 的 superpowers plan（phase-1 至 phase-4）"
+      ]
+    },
+    {
+      "changeId": "add-p3c-policy-mcp-aware",
+      "title": "Policy MCP-aware default decision",
+      "status": "partial",
+      "date": "2026-05-25",
+      "type": "feature",
+      "summary": "P2a 集成 MCP 后引入安全 gap：Java PolicyService 对未知工具默认返回 ALLOW，MCP 工具因不在 Java catalog 中永远落入默认放行分支。让 evaluatePolicy 接受工具来源信号，针对 MCP 来源工具改变默认决策为 REQUIRE_APPROVAL。",
+      "tags": [
+        "policy",
+        "mcp",
+        "security",
+        "backend",
+        "p3"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-05-25-add-p3c-policy-mcp-aware/proposal.md",
+        "design": null,
+        "tasks": "openspec/changes/archive/2026-05-25-add-p3c-policy-mcp-aware/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-05-25-add-p3c-policy-mcp-aware/specs/policy-evaluate/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-05-25-add-p3c-policy-mcp-aware"
+      },
+      "superpowers": {
+        "plan": null
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "add-p3a-multi-step-loop",
+      "title": "Multi-step agent loop",
+      "status": "partial",
+      "date": "2026-05-25",
+      "type": "feature",
+      "summary": "当前 AgentLoop.run() 与 AgentStreamLoop.stream() 都写死成两步形状，与 Claude Code 式多轮工具循环不兼容。将固定序列替换为 while 循环，支持多步 model→policy→tools→回灌直到 model 不再产生 toolCalls 或 budget 耗尽。",
+      "tags": [
+        "agent-loop",
+        "multi-step",
+        "agent-runtime",
+        "p3"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-05-25-add-p3a-multi-step-loop/proposal.md",
+        "design": "openspec/changes/archive/2026-05-25-add-p3a-multi-step-loop/design.md",
+        "tasks": "openspec/changes/archive/2026-05-25-add-p3a-multi-step-loop/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-05-25-add-p3a-multi-step-loop/specs/agent-loop/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-05-25-add-p3a-multi-step-loop"
+      },
+      "superpowers": {
+        "plan": null
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "add-p2c-auto-compress",
+      "title": "Auto-compress context after final answer",
+      "status": "partial",
+      "date": "2026-05-25",
+      "type": "feature",
+      "summary": "Agent loop 在每次 final answer 后自动检查 token 阈值并触发压缩，补全 P1b 的最后一环。",
+      "tags": [
+        "auto-compress",
+        "context-compression",
+        "agent-runtime",
+        "p2"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-05-25-add-p2c-auto-compress/proposal.md",
+        "design": null,
+        "tasks": "openspec/changes/archive/2026-05-25-add-p2c-auto-compress/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-05-25-add-p2c-auto-compress/specs/auto-compress/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-05-25-add-p2c-auto-compress"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-05-25-add-p2c-auto-compress.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "add-p2b-session-list",
+      "title": "Session list management",
+      "status": "partial",
+      "date": "2026-05-25",
+      "type": "feature",
+      "summary": "为 Frontend 增加多会话管理：列出 / 切换 / 删除 / 新建 session。",
+      "tags": [
+        "session-management",
+        "frontend",
+        "agent-runtime",
+        "p2"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-05-25-add-p2b-session-list/proposal.md",
+        "design": null,
+        "tasks": "openspec/changes/archive/2026-05-25-add-p2b-session-list/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-05-25-add-p2b-session-list/specs/session-list/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-05-25-add-p2b-session-list"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-05-25-add-p2b-session-list.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "add-p2a-mcp",
+      "title": "MCP tool integration",
+      "status": "partial",
+      "date": "2026-05-25",
+      "type": "feature",
+      "summary": "让 TS Agent Runtime 通过 MCP (Model Context Protocol) 集成外部工具服务器，扩展可用工具集而不增加 Java backend 的工具注册负担。",
+      "tags": [
+        "mcp",
+        "tool-integration",
+        "agent-runtime",
+        "p2"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-05-25-add-p2a-mcp/proposal.md",
+        "design": "openspec/changes/archive/2026-05-25-add-p2a-mcp/design.md",
+        "tasks": "openspec/changes/archive/2026-05-25-add-p2a-mcp/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-05-25-add-p2a-mcp/specs/mcp-tools/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-05-25-add-p2a-mcp"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-05-25-add-p2a-mcp.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "add-p1b-persistence",
+      "title": "MessageHistory Persistence + Context Compression",
+      "status": "partial",
+      "date": "2026-05-25",
+      "type": "feature",
+      "summary": "P0a/P0b 的 MessageHistory 是纯内存的，进程重启即丢失。生产环境需要持久化以支持长会话、多实例部署和故障恢复。同时引入 Insert-then-Compress 策略在后台压缩历史。",
+      "tags": [
+        "persistence",
+        "message-history",
+        "context-compression",
+        "agent-runtime",
+        "p1"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-05-25-add-p1b-persistence/proposal.md",
+        "design": "openspec/changes/archive/2026-05-25-add-p1b-persistence/design.md",
+        "tasks": "openspec/changes/archive/2026-05-25-add-p1b-persistence/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-05-25-add-p1b-persistence/specs/context-compression/spec.md",
+          "openspec/changes/archive/2026-05-25-add-p1b-persistence/specs/message-history/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-05-25-add-p1b-persistence"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-05-22-add-p1b-persistence.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "add-p1a-provider-adapter",
+      "title": "Provider Adapter + Cache Hints",
+      "status": "partial",
+      "date": "2026-05-25",
+      "type": "feature",
+      "summary": "P0b 使用 SenseNova 硬编码调用。P1a 需要正式的 provider adapter 抽象，支持多 provider 切换（OpenAI-compatible / Anthropic），实现 cache hints 跨边界协议，并在 trace 中落地 cost/token 字段。",
+      "tags": [
+        "provider-adapter",
+        "cache-hints",
+        "backend",
+        "agent-runtime",
+        "p1"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-05-25-add-p1a-provider-adapter/proposal.md",
+        "design": "openspec/changes/archive/2026-05-25-add-p1a-provider-adapter/design.md",
+        "tasks": "openspec/changes/archive/2026-05-25-add-p1a-provider-adapter/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-05-25-add-p1a-provider-adapter/specs/cache-hints/spec.md",
+          "openspec/changes/archive/2026-05-25-add-p1a-provider-adapter/specs/provider-adapter/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-05-25-add-p1a-provider-adapter"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-05-20-add-p1a-provider-adapter.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "implement-p0b-hookable",
+      "title": "Implement P0b Hookable",
+      "status": "partial",
+      "date": "2026-05-25",
+      "type": "feature",
+      "summary": "P0a 已验证双运行时边界和同步 agent loop。P0b 需要把 beforeToolUse hook、policy evaluate、SSE 流式、ask_user 审批流接上，使 harness 具备真正的不可绕过安全能力。",
+      "tags": [
+        "hookable",
+        "policy",
+        "sse",
+        "ask-user",
+        "security",
+        "p0",
+        "agent-runtime",
+        "backend"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-05-25-implement-p0b-hookable/proposal.md",
+        "design": null,
+        "tasks": "openspec/changes/archive/2026-05-25-implement-p0b-hookable/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-05-25-implement-p0b-hookable/specs/agent-sse/spec.md",
+          "openspec/changes/archive/2026-05-25-implement-p0b-hookable/specs/ask-user/spec.md",
+          "openspec/changes/archive/2026-05-25-implement-p0b-hookable/specs/policy-evaluate/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-05-25-implement-p0b-hookable"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-05-20-implement-p0b-hookable.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    },
+    {
+      "changeId": "implement-p0a-skeleton",
+      "title": "Implement P0a Skeleton",
+      "status": "partial",
+      "date": "2026-05-25",
+      "type": "feature",
+      "summary": "OpenHarness needs a runnable first slice that proves the frozen architecture boundary across Frontend, TypeScript Agent Runtime, Java Spring Boot Backend, and shared contracts. Establish the monorepo skeleton and deterministic mock behavior.",
+      "tags": [
+        "skeleton",
+        "monorepo",
+        "p0",
+        "architecture",
+        "shared-schema",
+        "backend",
+        "agent-runtime",
+        "frontend"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-05-25-implement-p0a-skeleton/proposal.md",
+        "design": "openspec/changes/archive/2026-05-25-implement-p0a-skeleton/design.md",
+        "tasks": "openspec/changes/archive/2026-05-25-implement-p0a-skeleton/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-05-25-implement-p0a-skeleton/specs/agent-runtime/spec.md",
+          "openspec/changes/archive/2026-05-25-implement-p0a-skeleton/specs/backend-gateway/spec.md",
+          "openspec/changes/archive/2026-05-25-implement-p0a-skeleton/specs/frontend-runtime/spec.md",
+          "openspec/changes/archive/2026-05-25-implement-p0a-skeleton/specs/p0a-integration/spec.md",
+          "openspec/changes/archive/2026-05-25-implement-p0a-skeleton/specs/shared-schema/spec.md"
+        ],
+        "currentSpecs": [],
+        "archivePath": "openspec/changes/archive/2026-05-25-implement-p0a-skeleton"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-05-20-implement-p0a-skeleton.md"
+      },
+      "implementation": {
+        "sourceFiles": [],
+        "testFiles": []
+      },
+      "verification": [],
+      "closeout": null,
+      "next": [],
+      "nonGoals": [],
+      "notes": []
+    }
+  ]
+}

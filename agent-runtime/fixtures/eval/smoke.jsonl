@@ -1,0 +1,1 @@
+{"evalId":"smoke-hello","tenantId":"tenant-smoke","userId":"user-smoke","conversationId":"conv-smoke-eval","input":"Say hello for eval smoke","expectedAnswerContains":"hello","expectedStopReason":"FINAL_ANSWER"}

@@ -1,0 +1,17 @@
+{
+  "name": "openharness",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "test": "pnpm --filter @openharness/shared-schema test && pnpm --filter @openharness/agent-runtime test && pnpm --filter @openharness/frontend test && pnpm --filter @openharness/integration-tests test",
+    "typecheck": "pnpm --filter @openharness/shared-schema typecheck && pnpm --filter @openharness/agent-runtime typecheck && pnpm --filter @openharness/frontend typecheck",
+    "dashboard:render": "node docs/project-dashboard/scripts/render-dashboard.mjs",
+    "dashboard:check": "node docs/project-dashboard/scripts/render-dashboard.mjs --check"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.4"
+  }
+}

@@ -1,0 +1,1467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>openharness — 开发导航台</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface-hover: #22263a;
+      --border: #2a2e3e;
+      --text: #e1e4ed;
+      --text-muted: #8b8fa7;
+      --accent: #6c8cff;
+      --accent-glow: rgba(108, 140, 255, 0.15);
+      --green: #34d399;
+      --amber: #fbbf24;
+      --red: #f87171;
+      --purple: #a78bfa;
+      --cyan: #22d3ee;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans SC', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      padding: 2rem;
+      background: linear-gradient(135deg, var(--surface), var(--bg));
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      background: linear-gradient(135deg, var(--accent), var(--cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0.5rem;
+    }
+
+    header .meta {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    .stats {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 1rem;
+    }
+
+    .stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.75rem 1.25rem;
+      text-align: center;
+      min-width: 100px;
+    }
+
+    .stat .number {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    .stat .label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    nav {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+    }
+
+    nav button {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.5rem 1.25rem;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: all 0.2s;
+    }
+
+    nav button:hover, nav button.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+      box-shadow: 0 0 12px var(--accent-glow);
+    }
+
+    section {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    section.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    h3 {
+      font-size: 1rem;
+      margin: 1rem 0 0.5rem;
+      color: var(--text);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .badge-archived { background: rgba(52, 211, 153, 0.15); color: var(--green); }
+    .badge-verified { background: rgba(108, 140, 255, 0.15); color: var(--accent); }
+    .badge-proposed { background: rgba(251, 191, 36, 0.15); color: var(--amber); }
+    .badge-blocked { background: rgba(248, 113, 113, 0.15); color: var(--red); }
+    .badge-superseded { background: rgba(167, 139, 250, 0.15); color: var(--purple); }
+    .badge-partial { background: rgba(251, 191, 36, 0.1); color: var(--amber); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    th {
+      text-align: left;
+      padding: 0.75rem 0.5rem;
+      border-bottom: 2px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+    }
+
+    td {
+      padding: 0.6rem 0.5rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+
+    tr:hover td { background: var(--surface-hover); }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .timeline-group {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .timeline-date {
+      min-width: 100px;
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 0.9rem;
+      padding-top: 0.25rem;
+    }
+
+    .timeline-items { flex: 1; }
+
+    .timeline-item {
+      padding: 0.35rem 0;
+      display: flex;
+      gap: 0.5rem;
+      align-items: baseline;
+      flex-wrap: wrap;
+    }
+
+    .timeline-item .summary {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    .tag-group ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .tag-group li {
+      padding: 0.25rem 0;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    ul { padding-left: 1.25rem; }
+    li { margin-bottom: 0.25rem; }
+    em { color: var(--text-muted); font-size: 0.8rem; }
+
+    .auto-gen {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.75rem;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 768px) {
+      body { padding: 1rem; }
+      header h1 { font-size: 1.5rem; }
+      .stats { gap: 0.5rem; }
+      .stat { min-width: 80px; padding: 0.5rem 0.75rem; }
+      .timeline-group { flex-direction: column; gap: 0.25rem; }
+      table { font-size: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>openharness — 开发导航台</h1>
+    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-06-22</div>
+    <div class="stats">
+      <div class="stat"><div class="number">28</div><div class="label">Total</div></div>
+      <div class="stat"><div class="number">13</div><div class="label">Archived</div></div>
+      <div class="stat"><div class="number">13</div><div class="label">Partial</div></div>
+      <div class="stat"><div class="number">0</div><div class="label">Proposed</div></div>
+      <div class="stat"><div class="number">2</div><div class="label">Verified</div></div>
+    </div>
+  </header>
+
+  <nav>
+    <button class="active" onclick="show(event, 'timeline')">Timeline</button>
+    <button onclick="show(event, 'matrix')">Feature Matrix</button>
+    <button onclick="show(event, 'bugs')">Bug 定位索引</button>
+    <button onclick="show(event, 'next')">Next Work Queue</button>
+  </nav>
+
+  <section id="timeline" class="active">
+    <h2>Timeline</h2>
+    
+      <div class="timeline-group">
+        <div class="timeline-date">2026-06-22</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-verified">verified</span>
+            <strong>add-skill-invocation-sandbox</strong>
+            <span class="summary">实现自进化技能（Skill）执行沙箱。包含 YAML 元数据解析器、`invoke_skill` 拦截与延迟注入引擎、兼容 Alternating Roles 门禁适配以及商业敏感脚本的 best-effort 物理碎纸销毁机制。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-runtime-cache-stability</strong>
+            <span class="summary">重构运行时缓存机制以优化 Prompt Cache 命中率并防范资源泄漏。引入策略化双缓存断点、System Prompt 字节级静止与 [session context] 动态注入，并对 Tools Schema 锁定进行内存上限 FIFO 淘汰控制及持久化 transient 隔离。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-group">
+        <div class="timeline-date">2026-06-18</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-agent-definition-model-selection</strong>
+            <span class="summary">让 selected Agent Definition 的可选 model 成为本轮 Java ModelChatRequest.model 逻辑模型 id；TS Runtime 不持有 provider credentials，也不复制 Java model-router 配置或校验 route 存在性。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-verified">verified</span>
+            <strong>harden-project-dashboard-validation</strong>
+            <span class="summary">加固开发导航台 schema 与渲染脚本，新增内置语义校验、生成产物 check 模式、package scripts，并补齐 archived 记录 closeout 闭环。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-agent-definition-observability</strong>
+            <span class="summary">为 selected Agent Definition 增加 model request metadata 与 TS trace attribution，记录 agentId、promptRef、工具过滤模式和工具名称摘要，便于排查 prompt/tool-filtering 问题。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-agent-definition-tool-filtering</strong>
+            <span class="summary">让 selected Agent Definition.tools 过滤本轮 model-visible tools，并在模型返回不在定义范围内的 tool call 时于 beforeToolUse/execute 前 fail closed。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-agent-definition-runtime-selection</strong>
+            <span class="summary">让 sync/stream chat 请求通过可选 agentId 选择已加载的 Agent Definition，将选中定义的 promptRef 传递给 PromptRegistry 驱动 system prompt 解析，未知 agentId 返回 400 拒绝，未知 promptRef 在 Java model call 前 fail closed。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-agent-definition-loader</strong>
+            <span class="summary">为 TS Runtime 添加本地 JSON Agent Definition Loader，定义 AgentDefinitionSchema 共享契约（agentId、promptRef、tools、model），从 agent-runtime/agents/ 读取 JSON 定义文件，支持 default fallback 和 fail-closed 校验。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-p5e-eval-fixtures</strong>
+            <span class="summary">为 Eval CLI 添加 canonical deterministic fixture 文件和 smoke script，通过 --mock-answer 模式实现本地 deterministic 验证，不依赖 Java Backend、Frontend 或真实 provider。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-group">
+        <div class="timeline-date">2026-06-05</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-p5d-eval-cli</strong>
+            <span class="summary">为 TS Runtime 添加本地 Eval CLI，支持从 JSON array 或 JSONL 文件读取 EvalCase fixtures，通过 EvalReplayHarness 顺序 replay，输出 per-case JSONL 结果和 summary，退出码映射 pass/fail 状态。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-p5a-memory-and-eval</strong>
+            <span class="summary">为 TS Runtime 添加租户/用户隔离的长期记忆存储原语（MemoryStore）和离线 eval replay harness，通过共享 Zod schema 定义 MemoryFact 和 EvalCase 契约，支持 literal search、JSON 持久化、deterministic replay pass/fail 判定。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-p5c-memory-management-api</strong>
+            <span class="summary">P5a/P5b established scoped memory storage and deterministic memory retrieval, but memory facts can only be exercised through internal store APIs and tests. Add an explicit TS Runtime API under /api/v1/memory/facts to list, search, upsert, and delete scoped memory facts.</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p5b-memory-context-retrieval</strong>
+            <span class="summary">P5a added scoped long-term memory storage and eval replay, but online agent turns still cannot read memory facts. Add a deterministic memory retrieval layer in the Agent Runtime context builder.</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p4c-tool-protocol</strong>
+            <span class="summary">OpenHarness tool catalog currently exposes business tools only. Add a tool protocol classification to shared ToolDefinition, add Java catalog entries for read_file, search, and run_command with bounded output and workspace path containment.</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p4b-prompt-registry</strong>
+            <span class="summary">Agent Runtime currently sends conversation messages without a versioned system prompt owned by the harness. Add a TS Runtime prompt registry with versioned prompt templates.</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-p4a-context-builder</strong>
+            <span class="summary">Model calls currently use the full stable conversation history and only apply cache hints after that selection. Add an Agent Runtime ContextBuilder that constructs model-call messages from explicit layers with configurable token budget.</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-p3d-injection-guard</strong>
+            <span class="summary">Tool results are currently serialized directly into model-visible role:tool messages. Add tool result provenance, boundary wrapping, and policy escalation for untrusted tool output.</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-p3b-cost-and-router</strong>
+            <span class="summary">当前 Java ModelGatewayController 对所有请求使用硬编码的单一 provider。新增 ModelRouter 配置段支持按 model 名称映射 to provider，填充 costUsdMicros 字段以支持 per-tenant 计费和预算告警。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-group">
+        <div class="timeline-date">2026-06-04</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-execution-lifecycle-and-stream-recovery</strong>
+            <span class="summary">当前 Agent Runtime SSE 路径在多个稳定性维度上存在 gap，根因是 HTTP 连接生命周期与 agent execution 生命周期被错误耦合。解决断线恢复、审批不可恢复、HistoryStore 污染、同会话并发未定义、terminal 错误不可观测等 6 类问题。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-group">
+        <div class="timeline-date">2026-05-25</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p3c-policy-mcp-aware</strong>
+            <span class="summary">P2a 集成 MCP 后引入安全 gap：Java PolicyService 对未知工具默认返回 ALLOW，MCP 工具因不在 Java catalog 中永远落入默认放行分支。让 evaluatePolicy 接受工具来源信号，针对 MCP 来源工具改变默认决策为 REQUIRE_APPROVAL。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p3a-multi-step-loop</strong>
+            <span class="summary">当前 AgentLoop.run() 与 AgentStreamLoop.stream() 都写死成两步形状，与 Claude Code 式多轮工具循环不兼容。将固定序列替换为 while 循环，支持多步 model→policy→tools→回灌直到 model 不再产生 toolCalls 或 budget 耗尽。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p2c-auto-compress</strong>
+            <span class="summary">Agent loop 在每次 final answer 后自动检查 token 阈值并触发压缩，补全 P1b 的最后一环。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p2b-session-list</strong>
+            <span class="summary">为 Frontend 增加多会话管理：列出 / 切换 / 删除 / 新建 session。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p2a-mcp</strong>
+            <span class="summary">让 TS Agent Runtime 通过 MCP (Model Context Protocol) 集成外部工具服务器，扩展可用工具集而不增加 Java backend 的工具注册负担。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p1b-persistence</strong>
+            <span class="summary">P0a/P0b 的 MessageHistory 是纯内存的，进程重启即丢失。生产环境需要持久化以支持长会话、多实例部署和故障恢复。同时引入 Insert-then-Compress 策略在后台压缩历史。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>add-p1a-provider-adapter</strong>
+            <span class="summary">P0b 使用 SenseNova 硬编码调用。P1a 需要正式的 provider adapter 抽象，支持多 provider 切换（OpenAI-compatible / Anthropic），实现 cache hints 跨边界协议，并在 trace 中落地 cost/token 字段。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>implement-p0b-hookable</strong>
+            <span class="summary">P0a 已验证双运行时边界和同步 agent loop。P0b 需要把 beforeToolUse hook、policy evaluate、SSE 流式、ask_user 审批流接上，使 harness 具备真正的不可绕过安全能力。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>implement-p0a-skeleton</strong>
+            <span class="summary">OpenHarness needs a runnable first slice that proves the frozen architecture boundary across Frontend, TypeScript Agent Runtime, Java Spring Boot Backend, and shared contracts. Establish the monorepo skeleton and deterministic mock behavior.</span>
+          </div>
+        </div>
+      </div>
+  </section>
+
+  <section id="matrix">
+    <h2>Feature Matrix</h2>
+    <div style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr>
+          <th>功能点</th><th>状态</th><th>日期</th><th>Spec</th><th>Plan</th><th>Code</th><th>Tests</th><th>Closeout</th><th>Next</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+      <td><strong>add-skill-invocation-sandbox</strong></td>
+      <td><span class="badge badge-verified">verified</span></td>
+      <td>2026-06-22</td>
+      <td>agent-loop, provider-adapter</td>
+      <td><a href="docs/superpowers/plans/2026-06-22-add-skill-invocation-sandbox.md">2026-06-22-add-skill-invocation-sandbox.md</a></td>
+      <td>types.ts, loader.ts, shredder.ts, capabilities.ts, agentLoop.ts, agentExecutionRunner.ts, toolRegistry.ts</td>
+      <td>loader.test.ts, shredder.test.ts, providerMessageCapabilities.test.ts, agentExecutionRunner.test.ts, toolRegistryMerge.test.ts</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-runtime-cache-stability</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-22</td>
+      <td>cache-hints, context-builder, prompt-registry, agent-runtime</td>
+      <td><a href="docs/superpowers/plans/2026-06-22-add-runtime-cache-stability.md">2026-06-22-add-runtime-cache-stability.md</a></td>
+      <td>cacheHints.ts, toolRegistry.ts, contextBuilder.ts, registry.ts, agentLoop.ts, agentExecutionRunner.ts, jsonFileHistoryStore.ts</td>
+      <td>cacheHints.test.ts, toolRegistryMerge.test.ts, historyLayering.test.ts</td>
+      <td><a href="docs/design/2026-06-22-add-runtime-cache-stability-closeout.md">2026-06-22-add-runtime-cache-stability-closeout.md</a></td>
+      <td>自进化技能（Skill）执行沙箱实施 (add-skill-invocation-sandbox)<br>隔离子智能体（Subagent）分发器实施 (add-subagent-dispatcher)<br>原地同模型热压缩 (ITC) 实施 (add-internal-context-compression)</td>
+    </tr>
+<tr>
+      <td><strong>add-agent-definition-model-selection</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-18</td>
+      <td>agent-definition</td>
+      <td><a href="docs/superpowers/plans/2026-06-18-add-agent-definition-model-selection.md">2026-06-18-add-agent-definition-model-selection.md</a></td>
+      <td>agentExecutionRunner.ts</td>
+      <td>agentRuntime.test.ts</td>
+      <td><a href="docs/design/2026-06-18-add-agent-definition-model-selection-closeout.md">2026-06-18-add-agent-definition-model-selection-closeout.md</a></td>
+      <td>No active work remains for model selection<br>Future SDK/UI/YAML/CRUD/hot reload/tenant dynamic definitions require separate OpenSpec changes</td>
+    </tr>
+<tr>
+      <td><strong>harden-project-dashboard-validation</strong></td>
+      <td><span class="badge badge-verified">verified</span></td>
+      <td>2026-06-18</td>
+      <td>—</td>
+      <td>—</td>
+      <td>development-log.schema.json, render-dashboard.mjs, package.json, AGENTS.md, README.md, development-log.json, 2026-06-05-add-p5d-eval-cli-closeout.md, 2026-06-05-add-p5a-memory-and-eval-closeout.md, 2026-06-18-project-dashboard-hardening.md</td>
+      <td>—</td>
+      <td><a href="docs/design/2026-06-18-project-dashboard-hardening.md">2026-06-18-project-dashboard-hardening.md</a></td>
+      <td>Optionally wire pnpm dashboard:check into CI<br>Optionally add fixture tests for invalid dashboard data cases</td>
+    </tr>
+<tr>
+      <td><strong>add-agent-definition-observability</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-18</td>
+      <td>agent-definition, agent-runtime, shared-schema</td>
+      <td><a href="docs/superpowers/plans/2026-06-18-add-agent-definition-observability.md">2026-06-18-add-agent-definition-observability.md</a></td>
+      <td>index.ts, trace.ts, agentExecutionRunner.ts</td>
+      <td>schema.test.ts, agentRuntime.test.ts</td>
+      <td><a href="docs/design/2026-06-18-add-agent-definition-observability-closeout.md">2026-06-18-add-agent-definition-observability-closeout.md</a></td>
+      <td>Frontend display for selected agent / tool filtering summary (separate OpenSpec change)<br>AgentDefinition.model provider/model routing (separate OpenSpec change)<br>YAML support<br>SDK<br>remote CRUD<br>hot reload<br>tenant-scoped dynamic definitions</td>
+    </tr>
+<tr>
+      <td><strong>add-agent-definition-tool-filtering</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-18</td>
+      <td>agent-definition, mcp-tools</td>
+      <td><a href="docs/superpowers/plans/2026-06-18-add-agent-definition-tool-filtering.md">2026-06-18-add-agent-definition-tool-filtering.md</a></td>
+      <td>agentExecutionRunner.ts</td>
+      <td>agentRuntime.test.ts</td>
+      <td><a href="docs/design/2026-06-18-add-agent-definition-tool-filtering-closeout.md">2026-06-18-add-agent-definition-tool-filtering-closeout.md</a></td>
+      <td>audit metadata/trace attributes for selected tool list (separate OpenSpec change)<br>YAML support<br>SDK<br>Frontend UI<br>remote CRUD<br>hot reload<br>tenant-scoped dynamic definitions</td>
+    </tr>
+<tr>
+      <td><strong>add-agent-definition-runtime-selection</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-18</td>
+      <td>agent-definition, prompt-registry</td>
+      <td><a href="docs/superpowers/plans/2026-06-18-add-agent-definition-runtime-selection.md">2026-06-18-add-agent-definition-runtime-selection.md</a></td>
+      <td>types.ts, server.ts, agentExecutionRunner.ts, agentStreamLoop.ts, registry.ts</td>
+      <td>agentRuntime.test.ts</td>
+      <td><a href="docs/design/2026-06-18-add-agent-definition-runtime-selection-closeout.md">2026-06-18-add-agent-definition-runtime-selection-closeout.md</a></td>
+      <td>tools allow-list enforcement via ToolRegistry filtering (new OpenSpec change)<br>YAML support<br>SDK<br>UI<br>remote CRUD<br>hot reload<br>tenant-scoped dynamic definitions</td>
+    </tr>
+<tr>
+      <td><strong>add-agent-definition-loader</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-18</td>
+      <td>agent-definition</td>
+      <td><a href="docs/superpowers/plans/2026-06-18-add-agent-definition-loader.md">2026-06-18-add-agent-definition-loader.md</a></td>
+      <td>agentDefinitionLoader.ts, server.ts, index.ts, 2026-06-18-agent-definition-loader-design.md</td>
+      <td>agentDefinitionLoader.test.ts, agentRuntime.test.ts, schema.test.ts</td>
+      <td><a href="docs/design/2026-06-18-add-agent-definition-loader-closeout.md">2026-06-18-add-agent-definition-loader-closeout.md</a></td>
+      <td>tools allow-list enforcement via ToolRegistry/PolicyContext (new OpenSpec change)<br>YAML support<br>SDK package<br>Agent Definition API/UI<br>tenant-scoped dynamic definitions</td>
+    </tr>
+<tr>
+      <td><strong>add-p5e-eval-fixtures</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-18</td>
+      <td>eval-replay</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p5e-eval-fixtures.md">2026-06-05-add-p5e-eval-fixtures.md</a></td>
+      <td>evalCli.ts, smoke.jsonl, package.json</td>
+      <td>evalCli.test.ts</td>
+      <td><a href="docs/design/2026-06-18-add-p5e-eval-fixtures-closeout.md">2026-06-18-add-p5e-eval-fixtures-closeout.md</a></td>
+      <td>CI pipeline wiring<br>production benchmark<br>dashboard<br>real-provider eval</td>
+    </tr>
+<tr>
+      <td><strong>add-p5d-eval-cli</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-05</td>
+      <td>eval-replay</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p5d-eval-cli.md">2026-06-05-add-p5d-eval-cli.md</a></td>
+      <td>evalCli.ts, package.json</td>
+      <td>evalCli.test.ts</td>
+      <td><a href="docs/design/2026-06-05-add-p5d-eval-cli-closeout.md">2026-06-05-add-p5d-eval-cli-closeout.md</a></td>
+      <td>eval fixtures and smoke script (P5e)<br>CI pipeline wiring<br>real-provider evals with credentials/cost controls</td>
+    </tr>
+<tr>
+      <td><strong>add-p5a-memory-and-eval</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-05</td>
+      <td>eval-replay, long-term-memory, shared-schema</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p5a-memory-and-eval.md">2026-06-05-add-p5a-memory-and-eval.md</a></td>
+      <td>memoryStore.ts, evalReplayHarness.ts, index.ts</td>
+      <td>memoryStore.test.ts, evalReplayHarness.test.ts, schema.test.ts</td>
+      <td><a href="docs/design/2026-06-05-add-p5a-memory-and-eval-closeout.md">2026-06-05-add-p5a-memory-and-eval-closeout.md</a></td>
+      <td>vector database retrieval<br>online memory injection into ContextBuilder<br>memory context retrieval (P5b)<br>memory management API (P5c)</td>
+    </tr>
+<tr>
+      <td><strong>add-p5c-memory-management-api</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-05</td>
+      <td>long-term-memory, shared-schema</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p5c-memory-management-api.md">2026-06-05-add-p5c-memory-management-api.md</a></td>
+      <td>index.ts, server.ts, memoryStore.ts</td>
+      <td>schema.test.ts, memoryApi.test.ts</td>
+      <td><a href="docs/design/2026-06-05-add-p5c-memory-management-api-closeout.md">2026-06-05-add-p5c-memory-management-api-closeout.md</a></td>
+      <td>Online memory context building and retrieval (P5b)<br>Embedding and vector search integrations</td>
+    </tr>
+<tr>
+      <td><strong>add-p5b-memory-context-retrieval</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-06-05</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p5b-memory-context-retrieval.md">2026-06-05-add-p5b-memory-context-retrieval.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p4c-tool-protocol</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-06-05</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p4c-tool-protocol.md">2026-06-05-add-p4c-tool-protocol.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p4b-prompt-registry</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-06-05</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p4b-prompt-registry.md">2026-06-05-add-p4b-prompt-registry.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p4a-context-builder</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-05</td>
+      <td>agent-runtime, context-builder, shared-schema</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p4a-context-builder.md">2026-06-05-add-p4a-context-builder.md</a></td>
+      <td>index.ts, contextBuilder.ts, agentExecutionRunner.ts, agentLoop.ts</td>
+      <td>schema.test.ts, contextBuilder.test.ts, agentExecutionRunner.test.ts</td>
+      <td><a href="docs/design/2026-06-05-add-p4a-context-builder-closeout.md">2026-06-05-add-p4a-context-builder-closeout.md</a></td>
+      <td>Vector search engine retrieval integration<br>Online memory retrieval and injection (P5b)</td>
+    </tr>
+<tr>
+      <td><strong>add-p3d-injection-guard</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-05</td>
+      <td>agent-runtime, policy-evaluate, shared-schema</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p3d-injection-guard.md">2026-06-05-add-p3d-injection-guard.md</a></td>
+      <td>index.ts, agentExecutionRunner.ts, beforeToolUse.ts, Contracts.java, PolicyService.java, ToolExecutionService.java</td>
+      <td>schema.test.ts, agentExecutionRunner.test.ts, beforeToolUse.test.ts, PolicyServiceTest.java</td>
+      <td><a href="docs/design/2026-06-05-add-p3d-injection-guard-closeout.md">2026-06-05-add-p3d-injection-guard-closeout.md</a></td>
+      <td>Audit metadata/trace attributes for injection guard state<br>Add dynamic MCP-tool permission configurations</td>
+    </tr>
+<tr>
+      <td><strong>add-p3b-cost-and-router</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-06-05</td>
+      <td>provider-adapter</td>
+      <td><a href="docs/superpowers/plans/2026-06-05-add-p3b-cost-and-router.md">2026-06-05-add-p3b-cost-and-router.md</a></td>
+      <td>application.yml, ModelRouter.java, CostCalculator.java, ModelController.java, types.ts, agentExecutionRunner.ts</td>
+      <td>ModelRouterTest.java, CostCalculatorTest.java, agentRuntime.test.ts</td>
+      <td><a href="docs/design/2026-06-05-add-p3b-cost-and-router-closeout.md">2026-06-05-add-p3b-cost-and-router-closeout.md</a></td>
+      <td>Operator budgets and daily rate limits enforcement<br>Logical intent based logical routing mappings</td>
+    </tr>
+<tr>
+      <td><strong>add-execution-lifecycle-and-stream-recovery</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-06-04</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-05-25-add-execution-lifecycle-and-stream-recovery-phase-1.md">2026-05-25-add-execution-lifecycle-and-stream-recovery-phase-1.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p3c-policy-mcp-aware</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-05-25</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p3a-multi-step-loop</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-05-25</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p2c-auto-compress</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-05-25</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-05-25-add-p2c-auto-compress.md">2026-05-25-add-p2c-auto-compress.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p2b-session-list</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-05-25</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-05-25-add-p2b-session-list.md">2026-05-25-add-p2b-session-list.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p2a-mcp</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-05-25</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-05-25-add-p2a-mcp.md">2026-05-25-add-p2a-mcp.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p1b-persistence</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-05-25</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-05-22-add-p1b-persistence.md">2026-05-22-add-p1b-persistence.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>add-p1a-provider-adapter</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-05-25</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-05-20-add-p1a-provider-adapter.md">2026-05-20-add-p1a-provider-adapter.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>implement-p0b-hookable</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-05-25</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-05-20-implement-p0b-hookable.md">2026-05-20-implement-p0b-hookable.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+<tr>
+      <td><strong>implement-p0a-skeleton</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-05-25</td>
+      <td>—</td>
+      <td><a href="docs/superpowers/plans/2026-05-20-implement-p0a-skeleton.md">2026-05-20-implement-p0a-skeleton.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+    </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="bugs">
+    <h2>Bug 定位索引（按 Tag）</h2>
+    
+      <div class="tag-group">
+        <h3>agent-definition</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-model-selection</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-observability</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-tool-filtering</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-runtime-selection</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-loader</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>agent-loader</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-loader</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>agent-loop</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p3a-multi-step-loop</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>agent-runtime</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-runtime-cache-stability</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-model-selection</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-observability</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-tool-filtering</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-runtime-selection</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-loader</li>
+<li><span class="badge badge-archived">archived</span> add-p5e-eval-fixtures</li>
+<li><span class="badge badge-archived">archived</span> add-p5d-eval-cli</li>
+<li><span class="badge badge-archived">archived</span> add-p5a-memory-and-eval</li>
+<li><span class="badge badge-archived">archived</span> add-p5c-memory-management-api</li>
+<li><span class="badge badge-partial">partial</span> add-p5b-memory-context-retrieval</li>
+<li><span class="badge badge-partial">partial</span> add-p4b-prompt-registry</li>
+<li><span class="badge badge-archived">archived</span> add-p4a-context-builder</li>
+<li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
+<li><span class="badge badge-partial">partial</span> add-execution-lifecycle-and-stream-recovery</li>
+<li><span class="badge badge-partial">partial</span> add-p3a-multi-step-loop</li>
+<li><span class="badge badge-partial">partial</span> add-p2c-auto-compress</li>
+<li><span class="badge badge-partial">partial</span> add-p2b-session-list</li>
+<li><span class="badge badge-partial">partial</span> add-p2a-mcp</li>
+<li><span class="badge badge-partial">partial</span> add-p1b-persistence</li>
+<li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
+<li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
+<li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>api</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p5c-memory-management-api</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>architecture</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>ask-user</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>auto-compress</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p2c-auto-compress</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>backend</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p4c-tool-protocol</li>
+<li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
+<li><span class="badge badge-partial">partial</span> add-p3c-policy-mcp-aware</li>
+<li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
+<li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
+<li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>cache-hints</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>cache-stability</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-runtime-cache-stability</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>context-builder</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p5b-memory-context-retrieval</li>
+<li><span class="badge badge-archived">archived</span> add-p4a-context-builder</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>context-compression</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p2c-auto-compress</li>
+<li><span class="badge badge-partial">partial</span> add-p1b-persistence</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>context-retrieval</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p5b-memory-context-retrieval</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>cost</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>deferred-injection</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> add-skill-invocation-sandbox</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>eval-cli</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p5e-eval-fixtures</li>
+<li><span class="badge badge-archived">archived</span> add-p5d-eval-cli</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>eval-fixtures</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p5e-eval-fixtures</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>eval-replay</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p5e-eval-fixtures</li>
+<li><span class="badge badge-archived">archived</span> add-p5d-eval-cli</li>
+<li><span class="badge badge-archived">archived</span> add-p5a-memory-and-eval</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>execution-lifecycle</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-execution-lifecycle-and-stream-recovery</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>frontend</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p2b-session-list</li>
+<li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>hookable</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>injection-guard</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>long-term-memory</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p5a-memory-and-eval</li>
+<li><span class="badge badge-archived">archived</span> add-p5c-memory-management-api</li>
+<li><span class="badge badge-partial">partial</span> add-p5b-memory-context-retrieval</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>mcp</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p3c-policy-mcp-aware</li>
+<li><span class="badge badge-partial">partial</span> add-p2a-mcp</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>mcp-tools</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-tool-filtering</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>memory</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p5b-memory-context-retrieval</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>memory-management</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p5c-memory-management-api</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>memory-store</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p5a-memory-and-eval</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>message-history</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p1b-persistence</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>model-router</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-model-selection</li>
+<li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>model-selection</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-model-selection</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>monorepo</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>multi-step</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p3a-multi-step-loop</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>observability</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-observability</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>p0</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
+<li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>p1</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p1b-persistence</li>
+<li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>p2</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p2c-auto-compress</li>
+<li><span class="badge badge-partial">partial</span> add-p2b-session-list</li>
+<li><span class="badge badge-partial">partial</span> add-p2a-mcp</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>p3</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
+<li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
+<li><span class="badge badge-partial">partial</span> add-p3c-policy-mcp-aware</li>
+<li><span class="badge badge-partial">partial</span> add-p3a-multi-step-loop</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>p4</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p4c-tool-protocol</li>
+<li><span class="badge badge-partial">partial</span> add-p4b-prompt-registry</li>
+<li><span class="badge badge-archived">archived</span> add-p4a-context-builder</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>p5</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p5c-memory-management-api</li>
+<li><span class="badge badge-partial">partial</span> add-p5b-memory-context-retrieval</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>persistence</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p1b-persistence</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>policy</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
+<li><span class="badge badge-partial">partial</span> add-p3c-policy-mcp-aware</li>
+<li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>project-dashboard</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> harden-project-dashboard-validation</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>prompt-cache</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-runtime-cache-stability</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>prompt-registry</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-runtime-selection</li>
+<li><span class="badge badge-partial">partial</span> add-p4b-prompt-registry</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>provider-adapter</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
+<li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>renderer</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> harden-project-dashboard-validation</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>runtime-selection</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-runtime-selection</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>sandbox</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> add-skill-invocation-sandbox</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>schema</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> harden-project-dashboard-validation</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>security</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
+<li><span class="badge badge-partial">partial</span> add-p3c-policy-mcp-aware</li>
+<li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>session-context</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-runtime-cache-stability</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>session-management</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p2b-session-list</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>shared-schema</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-observability</li>
+<li><span class="badge badge-archived">archived</span> add-agent-definition-loader</li>
+<li><span class="badge badge-archived">archived</span> add-p5a-memory-and-eval</li>
+<li><span class="badge badge-archived">archived</span> add-p5c-memory-management-api</li>
+<li><span class="badge badge-partial">partial</span> add-p4c-tool-protocol</li>
+<li><span class="badge badge-partial">partial</span> add-p4b-prompt-registry</li>
+<li><span class="badge badge-archived">archived</span> add-p4a-context-builder</li>
+<li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
+<li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>shredder</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> add-skill-invocation-sandbox</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>skeleton</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>skills</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> add-skill-invocation-sandbox</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>sse</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-execution-lifecycle-and-stream-recovery</li>
+<li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>stability</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-execution-lifecycle-and-stream-recovery</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>stream-recovery</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-execution-lifecycle-and-stream-recovery</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>tool-catalog</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p4c-tool-protocol</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>tool-filtering</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-tool-filtering</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>tool-integration</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p2a-mcp</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>tool-protocol</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> add-p4c-tool-protocol</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>tool-registry</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-tool-filtering</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>tooling</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> harden-project-dashboard-validation</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>trace</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-agent-definition-observability</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>validation</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> harden-project-dashboard-validation</li>
+        </ul>
+      </div>
+  </section>
+
+  <section id="next">
+    <h2>Next Work Queue</h2>
+    <h3>推荐下一步</h3><ul><li>自进化技能（Skill）执行沙箱实施 (add-skill-invocation-sandbox) <em>(from add-runtime-cache-stability)</em></li>
+<li>隔离子智能体（Subagent）分发器实施 (add-subagent-dispatcher) <em>(from add-runtime-cache-stability)</em></li>
+<li>原地同模型热压缩 (ITC) 实施 (add-internal-context-compression) <em>(from add-runtime-cache-stability)</em></li>
+<li>No active work remains for model selection <em>(from add-agent-definition-model-selection)</em></li>
+<li>Future SDK/UI/YAML/CRUD/hot reload/tenant dynamic definitions require separate OpenSpec changes <em>(from add-agent-definition-model-selection)</em></li>
+<li>Optionally wire pnpm dashboard:check into CI <em>(from harden-project-dashboard-validation)</em></li>
+<li>Optionally add fixture tests for invalid dashboard data cases <em>(from harden-project-dashboard-validation)</em></li>
+<li>Frontend display for selected agent / tool filtering summary (separate OpenSpec change) <em>(from add-agent-definition-observability)</em></li>
+<li>AgentDefinition.model provider/model routing (separate OpenSpec change) <em>(from add-agent-definition-observability)</em></li>
+<li>YAML support <em>(from add-agent-definition-observability)</em></li>
+<li>SDK <em>(from add-agent-definition-observability)</em></li>
+<li>remote CRUD <em>(from add-agent-definition-observability)</em></li>
+<li>hot reload <em>(from add-agent-definition-observability)</em></li>
+<li>tenant-scoped dynamic definitions <em>(from add-agent-definition-observability)</em></li>
+<li>audit metadata/trace attributes for selected tool list (separate OpenSpec change) <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>YAML support <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>SDK <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>Frontend UI <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>remote CRUD <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>hot reload <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>tenant-scoped dynamic definitions <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>tools allow-list enforcement via ToolRegistry filtering (new OpenSpec change) <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>YAML support <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>SDK <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>UI <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>remote CRUD <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>hot reload <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>tenant-scoped dynamic definitions <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>tools allow-list enforcement via ToolRegistry/PolicyContext (new OpenSpec change) <em>(from add-agent-definition-loader)</em></li>
+<li>YAML support <em>(from add-agent-definition-loader)</em></li>
+<li>SDK package <em>(from add-agent-definition-loader)</em></li>
+<li>Agent Definition API/UI <em>(from add-agent-definition-loader)</em></li>
+<li>tenant-scoped dynamic definitions <em>(from add-agent-definition-loader)</em></li>
+<li>CI pipeline wiring <em>(from add-p5e-eval-fixtures)</em></li>
+<li>production benchmark <em>(from add-p5e-eval-fixtures)</em></li>
+<li>dashboard <em>(from add-p5e-eval-fixtures)</em></li>
+<li>real-provider eval <em>(from add-p5e-eval-fixtures)</em></li>
+<li>eval fixtures and smoke script (P5e) <em>(from add-p5d-eval-cli)</em></li>
+<li>CI pipeline wiring <em>(from add-p5d-eval-cli)</em></li>
+<li>real-provider evals with credentials/cost controls <em>(from add-p5d-eval-cli)</em></li>
+<li>vector database retrieval <em>(from add-p5a-memory-and-eval)</em></li>
+<li>online memory injection into ContextBuilder <em>(from add-p5a-memory-and-eval)</em></li>
+<li>memory context retrieval (P5b) <em>(from add-p5a-memory-and-eval)</em></li>
+<li>memory management API (P5c) <em>(from add-p5a-memory-and-eval)</em></li>
+<li>Online memory context building and retrieval (P5b) <em>(from add-p5c-memory-management-api)</em></li>
+<li>Embedding and vector search integrations <em>(from add-p5c-memory-management-api)</em></li>
+<li>Vector search engine retrieval integration <em>(from add-p4a-context-builder)</em></li>
+<li>Online memory retrieval and injection (P5b) <em>(from add-p4a-context-builder)</em></li>
+<li>Audit metadata/trace attributes for injection guard state <em>(from add-p3d-injection-guard)</em></li>
+<li>Add dynamic MCP-tool permission configurations <em>(from add-p3d-injection-guard)</em></li>
+<li>Operator budgets and daily rate limits enforcement <em>(from add-p3b-cost-and-router)</em></li>
+<li>Logical intent based logical routing mappings <em>(from add-p3b-cost-and-router)</em></li></ul>
+    <h3>暂不建议</h3><ul><li>Provider Adapter alternating roles 门禁适配（本 change 收窄移至后续 change） <em>(from add-runtime-cache-stability)</em></li>
+<li>原地同模型热压缩 (ITC) <em>(from add-runtime-cache-stability)</em></li>
+<li>子智能体分发器 (Subagent Dispatcher) <em>(from add-runtime-cache-stability)</em></li>
+<li>Java model router implementation changes <em>(from add-agent-definition-model-selection)</em></li>
+<li>Provider credential handling in TS Runtime or Frontend <em>(from add-agent-definition-model-selection)</em></li>
+<li>TS-side Java route existence validation <em>(from add-agent-definition-model-selection)</em></li>
+<li>SDK changes <em>(from add-agent-definition-model-selection)</em></li>
+<li>Frontend UI <em>(from add-agent-definition-model-selection)</em></li>
+<li>YAML support <em>(from add-agent-definition-model-selection)</em></li>
+<li>Remote CRUD APIs <em>(from add-agent-definition-model-selection)</em></li>
+<li>Hot reload <em>(from add-agent-definition-model-selection)</em></li>
+<li>Tenant-scoped dynamic definitions <em>(from add-agent-definition-model-selection)</em></li>
+<li>Cross-project dashboard template extraction <em>(from harden-project-dashboard-validation)</em></li>
+<li>Business runtime behavior changes <em>(from harden-project-dashboard-validation)</em></li>
+<li>CI workflow changes <em>(from harden-project-dashboard-validation)</em></li>
+<li>YAML support <em>(from add-agent-definition-observability)</em></li>
+<li>SDK changes <em>(from add-agent-definition-observability)</em></li>
+<li>Frontend UI <em>(from add-agent-definition-observability)</em></li>
+<li>Remote CRUD APIs <em>(from add-agent-definition-observability)</em></li>
+<li>Hot reload <em>(from add-agent-definition-observability)</em></li>
+<li>Tenant-scoped dynamic definitions <em>(from add-agent-definition-observability)</em></li>
+<li>Java model router or AgentDefinition.model enforcement <em>(from add-agent-definition-observability)</em></li>
+<li>Java policy changes <em>(from add-agent-definition-observability)</em></li>
+<li>Java Tool Catalog changes <em>(from add-agent-definition-observability)</em></li>
+<li>Model-visible message changes <em>(from add-agent-definition-observability)</em></li>
+<li>Java policy changes <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>Java Tool Catalog changes <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>MCP server configuration or mcpAllowList changes <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>YAML support <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>SDK changes <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>Frontend UI <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>Remote CRUD APIs <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>Hot reload <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>Tenant-scoped dynamic definitions <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>Java model router or AgentDefinition.model enforcement <em>(from add-agent-definition-tool-filtering)</em></li>
+<li>Tool allow-list enforcement / filtering <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>YAML support <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>SDK changes <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>Frontend UI <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>Remote CRUD APIs <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>Hot reload <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>Tenant-scoped dynamic definitions <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>Java model router changes or model hint enforcement <em>(from add-agent-definition-runtime-selection)</em></li>
+<li>YAML support <em>(from add-agent-definition-loader)</em></li>
+<li>SDK package <em>(from add-agent-definition-loader)</em></li>
+<li>Frontend UI <em>(from add-agent-definition-loader)</em></li>
+<li>Remote CRUD APIs <em>(from add-agent-definition-loader)</em></li>
+<li>Hot reload <em>(from add-agent-definition-loader)</em></li>
+<li>Tenant-scoped dynamic definitions <em>(from add-agent-definition-loader)</em></li>
+<li>CI workflow files <em>(from add-p5e-eval-fixtures)</em></li>
+<li>dashboards <em>(from add-p5e-eval-fixtures)</em></li>
+<li>production benchmark datasets <em>(from add-p5e-eval-fixtures)</em></li>
+<li>fixture auto-discovery <em>(from add-p5e-eval-fixtures)</em></li>
+<li>real-provider evals <em>(from add-p5e-eval-fixtures)</em></li>
+<li>frontend eval UI <em>(from add-p5d-eval-cli)</em></li>
+<li>remote eval service <em>(from add-p5d-eval-cli)</em></li>
+<li>production scheduler <em>(from add-p5d-eval-cli)</em></li>
+<li>benchmark dashboard <em>(from add-p5d-eval-cli)</em></li>
+<li>automatic fixture discovery <em>(from add-p5d-eval-cli)</em></li>
+<li>persistent eval history <em>(from add-p5d-eval-cli)</em></li>
+<li>vector database retrieval <em>(from add-p5a-memory-and-eval)</em></li>
+<li>online memory injection into ContextBuilder <em>(from add-p5a-memory-and-eval)</em></li>
+<li>frontend UI <em>(from add-p5a-memory-and-eval)</em></li>
+<li>production eval service <em>(from add-p5a-memory-and-eval)</em></li>
+<li>embeddings <em>(from add-p5a-memory-and-eval)</em></li>
+<li>automatic memory extraction <em>(from add-p5a-memory-and-eval)</em></li>
+<li>LLM autonomous memory extraction <em>(from add-p5c-memory-management-api)</em></li>
+<li>Frontend management UI implementation <em>(from add-p5c-memory-management-api)</em></li>
+<li>Java Backend storage sync/write access <em>(from add-p5c-memory-management-api)</em></li>
+<li>Auto-compress chunk archive logic refactoring <em>(from add-p4a-context-builder)</em></li>
+<li>Cache-hits matcher algorithm modifications <em>(from add-p4a-context-builder)</em></li>
+<li>Prompt-injection neural classifier integration <em>(from add-p3d-injection-guard)</em></li>
+<li>Certificate-based multi-tier trust registries <em>(from add-p3d-injection-guard)</em></li>
+<li>Frontend approval visual enhancements <em>(from add-p3d-injection-guard)</em></li>
+<li>Java ModelRouter dynamic config hot reload <em>(from add-p3b-cost-and-router)</em></li>
+<li>TS Runtime direct model routing configurations <em>(from add-p3b-cost-and-router)</em></li></ul>
+  </section>
+
+  <div class="auto-gen">
+    自动生成 · node docs/project-dashboard/scripts/render-dashboard.mjs
+  </div>
+
+  <script>
+    function show(event, id) {
+      document.querySelectorAll('section').forEach(s => s.classList.remove('active'));
+      document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      event.currentTarget.classList.add('active');
+    }
+  </script>
+</body>
+</html>

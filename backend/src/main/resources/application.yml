@@ -1,0 +1,51 @@
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+spring:
+  jackson:
+    default-property-inclusion: non_null
+
+openharness:
+  default-provider: zhipu
+  model-router:
+    default: zhipu
+    routes:
+      default: zhipu
+      glm-4-flash: zhipu
+      SenseChat-5: sensenova
+      claude-sonnet-4-20250514: anthropic
+      claude-haiku: anthropic
+  providers:
+    - name: zhipu
+      type: openai-compatible
+      base-url: https://open.bigmodel.cn/api/paas/v4
+      api-key: ${ZHIPU_API_KEY:${SENSENOVA_API_KEY:REPLACE_ME}}
+      models:
+        - glm-4-flash
+        - default
+      pricing:
+        glm-4-flash:
+          input-per-mtoken: 100
+          output-per-mtoken: 300
+        default:
+          input-per-mtoken: 100
+          output-per-mtoken: 300
+    - name: sensenova
+      type: openai-compatible
+      base-url: https://api.sensenova.cn/v1/llm
+      api-key: ${SENSENOVA_API_KEY_REAL:REPLACE_ME}
+      models:
+        - SenseChat-5
+    - name: anthropic
+      type: anthropic
+      base-url: https://api.anthropic.com
+      api-key: ${ANTHROPIC_API_KEY:REPLACE_ME}
+      models:
+        - claude-sonnet-4-20250514
+        - claude-haiku

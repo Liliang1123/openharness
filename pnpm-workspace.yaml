@@ -1,0 +1,5 @@
+packages:
+  - "packages/*"
+  - "agent-runtime"
+  - "frontend"
+  - "integration-tests"
