@@ -32,7 +32,7 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 Review 文档至少包含：
 
 - `结论`：使用 `通过`、`有风险` 或 `需修改` 开头。
-- `Review 范围`：列出被评审的文件、方案、代码或文档。
+- `Review 范围`：列出被评审的文件、方案、代码或文档。所有被评审的文件与目录路径**必须**使用以 `file:///` 开头的完整绝对路径 Markdown 链接形式（禁止使用相对路径或纯文本路径）。
 - `主要发现`：按严重度列出问题、风险和依据。
 - `最终建议`：给出可执行的修正方向或最终方案。
 - `后续门禁`：说明是否需要 OpenSpec proposal、Superpowers plan、测试或人工审批。
@@ -72,7 +72,7 @@ Review 文档至少包含：
 - `当前状态`：active change、archived changes、spec 状态、服务/端口状态。
 - `未完成 / 下一步`：明确未完成节点，不得把已完成任务写成待办。
 - `建议下一步`：给出推荐方向、不建议方向和原因。
-- `涉及文件`：列出 specs、plans、tasks、docs、source、tests 的精确路径。
+- `涉及文件`：列出 specs、plans、tasks、docs、source、tests 的精确路径。所有文件与目录路径**必须**使用以 `file:///` 开头的完整绝对路径 Markdown 链接形式（禁止使用相对路径或纯文本路径）。
 - `验证记录`：命令和已观察到的 pass/fail 结果。
 - `风险 / 注意事项`：非阻塞 warning、环境限制、不要重复执行事项。
 - `给新窗口的启动指令`：说明新窗口从哪个节点继续、先读哪些文件、不要重复哪些任务。

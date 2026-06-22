@@ -636,6 +636,82 @@ describe("AgentExecutionRunner", () => {
       }
     }
   });
+
+  it("routes fork_agent skills through subagent summary without parent pending injection", async () => {
+    const skillDir = path.join(process.cwd(), "skills", "fork-worker");
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), [
+      "---",
+      "name: fork-worker",
+      "description: A forked worker skill",
+      "version: 1.0.0",
+      "tools_required: []",
+      "parameters: {}",
+      "fork_agent: true",
+      "subagent_model: cheap-worker",
+      "forbidden_tools: [run_command]",
+      "---",
+      "Child-only instructions must not be injected into parent history."
+    ].join("\n"), "utf-8");
+
+    const javaClient = new FakeJavaClient();
+    javaClient.chat = async (request: ModelChatRequest) => {
+      javaClient.chatRequests.push(request);
+      if (request.conversationId.includes("::subagent-")) {
+        return {
+          requestId: request.requestId,
+          conversationId: request.conversationId,
+          rawProvider: "mock",
+          usage: {
+            promptTokens: 0,
+            completionTokens: 0,
+            totalTokens: 0,
+            costUsdMicros: 11
+          },
+          message: { role: "assistant", content: "subagent summary" } as AgentMessage
+        };
+      }
+      const parentCalls = javaClient.chatRequests.filter(r => !r.conversationId.includes("::subagent-")).length;
+      if (parentCalls === 1) {
+        return {
+          requestId: request.requestId,
+          conversationId: request.conversationId,
+          rawProvider: "mock",
+          message: {
+            role: "assistant",
+            content: "",
+            toolCalls: [{ id: "call-fork-skill", name: "invoke_skill", argumentsRaw: '{"skill_name":"fork-worker","task":"do child work"}' }]
+          } as AgentMessage
+        };
+      }
+      return {
+        requestId: request.requestId,
+        conversationId: request.conversationId,
+        rawProvider: "mock",
+        message: { role: "assistant", content: "done" } as AgentMessage
+      };
+    };
+
+    const origSkills = process.env.OPENHARNESS_SKILLS_ENABLED;
+    process.env.OPENHARNESS_SKILLS_ENABLED = "true";
+    try {
+      const runner = new AgentExecutionRunner(javaClient, history, undefined, runtimeEventStore, executionStateStore);
+      const { done } = runner.start({
+        ...baseInput,
+        agentDefinition: { ...DEFAULT_AGENT_DEFINITION, tools: ["invoke_skill"], model: "default" }
+      });
+      await done;
+
+      const parentMessages = history.get("t1", "conv-runner");
+      expect(parentMessages.some(m => m.role === "tool" && m.toolName === "invoke_skill" && String(m.content).includes("subagent summary"))).toBe(true);
+      expect(parentMessages.some(m => String(m.content).includes("Child-only instructions must not be injected"))).toBe(false);
+      expect(javaClient.chatRequests.some(r => r.conversationId.includes("::subagent-") && r.model === "cheap-worker")).toBe(true);
+    } finally {
+      process.env.OPENHARNESS_SKILLS_ENABLED = origSkills;
+      if (fs.existsSync(path.join(skillDir, "SKILL.md"))) fs.unlinkSync(path.join(skillDir, "SKILL.md"));
+      if (fs.existsSync(skillDir)) fs.rmdirSync(skillDir);
+    }
+  });
 });
 
 async function waitFor(predicate: () => boolean): Promise<void> {

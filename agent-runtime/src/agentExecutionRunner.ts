@@ -15,6 +15,7 @@ import { promptedMessages, injectSessionContextIfNeeded } from "./prompts/regist
 import type { PendingInjection } from "./skills/types";
 import { resolveSkillPath, parseSkillMarkdown } from "./skills/loader";
 import { resolveProviderCapabilities } from "./skills/capabilities";
+import { SubagentDispatcher } from "./subagent/dispatcher";
 import {
   TRACE_AGENT_START,
   TRACE_AGENT_END,
@@ -104,6 +105,7 @@ export interface AgentExecutionHandle {
 export class AgentExecutionRunner {
   private readonly toolRegistry: ToolRegistry;
   private readonly pendingInjections = new Map<string, PendingInjection[]>();
+  private readonly subagentDispatcher: SubagentDispatcher;
 
   constructor(
     private readonly javaClient: JavaClient,
@@ -115,6 +117,7 @@ export class AgentExecutionRunner {
     private readonly memoryStore?: MemoryStore
   ) {
     this.toolRegistry = new ToolRegistry(javaClient, mcpRegistry);
+    this.subagentDispatcher = new SubagentDispatcher(javaClient);
   }
 
   start(input: AgentExecutionInput): AgentExecutionHandle {
@@ -512,6 +515,59 @@ export class AgentExecutionRunner {
         const skillPath = resolveSkillPath(skillName);
         const skill = parseSkillMarkdown(skillPath);
 
+        if (skill.metadata.fork_agent === true) {
+          const executionId = this.currentExecutionId(input.tenantId, input.conversationId);
+          const parentState = this.executionStateStore.get(executionId);
+          const subagentResult = await this.subagentDispatcher.run({
+            parent: {
+              executionId,
+              tenantId: input.tenantId,
+              conversationId: input.conversationId,
+              requestId: input.requestId,
+              traceId: input.traceId,
+              userId: input.userId,
+              headers: input.headers,
+              abortSignal: parentState?.abortController.signal ?? new AbortController().signal
+            },
+            toolCallId: toolCall.id,
+            skill,
+            task,
+            parentCatalog: {
+              catalogVersion: catalog.catalogVersion,
+              catalogHash: catalog.catalogHash,
+              tools: this.toolRegistry.getCatalogTools(input.tenantId, input.conversationId)
+            },
+            timeoutMs: resolveTimeoutMs("SUBAGENT_TIMEOUT_MS", 300_000)
+          });
+
+          if (subagentResult.status === "error") {
+            await emit(this.ev(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", {
+              toolName: toolCall.name,
+              status: "error",
+              stepIndex,
+              childExecutionId: subagentResult.childExecutionId,
+              errorClass: subagentResult.errorClass
+            }));
+            throw new RuntimeTerminalFailure("TOOL_ERROR", subagentResult.errorMessage ?? "Subagent failed", {
+              toolCallId: toolCall.id,
+              toolName: toolCall.name,
+              stepIndex,
+              childExecutionId: subagentResult.childExecutionId,
+              errorClass: subagentResult.errorClass
+            });
+          }
+
+          await emit(this.ev(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", {
+            toolName: toolCall.name,
+            status: "ok",
+            stepIndex,
+            childExecutionId: subagentResult.childExecutionId,
+            childConversationId: subagentResult.childConversationId,
+            subagentCostUsdMicros: subagentResult.usage?.costUsdMicros
+          }));
+          return toolMessage(toolCall.id, toolCall.name, subagentResult.summary, "trusted");
+        }
+
         const sessionKey = `${input.tenantId}:${input.conversationId}`;
         let pending = this.pendingInjections.get(sessionKey);
         if (!pending) {
@@ -528,6 +584,9 @@ export class AgentExecutionRunner {
         await emit(this.ev(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", { toolName: toolCall.name, status: "ok", stepIndex }));
         return toolMessage(toolCall.id, toolCall.name, content, "trusted");
       } catch (err: any) {
+        if (err instanceof RuntimeTerminalFailure) {
+          throw err;
+        }
         await emit(this.ev(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", { toolName: toolCall.name, status: "error", stepIndex }));
         throw new RuntimeTerminalFailure("TOOL_ERROR", `Failed to load skill: ${err.message}`, {
           toolCallId: toolCall.id,

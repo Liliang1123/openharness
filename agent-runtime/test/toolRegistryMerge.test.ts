@@ -177,6 +177,23 @@ describe("ToolRegistry merge", () => {
       process.env.OPENHARNESS_SKILLS_ENABLED = origSkills;
     }
   });
+
+  it("exposes frozen catalog tools for scoped runtime derivation", async () => {
+    const origSkills = process.env.OPENHARNESS_SKILLS_ENABLED;
+    process.env.OPENHARNESS_SKILLS_ENABLED = "true";
+    try {
+      const java = new StubJava(sampleCatalog);
+      const reg = new ToolRegistry(java);
+      await reg.getFrozenCatalog("t1", "conv-tools", {});
+
+      const tools = reg.getCatalogTools("t1", "conv-tools");
+      expect(tools.map(tool => tool.name)).toContain("invoke_skill");
+      tools.pop();
+      expect(reg.getCatalogTools("t1", "conv-tools").map(tool => tool.name)).toContain("invoke_skill");
+    } finally {
+      process.env.OPENHARNESS_SKILLS_ENABLED = origSkills;
+    }
+  });
 });
 
 

@@ -127,6 +127,12 @@ export class ToolRegistry {
     return permissions;
   }
 
+  getCatalogTools(tenantId: string, conversationId: string): ToolDefinition[] {
+    const key = `${tenantId}:${conversationId}`;
+    const entry = this.getEntriesMap().get(key);
+    return entry ? [...entry.catalog.tools] : [];
+  }
+
   public static clearSessionCatalog(tenantId: string, conversationId: string): void {
     const key = `${tenantId}:${conversationId}`;
     ToolRegistry.entries.delete(key);

@@ -36,6 +36,10 @@
 | **Context Layer** | ContextBuilder 的输入选择层。当前确认的 layer 是 `compressed_summary` 和 `recent_messages`；后续可扩展环境快照、相关工具结果或长期记忆。 |
 | **Model Context Budget** | 单次 model call 允许进入模型输入视图的估算 token 上限。当前由 `MODEL_CONTEXT_BUDGET_TOKENS` 配置，默认 8000。 |
 | **ToolRegistry** | TS Runtime 中管理可用工具的注册表。每次 conversation 冻结 catalog 版本。 |
+| **Subagent** | 由父 Agent 在单次工具调用内启动的隔离子智能体。用于处理 `fork_agent: true` 的 Skill 任务；子执行拥有独立 history / trace attribution，父 conversation 只接收最终 summary tool result。 |
+| **SubagentDispatcher** | TS Runtime 内负责启动、约束和汇总 Subagent 的组件。它从父 frozen catalog 派生并降级子工具目录，传播父执行 abort / timeout，并汇总 Java 返回的 usage/cost。 |
+| **Child Execution Identity** | 子智能体执行的审计身份。与父 `executionId`、`tenantId`、`conversationId`、`toolCallId` 和 skill name 关联，用于 trace attribution；不代表新的顶层用户会话锁。 |
+| **Subagent Tool Downgrade** | 子智能体工具权限只能从父执行继承后减少，不能升级。运行时必须移除 Skill `forbidden_tools` 和默认特权元工具，并继续对每个子工具调用执行 `beforeToolUse`。 |
 | **Protocol Tool** | Harness 级标准工具。通过 Java catalog 暴露并走 `/api/v1/tools/execute`，用于跨 agent 复用的文件读取、搜索和命令执行等基础能力。 |
 | **Tool Workspace** | Protocol Tool 可访问的本地根目录。路径必须 containment 在该目录内，防止读取或执行超出授权范围的文件。 |
 | **Output Cap** | Protocol Tool 输出大小上限。超出上限时返回截断标记，避免大结果污染 history 或模型上下文。 |

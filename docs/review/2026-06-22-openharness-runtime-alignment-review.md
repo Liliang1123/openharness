@@ -9,7 +9,7 @@
 
 ## Review 范围
 
-- 设计方案：`docs/design/2026-06-18-openharness-runtime-alignment-plan.md`
+- 设计方案：[2026-06-18-openharness-runtime-alignment-plan.md](file:///Users/elvis/file/develop/opensource/openharness/docs/design/2026-06-18-openharness-runtime-alignment-plan.md)
 - 用户提供任务包摘要中的模块 A/B/C/D 与 4 个重点 Review 维度
 - 项目规则：`AGENTS.md`、`openspec/AGENTS.md`
 - OpenSpec 状态检查：`openspec list` 显示无 active changes；`openspec list --specs` 显示已有 `agent-runtime`、`cache-hints`、`context-builder`、`context-compression`、`mcp-tools`、`tool-protocol`、`provider-adapter` 等相关 spec

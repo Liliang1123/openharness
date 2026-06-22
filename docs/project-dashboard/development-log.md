@@ -7,7 +7,8 @@
 
 ### 2026-06-22
 
-- ✅ verified **add-skill-invocation-sandbox** — 实现自进化技能（Skill）执行沙箱。包含 YAML 元数据解析器、`invoke_skill` 拦截与延迟注入引擎、兼容 Alternating Roles 门禁适配以及商业敏感脚本的 best-effort 物理碎纸销毁机制。
+- ✅ verified **add-subagent-dispatcher** — 为 fork_agent 技能新增隔离子智能体分发器。子执行使用独立 history/trace attribution，父 Agent 只接收 summary tool result，并强制执行 forbidden_tools 降权、特权元工具过滤、abort/timeout 传播与 usage/cost 归因。
+- 📦 archived **add-skill-invocation-sandbox** — 实现自进化技能（Skill）执行沙箱。包含 YAML 元数据解析器、`invoke_skill` 拦截与延迟注入引擎、兼容 Alternating Roles 门禁适配以及商业敏感脚本的 best-effort 物理碎纸销毁机制。
 - 📦 archived **add-runtime-cache-stability** — 重构运行时缓存机制以优化 Prompt Cache 命中率并防范资源泄漏。引入策略化双缓存断点、System Prompt 字节级静止与 [session context] 动态注入，并对 Tools Schema 锁定进行内存上限 FIFO 淘汰控制及持久化 transient 隔离。
 
 ### 2026-06-18
@@ -52,7 +53,8 @@
 
 | 功能点 | 状态 | Spec | Plan | Code | Tests | Closeout |
 |---|---|---|---|---|---|---|
-| add-skill-invocation-sandbox | ✅ verified | agent-loop, provider-adapter | [plan](docs/superpowers/plans/2026-06-22-add-skill-invocation-sandbox.md) | 7 files | 5 files | — |
+| add-subagent-dispatcher | ✅ verified | agent-loop, agent-runtime | [plan](docs/superpowers/plans/2026-06-22-add-subagent-dispatcher.md) | 2 files | 2 files | [closeout](docs/design/2026-06-22-add-subagent-dispatcher-closeout.md) |
+| add-skill-invocation-sandbox | 📦 archived | agent-loop, provider-adapter | [plan](docs/superpowers/plans/2026-06-22-add-skill-invocation-sandbox.md) | 7 files | 5 files | [closeout](docs/design/2026-06-22-add-skill-invocation-sandbox-closeout.md) |
 | add-runtime-cache-stability | 📦 archived | cache-hints, context-builder, prompt-registry, agent-runtime | [plan](docs/superpowers/plans/2026-06-22-add-runtime-cache-stability.md) | 7 files | 3 files | [closeout](docs/design/2026-06-22-add-runtime-cache-stability-closeout.md) |
 | add-agent-definition-model-selection | 📦 archived | agent-definition | [plan](docs/superpowers/plans/2026-06-18-add-agent-definition-model-selection.md) | 1 files | 1 files | [closeout](docs/design/2026-06-18-add-agent-definition-model-selection-closeout.md) |
 | harden-project-dashboard-validation | ✅ verified | — | — | 9 files | — | [closeout](docs/design/2026-06-18-project-dashboard-hardening.md) |
@@ -176,9 +178,17 @@
 
 - 📦 archived add-p3b-cost-and-router
 
+### cost-attribution
+
+- ✅ verified add-subagent-dispatcher
+
 ### deferred-injection
 
-- ✅ verified add-skill-invocation-sandbox
+- 📦 archived add-skill-invocation-sandbox
+
+### dispatcher
+
+- ✅ verified add-subagent-dispatcher
 
 ### eval-cli
 
@@ -211,6 +221,10 @@
 ### injection-guard
 
 - 📦 archived add-p3d-injection-guard
+
+### isolation
+
+- ✅ verified add-subagent-dispatcher
 
 ### long-term-memory
 
@@ -336,7 +350,7 @@
 
 ### sandbox
 
-- ✅ verified add-skill-invocation-sandbox
+- 📦 archived add-skill-invocation-sandbox
 
 ### schema
 
@@ -370,7 +384,7 @@
 
 ### shredder
 
-- ✅ verified add-skill-invocation-sandbox
+- 📦 archived add-skill-invocation-sandbox
 
 ### skeleton
 
@@ -378,7 +392,8 @@
 
 ### skills
 
-- ✅ verified add-skill-invocation-sandbox
+- ✅ verified add-subagent-dispatcher
+- 📦 archived add-skill-invocation-sandbox
 
 ### sse
 
@@ -392,6 +407,10 @@
 ### stream-recovery
 
 - ⚠️ partial add-execution-lifecycle-and-stream-recovery
+
+### subagent
+
+- ✅ verified add-subagent-dispatcher
 
 ### tool-catalog
 
@@ -429,6 +448,8 @@
 
 ### 推荐下一步
 
+- 隔离子智能体分发器实施 (add-subagent-dispatcher) _(from add-skill-invocation-sandbox)_
+- 原地同模型热压缩 (ITC) 实施 (add-internal-context-compression) _(from add-skill-invocation-sandbox)_
 - 自进化技能（Skill）执行沙箱实施 (add-skill-invocation-sandbox) _(from add-runtime-cache-stability)_
 - 隔离子智能体（Subagent）分发器实施 (add-subagent-dispatcher) _(from add-runtime-cache-stability)_
 - 原地同模型热压缩 (ITC) 实施 (add-internal-context-compression) _(from add-runtime-cache-stability)_
@@ -484,6 +505,9 @@
 
 ### 暂不建议
 
+- 子智能体分发器 (Subagent Dispatcher)，已移至 add-subagent-dispatcher _(from add-skill-invocation-sandbox)_
+- 公开子 Agent API / SDK / UI _(from add-skill-invocation-sandbox)_
+- 容器级或系统级沙箱隔离 _(from add-skill-invocation-sandbox)_
 - Provider Adapter alternating roles 门禁适配（本 change 收窄移至后续 change） _(from add-runtime-cache-stability)_
 - 原地同模型热压缩 (ITC) _(from add-runtime-cache-stability)_
 - 子智能体分发器 (Subagent Dispatcher) _(from add-runtime-cache-stability)_
