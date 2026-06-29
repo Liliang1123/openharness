@@ -19,7 +19,10 @@ import {
   ToolCallRequestSchema,
   ToolDefinitionSchema,
   ToolCallResponseSchema,
-  ToolCallSchema
+  ToolCallSchema,
+  TraceEventSchema,
+  TraceNodeKindSchema,
+  TraceTreeAttributesSchema
 } from "../src/index";
 
 const structuredError = {
@@ -566,5 +569,96 @@ describe("shared schema", () => {
         // missing other required fields
       })
     ).toThrow();
+  });
+
+  it("parses trace SessionEvent for frontend replay", () => {
+    const parsed = SessionEventSchema.parse({
+      eventId: "t1::conv-1:2",
+      executionId: "exec-parent",
+      conversationId: "conv-1",
+      tenantId: "t1",
+      traceId: "trace-1",
+      requestId: "req-1",
+      createdAt: 1779700000000,
+      kind: "trace",
+      data: {
+        eventType: "SUBAGENT_START",
+        attributes: {
+          traceNodeKind: "subagent_execution",
+          executionId: "exec-parent",
+          childExecutionId: "exec-child"
+        }
+      }
+    });
+
+    expect(parsed.kind).toBe("trace");
+  });
+
+  it("parses TraceEvent with subagent_execution trace node attributes", () => {
+    const traceEventRaw = {
+      traceId: "trace-123",
+      spanId: "span-456",
+      parentSpanId: "span-000",
+      requestId: "req-789",
+      conversationId: "conv-abc",
+      userId: "user-1",
+      tenantId: "tenant-1",
+      runtime: "agent-runtime" as const,
+      eventType: "span",
+      name: "subagent-run",
+      status: "ok" as const,
+      startTime: 1779700000000,
+      endTime: 1779700010000,
+      attributes: {
+        traceNodeKind: "subagent_execution",
+        executionId: "exec-1",
+        parentExecutionId: "exec-parent",
+        childExecutionId: "exec-child",
+        childConversationId: "conv-child",
+        skillName: "cavecrew",
+        toolCallId: "call-1",
+        stepIndex: 3,
+        durationMs: 1500,
+        costUsdMicros: 200,
+        traceIngestionStatus: "posted",
+        futureField: "retained"
+      }
+    };
+
+    const parsed = TraceEventSchema.parse(traceEventRaw);
+    expect(parsed.attributes).toBeDefined();
+
+    const parsedAttrs = TraceTreeAttributesSchema.parse(parsed.attributes);
+    expect(parsedAttrs.traceNodeKind).toBe("subagent_execution");
+    expect(parsedAttrs.executionId).toBe("exec-1");
+    expect(parsedAttrs.parentExecutionId).toBe("exec-parent");
+    expect(parsedAttrs.childExecutionId).toBe("exec-child");
+    expect(parsedAttrs.childConversationId).toBe("conv-child");
+    expect(parsedAttrs.skillName).toBe("cavecrew");
+    expect(parsedAttrs.toolCallId).toBe("call-1");
+    expect(parsedAttrs.stepIndex).toBe(3);
+    expect(parsedAttrs.durationMs).toBe(1500);
+    expect(parsedAttrs.costUsdMicros).toBe(200);
+    expect(parsedAttrs.traceIngestionStatus).toBe("posted");
+    expect((parsedAttrs as any).futureField).toBe("retained");
+  });
+
+  it("parses historical TraceEvent without attributes successfully", () => {
+    const historicalEvent = {
+      traceId: "trace-123",
+      spanId: "span-456",
+      requestId: "req-789",
+      conversationId: "conv-abc",
+      userId: "user-1",
+      tenantId: "tenant-1",
+      runtime: "agent-runtime" as const,
+      eventType: "span",
+      name: "legacy-run",
+      status: "ok" as const,
+      startTime: 1779700000000
+    };
+
+    const parsed = TraceEventSchema.parse(historicalEvent);
+    expect(parsed.attributes).toBeUndefined();
   });
 });

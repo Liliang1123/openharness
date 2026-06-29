@@ -150,6 +150,7 @@ export class AgentExecutionRunner {
     };
 
     const emit = async (ev: TraceEvent) => {
+      send("trace", { ...ev });
       try { await this.javaClient.postTrace(ev, input.headers); } catch { /* trace must not break */ }
     };
 
@@ -537,7 +538,9 @@ export class AgentExecutionRunner {
               catalogHash: catalog.catalogHash,
               tools: this.toolRegistry.getCatalogTools(input.tenantId, input.conversationId)
             },
-            timeoutMs: resolveTimeoutMs("SUBAGENT_TIMEOUT_MS", 300_000)
+            timeoutMs: resolveTimeoutMs("SUBAGENT_TIMEOUT_MS", 300_000),
+            stepIndex,
+            emitTrace: emit
           });
 
           if (subagentResult.status === "error") {

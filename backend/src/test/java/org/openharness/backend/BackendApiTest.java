@@ -4,6 +4,8 @@ import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.notNullValue;
 import static java.util.Map.entry;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -14,6 +16,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import org.openharness.backend.model.Contracts.TraceEvent;
+import org.openharness.backend.service.TraceService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -29,6 +33,7 @@ class BackendApiTest {
 
   @Autowired MockMvc mvc;
   @Autowired ObjectMapper objectMapper;
+  @Autowired TraceService traceService;
 
   @Test
   void healthDoesNotRequireServiceHeaders() throws Exception {
@@ -276,6 +281,46 @@ class BackendApiTest {
                             entry("status", "ok"),
                             entry("startTime", 1780000000000L)))))
         .andExpect(status().isAccepted());
+  }
+
+  @Test
+  void subagentTraceTreeAttributesAreAcceptedAndPreserved() throws Exception {
+    int eventCount = traceService.events().size();
+    Map<String, Object> attributes =
+        Map.ofEntries(
+            entry("traceNodeKind", "subagent_execution"),
+            entry("executionId", "exec-parent"),
+            entry("parentExecutionId", "exec-parent"),
+            entry("childExecutionId", "subagent-child"),
+            entry("childConversationId", "conv-parent::subagent-child"),
+            entry("skillName", "worker-skill"),
+            entry("toolCallId", "call-skill"));
+
+    mvc.perform(
+            valid(post("/api/v1/trace/events"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    json(
+                        Map.ofEntries(
+                            entry("traceId", "trace-subagent-001"),
+                            entry("spanId", "span-subagent-001"),
+                            entry("requestId", "req-subagent-001"),
+                            entry("conversationId", "conv-parent"),
+                            entry("userId", "user-001"),
+                            entry("tenantId", "tenant-001"),
+                            entry("runtime", "agent-runtime"),
+                            entry("eventType", "SUBAGENT_START"),
+                            entry("name", "subagent start"),
+                            entry("status", "ok"),
+                            entry("startTime", 1780000000000L),
+                            entry("attributes", attributes)))))
+        .andExpect(status().isAccepted());
+
+    assertEquals(eventCount + 1, traceService.events().size());
+    TraceEvent stored = traceService.events().get(eventCount);
+    assertEquals("SUBAGENT_START", stored.eventType());
+    assertEquals(attributes, stored.attributes());
+    assertFalse(objectMapper.writeValueAsString(stored).contains("dev-service-token"));
   }
 
   private JsonNode catalog() throws Exception {

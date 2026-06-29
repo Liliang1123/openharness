@@ -218,6 +218,36 @@ input {
   white-space: pre-wrap;
 }
 
+.trace-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  grid-row: 1 / -1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.trace-node {
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+}
+
+.trace-node.child {
+  border-color: #64748b;
+  margin-left: 1rem;
+}
+
+.trace-children {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
 .error {
   color: #b91c1c;
   margin-top: 12px;

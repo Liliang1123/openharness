@@ -17,6 +17,8 @@ class FakeJavaClient implements JavaClient {
   requireApproval = false;
   chatRequests: ModelChatRequest[] = [];
   executedTools: ToolCallRequest[] = [];
+  traceEvents: TraceEvent[] = [];
+  postTraceShouldThrow = false;
 
   async getCatalog(): Promise<CatalogResponse> {
     return {
@@ -75,7 +77,12 @@ class FakeJavaClient implements JavaClient {
     };
   }
 
-  async postTrace(_e: TraceEvent) {}
+  async postTrace(e: TraceEvent) {
+    this.traceEvents.push(e);
+    if (this.postTraceShouldThrow) {
+      throw new Error("Simulated postTrace failure");
+    }
+  }
 
   async evaluatePolicy(req: PolicyEvaluateRequest): Promise<PolicyEvaluateResponse> {
     return {
@@ -706,6 +713,164 @@ describe("AgentExecutionRunner", () => {
       expect(parentMessages.some(m => m.role === "tool" && m.toolName === "invoke_skill" && String(m.content).includes("subagent summary"))).toBe(true);
       expect(parentMessages.some(m => String(m.content).includes("Child-only instructions must not be injected"))).toBe(false);
       expect(javaClient.chatRequests.some(r => r.conversationId.includes("::subagent-") && r.model === "cheap-worker")).toBe(true);
+    } finally {
+      process.env.OPENHARNESS_SKILLS_ENABLED = origSkills;
+      if (fs.existsSync(path.join(skillDir, "SKILL.md"))) fs.unlinkSync(path.join(skillDir, "SKILL.md"));
+      if (fs.existsSync(skillDir)) fs.rmdirSync(skillDir);
+    }
+  });
+
+  it("calls postTrace on fork skill execution including SUBAGENT_START and SUBAGENT_END", async () => {
+    const skillDir = path.join(process.cwd(), "skills", "fork-worker-trace");
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), [
+      "---",
+      "name: fork-worker-trace",
+      "description: A forked worker skill for trace test",
+      "version: 1.0.0",
+      "tools_required: []",
+      "parameters: {}",
+      "fork_agent: true",
+      "subagent_model: cheap-worker",
+      "forbidden_tools: [run_command]",
+      "---",
+      "Child instructions."
+    ].join("\n"), "utf-8");
+
+    const javaClient = new FakeJavaClient();
+    javaClient.chat = async (request: ModelChatRequest) => {
+      javaClient.chatRequests.push(request);
+      if (request.conversationId.includes("::subagent-")) {
+        return {
+          requestId: request.requestId,
+          conversationId: request.conversationId,
+          rawProvider: "mock",
+          usage: {
+            promptTokens: 0,
+            costUsdMicros: 11
+          },
+          message: { role: "assistant", content: "subagent summary" } as AgentMessage
+        };
+      }
+      const parentCalls = javaClient.chatRequests.filter(r => !r.conversationId.includes("::subagent-")).length;
+      if (parentCalls === 1) {
+        return {
+          requestId: request.requestId,
+          conversationId: request.conversationId,
+          rawProvider: "mock",
+          message: {
+            role: "assistant",
+            content: "",
+            toolCalls: [{ id: "call-fork-skill", name: "invoke_skill", argumentsRaw: '{"skill_name":"fork-worker-trace","task":"do child work"}' }]
+          } as AgentMessage
+        };
+      }
+      return {
+        requestId: request.requestId,
+        conversationId: request.conversationId,
+        rawProvider: "mock",
+        message: { role: "assistant", content: "done" } as AgentMessage
+      };
+    };
+
+    const origSkills = process.env.OPENHARNESS_SKILLS_ENABLED;
+    process.env.OPENHARNESS_SKILLS_ENABLED = "true";
+    try {
+      const runner = new AgentExecutionRunner(javaClient, history, undefined, runtimeEventStore, executionStateStore);
+      const { done } = runner.start({
+        ...baseInput,
+        conversationId: "conv-fork-trace",
+        agentDefinition: { ...DEFAULT_AGENT_DEFINITION, tools: ["invoke_skill"], model: "default" }
+      });
+      await done;
+
+      const events = javaClient.traceEvents;
+      const subagentStart = events.find(e => e.eventType === "SUBAGENT_START");
+      const subagentEnd = events.find(e => e.eventType === "SUBAGENT_END");
+
+      expect(subagentStart).toBeDefined();
+      expect(subagentEnd).toBeDefined();
+      expect(events.filter(e => e.eventType === "SUBAGENT_START")).toHaveLength(1);
+      expect(events.filter(e => e.eventType === "SUBAGENT_END")).toHaveLength(1);
+      expect(subagentStart?.attributes?.skillName).toBe("fork-worker-trace");
+      expect(subagentEnd?.attributes?.costUsdMicros).toBe(11);
+
+      const replayEvents = runtimeEventStore.since("t1", "conv-fork-trace", null);
+      const traceEvents = replayEvents.filter(e => (e.kind as string) === "trace");
+      expect(traceEvents.map(e => e.data.eventType)).toContain("SUBAGENT_START");
+      expect(traceEvents.map(e => e.data.eventType)).toContain("SUBAGENT_END");
+    } finally {
+      process.env.OPENHARNESS_SKILLS_ENABLED = origSkills;
+      if (fs.existsSync(path.join(skillDir, "SKILL.md"))) fs.unlinkSync(path.join(skillDir, "SKILL.md"));
+      if (fs.existsSync(skillDir)) fs.rmdirSync(skillDir);
+    }
+  });
+
+  it("resilient to postTrace failure and runs to completion", async () => {
+    const skillDir = path.join(process.cwd(), "skills", "fork-worker-fail");
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), [
+      "---",
+      "name: fork-worker-fail",
+      "description: A forked worker skill for failure test",
+      "version: 1.0.0",
+      "tools_required: []",
+      "parameters: {}",
+      "fork_agent: true",
+      "subagent_model: cheap-worker",
+      "forbidden_tools: [run_command]",
+      "---",
+      "Child instructions."
+    ].join("\n"), "utf-8");
+
+    const javaClient = new FakeJavaClient();
+    javaClient.postTraceShouldThrow = true;
+    javaClient.chat = async (request: ModelChatRequest) => {
+      javaClient.chatRequests.push(request);
+      if (request.conversationId.includes("::subagent-")) {
+        return {
+          requestId: request.requestId,
+          conversationId: request.conversationId,
+          rawProvider: "mock",
+          usage: {
+            promptTokens: 0,
+            costUsdMicros: 11
+          },
+          message: { role: "assistant", content: "subagent summary" } as AgentMessage
+        };
+      }
+      const parentCalls = javaClient.chatRequests.filter(r => !r.conversationId.includes("::subagent-")).length;
+      if (parentCalls === 1) {
+        return {
+          requestId: request.requestId,
+          conversationId: request.conversationId,
+          rawProvider: "mock",
+          message: {
+            role: "assistant",
+            content: "",
+            toolCalls: [{ id: "call-fork-skill", name: "invoke_skill", argumentsRaw: '{"skill_name":"fork-worker-fail","task":"do child work"}' }]
+          } as AgentMessage
+        };
+      }
+      return {
+        requestId: request.requestId,
+        conversationId: request.conversationId,
+        rawProvider: "mock",
+        message: { role: "assistant", content: "done" } as AgentMessage
+      };
+    };
+
+    const origSkills = process.env.OPENHARNESS_SKILLS_ENABLED;
+    process.env.OPENHARNESS_SKILLS_ENABLED = "true";
+    try {
+      const runner = new AgentExecutionRunner(javaClient, history, undefined, runtimeEventStore, executionStateStore);
+      const { done } = runner.start({
+        ...baseInput,
+        conversationId: "conv-fork-fail",
+        agentDefinition: { ...DEFAULT_AGENT_DEFINITION, tools: ["invoke_skill"], model: "default" }
+      });
+      const state = await done;
+      expect(state.status).toBe("completed");
     } finally {
       process.env.OPENHARNESS_SKILLS_ENABLED = origSkills;
       if (fs.existsSync(path.join(skillDir, "SKILL.md"))) fs.unlinkSync(path.join(skillDir, "SKILL.md"));

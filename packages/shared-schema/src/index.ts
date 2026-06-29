@@ -333,6 +333,33 @@ export const ToolCallResponseSchema = z.discriminatedUnion("status", [
 ]);
 export type ToolCallResponse = z.infer<typeof ToolCallResponseSchema>;
 
+export const TraceNodeKindSchema = z.enum([
+  "agent_execution",
+  "subagent_execution",
+  "model_call",
+  "tool_call",
+  "summary"
+]);
+export type TraceNodeKind = z.infer<typeof TraceNodeKindSchema>;
+
+export const TraceTreeAttributesSchema = z
+  .object({
+    traceNodeKind: TraceNodeKindSchema,
+    executionId: z.string().optional(),
+    parentExecutionId: z.string().optional(),
+    childExecutionId: z.string().optional(),
+    childConversationId: z.string().optional(),
+    skillName: z.string().optional(),
+    toolCallId: z.string().optional(),
+    stepIndex: z.number().int().nonnegative().optional(),
+    terminalClass: z.string().optional(),
+    durationMs: z.number().nonnegative().optional(),
+    costUsdMicros: z.number().int().nonnegative().optional(),
+    traceIngestionStatus: z.enum(["posted", "failed", "skipped"]).optional()
+  })
+  .passthrough();
+export type TraceTreeAttributes = z.infer<typeof TraceTreeAttributesSchema>;
+
 export const TraceEventSchema = z.object({
   traceId: z.string(),
   spanId: z.string(),
@@ -454,6 +481,7 @@ export const RuntimeEventKindSchema = z.enum([
   "model_call_end",
   "tool_call",
   "tool_result",
+  "trace",
   "step_budget_exhausted",
   "final_answer",
   "agent_end",

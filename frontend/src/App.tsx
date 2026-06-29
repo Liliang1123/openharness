@@ -10,6 +10,7 @@ import {
 } from "./api";
 import { ApprovalCard } from "./ApprovalCard";
 import { SessionList } from "./SessionList";
+import { TraceTreePanel } from "./TraceTreePanel";
 import { newId } from "./trace";
 import "./App.css";
 
@@ -205,8 +206,7 @@ export function App() {
         </form>
       </section>
       <aside className="trace-pane">
-        <h2>SSE Events</h2>
-        <pre>{JSON.stringify(events, null, 2)}</pre>
+        <TraceTreePanel events={events} />
       </aside>
     </main>
   );

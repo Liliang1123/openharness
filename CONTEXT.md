@@ -95,6 +95,7 @@
 | Term | Definition |
 |------|-----------|
 | **TraceEvent** | 结构化追踪事件。包含 traceId、spanId、eventType 等。TS Runtime 和 Java Backend 都产生。 |
+| **Trace Tree** | 用稳定字段表示父 Agent execution、Subagent execution、model call、tool call 与 summary 节点之间父子关系的可观测性视图；用于排障和 Frontend Debug Panel 展示，不驱动运行时调度。 |
 | **X-Trace-Id / X-Request-Id** | 必须在所有服务间调用中透传的追踪标识。 |
 
 ## Views

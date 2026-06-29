@@ -3,9 +3,113 @@
   "project": {
     "name": "openharness",
     "root": ".",
-    "updatedAt": "2026-06-22"
+    "updatedAt": "2026-06-29"
   },
   "entries": [
+    {
+      "changeId": "add-subagent-trace-tree",
+      "title": "Add Subagent Trace Tree",
+      "status": "verified",
+      "date": "2026-06-22",
+      "type": "feature",
+      "summary": "为 fork skill 子智能体补齐父子执行 Trace Tree：标准化 execution tree attributes，将关键 trace 事件投递 Java Gateway，并在 Frontend Debug Panel 中展示父子树、状态、耗时、cost 与终止原因。",
+      "tags": [
+        "subagent",
+        "trace",
+        "observability",
+        "frontend",
+        "backend-gateway"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/add-subagent-trace-tree/proposal.md",
+        "design": "openspec/changes/add-subagent-trace-tree/design.md",
+        "tasks": "openspec/changes/add-subagent-trace-tree/tasks.md",
+        "specDeltas": [
+          "openspec/changes/add-subagent-trace-tree/specs/agent-runtime/spec.md",
+          "openspec/changes/add-subagent-trace-tree/specs/backend-gateway/spec.md",
+          "openspec/changes/add-subagent-trace-tree/specs/frontend-runtime/spec.md",
+          "openspec/changes/add-subagent-trace-tree/specs/shared-schema/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-runtime/spec.md",
+          "openspec/specs/backend-gateway/spec.md",
+          "openspec/specs/frontend-runtime/spec.md",
+          "openspec/specs/shared-schema/spec.md"
+        ]
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-23-add-subagent-trace-tree.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "packages/shared-schema/src/index.ts",
+          "agent-runtime/src/traceTree.ts",
+          "agent-runtime/src/subagent/dispatcher.ts",
+          "agent-runtime/src/agentExecutionRunner.ts",
+          "frontend/src/TraceTreePanel.tsx",
+          "frontend/src/App.tsx",
+          "frontend/src/App.css"
+        ],
+        "testFiles": [
+          "packages/shared-schema/test/schema.test.ts",
+          "agent-runtime/test/subagentDispatcher.test.ts",
+          "agent-runtime/test/agentExecutionRunner.test.ts",
+          "backend/src/test/java/org/openharness/backend/BackendApiTest.java",
+          "frontend/test/TraceTreePanel.test.tsx"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/shared-schema test",
+          "result": "passed",
+          "note": "35 tests passed."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- subagentDispatcher agentExecutionRunner",
+          "result": "passed",
+          "note": "37 tests passed across the focused dispatcher and runner suites."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime typecheck",
+          "result": "passed",
+          "note": "tsc --noEmit completed with zero errors."
+        },
+        {
+          "command": "mvn -f backend/pom.xml test",
+          "result": "passed",
+          "note": "27 tests passed; executed outside the filesystem sandbox because Mockito Byte Buddy requires JVM self-attach."
+        },
+        {
+          "command": "pnpm --filter @openharness/frontend test",
+          "result": "passed",
+          "note": "13 tests passed, including TraceTreePanel tree and fallback coverage."
+        },
+        {
+          "command": "pnpm --filter @openharness/frontend typecheck",
+          "result": "passed",
+          "note": "tsc --noEmit completed with zero errors."
+        },
+        {
+          "command": "npx openspec validate add-subagent-trace-tree --strict --no-interactive",
+          "result": "passed",
+          "note": "Change is valid; PostHog telemetry network flush warning is non-blocking."
+        }
+      ],
+      "closeout": "docs/design/2026-06-29-add-subagent-trace-tree-closeout.md",
+      "next": [
+        "在集成或部署确认后归档 add-subagent-trace-tree OpenSpec change"
+      ],
+      "nonGoals": [
+        "公开子 Agent API、SDK 或远程管理能力",
+        "容器化或进程级 sandbox",
+        "Java Backend 实现第二套 Agent Loop 或重算 provider cost"
+      ],
+      "notes": [
+        "Proposal-only sync; implementation is blocked until user approval.",
+        "Proposal approved on 2026-06-23; Superpowers implementation plan generated.",
+        "Implementation verified on 2026-06-29. Runtime trace events now flow once to Java ingestion and through RuntimeEventStore to the frontend SSE tree panel."
+      ]
+    },
     {
       "changeId": "add-subagent-dispatcher",
       "title": "Add Subagent Dispatcher",

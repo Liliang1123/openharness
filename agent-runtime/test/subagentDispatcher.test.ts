@@ -2,6 +2,15 @@ import { describe, expect, it } from "vitest";
 import type { AgentMessage, CatalogResponse, ModelChatRequest, ToolCallRequest, TraceEvent } from "../src/types";
 import type { JavaClient, PolicyEvaluateRequest, PolicyEvaluateResponse } from "../src/javaClient";
 import { SubagentDispatcher } from "../src/subagent/dispatcher";
+import {
+  TRACE_SUBAGENT_START,
+  TRACE_SUBAGENT_MODEL_CALL,
+  TRACE_SUBAGENT_TOOL_CALL,
+  TRACE_SUBAGENT_SUMMARY,
+  TRACE_SUBAGENT_END,
+  buildSubagentTraceAttributes,
+  type SubagentTraceInput
+} from "../src/traceTree";
 
 class FakeSubagentJavaClient implements JavaClient {
   chatRequests: ModelChatRequest[] = [];
@@ -11,12 +20,17 @@ class FakeSubagentJavaClient implements JavaClient {
   nextArgumentsRaw = "{}";
   modelDelayMs = 0;
   policyDecision: "ALLOW" | "DENY" | "REQUIRE_APPROVAL" | "MISSING" = "ALLOW";
+  chatRejectError?: Error;
+  executeToolRejectError?: Error;
 
   async getCatalog(_headers: Record<string, string>): Promise<CatalogResponse> {
     return { catalogVersion: "v1", catalogHash: "h1", tools: [] };
   }
 
   async chat(request: ModelChatRequest, _headers: Record<string, string>) {
+    if (this.chatRejectError) {
+      throw this.chatRejectError;
+    }
     if (this.modelDelayMs > 0) {
       await new Promise(resolve => setTimeout(resolve, this.modelDelayMs));
     }
@@ -55,6 +69,9 @@ class FakeSubagentJavaClient implements JavaClient {
   }
 
   async executeTool(request: ToolCallRequest, _headers: Record<string, string>) {
+    if (this.executeToolRejectError) {
+      throw this.executeToolRejectError;
+    }
     this.executedTools.push(request);
     return {
       requestId: request.requestId,
@@ -478,5 +495,373 @@ describe("SubagentDispatcher", () => {
     expect(result.status).toBe("error");
     expect(result.errorClass).toBe("SUBAGENT_TOOL_ERROR");
     expect(javaClient.executedTools).toHaveLength(0);
+  });
+
+  it("emits SUBAGENT_START, SUBAGENT_MODEL_CALL, SUBAGENT_SUMMARY, and SUBAGENT_END on successful execution", async () => {
+    const javaClient = new FakeSubagentJavaClient();
+    const dispatcher = new SubagentDispatcher(javaClient);
+    const events: TraceEvent[] = [];
+
+    const result = await dispatcher.run({
+      parent: {
+        executionId: "parent-exec-1",
+        tenantId: "t1",
+        conversationId: "parent-conv",
+        requestId: "req-1",
+        traceId: "trace-1",
+        userId: "u1",
+        headers: {},
+        abortSignal: new AbortController().signal
+      },
+      toolCallId: "call-skill-123",
+      skill: {
+        metadata: {
+          name: "worker-skill",
+          description: "worker",
+          version: "1.0.0",
+          tools_required: [],
+          parameters: {},
+          fork_agent: true,
+          subagent_model: "cheap-worker"
+        },
+        content: "Secret instruction content",
+        sourcePath: "/tmp/worker-skill/SKILL.md"
+      },
+      task: "User input task",
+      parentCatalog,
+      timeoutMs: 30_000,
+      stepIndex: 5,
+      emitTrace: async (ev) => {
+        events.push(ev);
+      }
+    });
+
+    expect(result.status).toBe("ok");
+
+    const eventTypes = events.map(e => e.eventType);
+    expect(eventTypes).toEqual([
+      TRACE_SUBAGENT_START,
+      TRACE_SUBAGENT_MODEL_CALL,
+      TRACE_SUBAGENT_SUMMARY,
+      TRACE_SUBAGENT_END
+    ]);
+
+    const startEvent = events[0];
+    expect(startEvent.name).toBe("subagent start");
+    expect(startEvent.attributes).toMatchObject({
+      executionId: "parent-exec-1",
+      skillName: "worker-skill",
+      toolCallId: "call-skill-123",
+      stepIndex: 5
+    });
+    expect(startEvent.attributes?.childExecutionId).toBeDefined();
+    expect(startEvent.attributes?.childConversationId).toBeDefined();
+
+    const modelEvent = events[1];
+    expect(modelEvent.name).toBe("cheap-worker");
+
+    const summaryEvent = events[2];
+    expect(summaryEvent.name).toBe("subagent summary");
+    expect(summaryEvent.status).toBe("ok");
+
+    const endEvent = events[3];
+    expect(endEvent.name).toBe("subagent end");
+    expect(endEvent.status).toBe("ok");
+    expect(endEvent.attributes?.durationMs).toBeGreaterThanOrEqual(0);
+    expect(endEvent.attributes?.costUsdMicros).toBe(7);
+
+    const serialized = JSON.stringify(events);
+    expect(serialized).not.toContain("Secret instruction content");
+    expect(serialized).not.toContain("User input task");
+    expect(serialized).not.toContain("systemMessage");
+  });
+
+  it("emits SUBAGENT_START, SUBAGENT_MODEL_CALL, SUBAGENT_TOOL_CALL, and SUBAGENT_END on tool call execution", async () => {
+    const javaClient = new FakeSubagentJavaClient();
+    javaClient.nextToolCallName = "read_file";
+    const dispatcher = new SubagentDispatcher(javaClient);
+    const events: TraceEvent[] = [];
+
+    const result = await dispatcher.run({
+      parent: {
+        executionId: "parent-exec-1",
+        tenantId: "t1",
+        conversationId: "parent-conv",
+        requestId: "req-1",
+        traceId: "trace-1",
+        userId: "u1",
+        headers: {},
+        abortSignal: new AbortController().signal
+      },
+      toolCallId: "call-skill-123",
+      skill: {
+        metadata: {
+          name: "worker-skill",
+          description: "worker",
+          version: "1.0.0",
+          tools_required: [],
+          parameters: {},
+          fork_agent: true
+        },
+        content: "Secret instructions",
+        sourcePath: "/tmp/worker-skill/SKILL.md"
+      },
+      task: "do tool task",
+      parentCatalog,
+      timeoutMs: 30_000,
+      stepIndex: 2,
+      emitTrace: async (ev) => {
+        events.push(ev);
+      }
+    });
+
+    expect(result.status).toBe("ok");
+    const eventTypes = events.map(e => e.eventType);
+    expect(eventTypes).toEqual([
+      TRACE_SUBAGENT_START,
+      TRACE_SUBAGENT_MODEL_CALL,
+      TRACE_SUBAGENT_TOOL_CALL,
+      TRACE_SUBAGENT_MODEL_CALL,
+      TRACE_SUBAGENT_SUMMARY,
+      TRACE_SUBAGENT_END
+    ]);
+
+    expect(events[2].name).toBe("read_file");
+
+    const serialized = JSON.stringify(events);
+    expect(serialized).not.toContain("Secret instructions");
+  });
+
+  it("emits terminalClass on error, timeout, or policy deny", async () => {
+    const javaClient = new FakeSubagentJavaClient();
+
+    javaClient.nextToolCallName = "run_command";
+    const dispatcher = new SubagentDispatcher(javaClient);
+
+    let events: TraceEvent[] = [];
+    let result = await dispatcher.run({
+      parent: {
+        executionId: "parent-exec-1",
+        tenantId: "t1",
+        conversationId: "parent-conv",
+        requestId: "req-1",
+        traceId: "trace-1",
+        userId: "u1",
+        headers: {},
+        abortSignal: new AbortController().signal
+      },
+      toolCallId: "call-skill-123",
+      skill: {
+        metadata: {
+          name: "worker-skill",
+          description: "worker",
+          version: "1.0.0",
+          tools_required: [],
+          parameters: {},
+          fork_agent: true,
+          forbidden_tools: ["run_command"]
+        },
+        content: "run command",
+        sourcePath: "/tmp/worker-skill/SKILL.md"
+      },
+      task: "run command",
+      parentCatalog,
+      timeoutMs: 30_000,
+      emitTrace: async (ev) => { events.push(ev); }
+    });
+
+    expect(result.status).toBe("error");
+    expect(events[events.length - 1].eventType).toBe(TRACE_SUBAGENT_END);
+    expect(events[events.length - 1].attributes?.terminalClass).toBe("SUBAGENT_POLICY_DENY");
+
+    javaClient.modelDelayMs = 20;
+    events = [];
+    result = await dispatcher.run({
+      parent: {
+        executionId: "parent-exec-1",
+        tenantId: "t1",
+        conversationId: "parent-conv",
+        requestId: "req-1",
+        traceId: "trace-1",
+        userId: "u1",
+        headers: {},
+        abortSignal: new AbortController().signal
+      },
+      toolCallId: "call-skill-123",
+      skill: {
+        metadata: { name: "worker-skill", description: "worker", version: "1.0.0", tools_required: [], parameters: {}, fork_agent: true },
+        content: "test",
+        sourcePath: "/tmp/worker-skill/SKILL.md"
+      },
+      task: "test",
+      parentCatalog,
+      timeoutMs: 1,
+      emitTrace: async (ev) => { events.push(ev); }
+    });
+    expect(result.status).toBe("error");
+    expect(events[events.length - 1].eventType).toBe(TRACE_SUBAGENT_END);
+    expect(events[events.length - 1].attributes?.terminalClass).toBe("SUBAGENT_TIMEOUT");
+  });
+
+  it("emits SUBAGENT_END with SUBAGENT_MODEL_ERROR and returns structured error when child model call rejects", async () => {
+    const javaClient = new FakeSubagentJavaClient();
+    javaClient.chatRejectError = new Error("Simulated chat network failure");
+    const dispatcher = new SubagentDispatcher(javaClient);
+    const events: TraceEvent[] = [];
+
+    const result = await dispatcher.run({
+      parent: {
+        executionId: "parent-exec-1",
+        tenantId: "t1",
+        conversationId: "parent-conv",
+        requestId: "req-1",
+        traceId: "trace-1",
+        userId: "u1",
+        headers: {},
+        abortSignal: new AbortController().signal
+      },
+      toolCallId: "call-skill-123",
+      skill: {
+        metadata: { name: "worker-skill", description: "worker", version: "1.0.0", tools_required: [], parameters: {}, fork_agent: true },
+        content: "test",
+        sourcePath: "/tmp/worker-skill/SKILL.md"
+      },
+      task: "test",
+      parentCatalog,
+      timeoutMs: 30_000,
+      emitTrace: async (ev) => { events.push(ev); }
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.errorClass).toBe("SUBAGENT_MODEL_ERROR");
+    expect(result.errorMessage).toContain("Simulated chat network failure");
+    expect(events[events.length - 1].eventType).toBe(TRACE_SUBAGENT_END);
+    expect(events[events.length - 1].attributes?.terminalClass).toBe("SUBAGENT_MODEL_ERROR");
+    expect(events[events.length - 1].status).toBe("error");
+  });
+
+  it("emits SUBAGENT_END with SUBAGENT_TOOL_ERROR and returns structured error when child tool execute rejects", async () => {
+    const javaClient = new FakeSubagentJavaClient();
+    javaClient.nextToolCallName = "read_file";
+    javaClient.executeToolRejectError = new Error("Simulated tool execution crash");
+    const dispatcher = new SubagentDispatcher(javaClient);
+    const events: TraceEvent[] = [];
+
+    const result = await dispatcher.run({
+      parent: {
+        executionId: "parent-exec-1",
+        tenantId: "t1",
+        conversationId: "parent-conv",
+        requestId: "req-1",
+        traceId: "trace-1",
+        userId: "u1",
+        headers: {},
+        abortSignal: new AbortController().signal
+      },
+      toolCallId: "call-skill-123",
+      skill: {
+        metadata: { name: "worker-skill", description: "worker", version: "1.0.0", tools_required: [], parameters: {}, fork_agent: true },
+        content: "test",
+        sourcePath: "/tmp/worker-skill/SKILL.md"
+      },
+      task: "test",
+      parentCatalog,
+      timeoutMs: 30_000,
+      emitTrace: async (ev) => { events.push(ev); }
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.errorClass).toBe("SUBAGENT_TOOL_ERROR");
+    expect(result.errorMessage).toContain("Simulated tool execution crash");
+    expect(events[events.length - 1].eventType).toBe(TRACE_SUBAGENT_END);
+    expect(events[events.length - 1].attributes?.terminalClass).toBe("SUBAGENT_TOOL_ERROR");
+    expect(events[events.length - 1].status).toBe("error");
+  });
+});
+
+describe("trace-tree helper", () => {
+  it("buildSubagentTraceAttributes outputs all defined fields and removes undefined ones", () => {
+    const input: SubagentTraceInput = {
+      executionId: "exec-123",
+      childExecutionId: "child-exec-456",
+      childConversationId: "child-conv-789",
+      skillName: "test-skill",
+      toolCallId: "tool-call-abc",
+      stepIndex: 2,
+      terminalClass: "test-class",
+      durationMs: 150,
+      costUsdMicros: 10,
+      traceIngestionStatus: "posted"
+    };
+
+    const attrs = buildSubagentTraceAttributes(input);
+
+    expect(attrs).toEqual({
+      traceNodeKind: "subagent_execution",
+      executionId: "exec-123",
+      parentExecutionId: "exec-123",
+      childExecutionId: "child-exec-456",
+      childConversationId: "child-conv-789",
+      skillName: "test-skill",
+      toolCallId: "tool-call-abc",
+      stepIndex: 2,
+      terminalClass: "test-class",
+      durationMs: 150,
+      costUsdMicros: 10,
+      traceIngestionStatus: "posted"
+    });
+  });
+
+  it("removes undefined optional fields from attributes", () => {
+    const input: SubagentTraceInput = {
+      executionId: "exec-123",
+      childExecutionId: "child-exec-456",
+      childConversationId: "child-conv-789",
+      skillName: "test-skill",
+      toolCallId: "tool-call-abc"
+    };
+
+    const attrs = buildSubagentTraceAttributes(input);
+
+    expect(attrs).toEqual({
+      traceNodeKind: "subagent_execution",
+      executionId: "exec-123",
+      parentExecutionId: "exec-123",
+      childExecutionId: "child-exec-456",
+      childConversationId: "child-conv-789",
+      skillName: "test-skill",
+      toolCallId: "tool-call-abc"
+    });
+
+    expect("stepIndex" in attrs).toBe(false);
+    expect("terminalClass" in attrs).toBe(false);
+    expect("durationMs" in attrs).toBe(false);
+    expect("costUsdMicros" in attrs).toBe(false);
+    expect("traceIngestionStatus" in attrs).toBe(false);
+  });
+
+  it("has stable event name constants", () => {
+    expect(TRACE_SUBAGENT_START).toBe("SUBAGENT_START");
+    expect(TRACE_SUBAGENT_MODEL_CALL).toBe("SUBAGENT_MODEL_CALL");
+    expect(TRACE_SUBAGENT_TOOL_CALL).toBe("SUBAGENT_TOOL_CALL");
+    expect(TRACE_SUBAGENT_SUMMARY).toBe("SUBAGENT_SUMMARY");
+    expect(TRACE_SUBAGENT_END).toBe("SUBAGENT_END");
+  });
+
+  it("does not include prompt content or task in serialized helper output", () => {
+    const input: SubagentTraceInput = {
+      executionId: "exec-123",
+      childExecutionId: "child-exec-456",
+      childConversationId: "child-conv-789",
+      skillName: "test-skill",
+      toolCallId: "tool-call-abc"
+    };
+
+    const attrs = buildSubagentTraceAttributes(input) as Record<string, unknown>;
+    const serialized = JSON.stringify(attrs);
+
+    expect(serialized).not.toContain("prompt");
+    expect(serialized).not.toContain("task");
+    expect(serialized).not.toContain("content");
   });
 });

@@ -1,7 +1,16 @@
 import type { JavaClient } from "../javaClient";
-import type { AgentMessage, CatalogResponse, ToolDefinition, ToolCall, ToolCallRequest } from "../types";
+import type { AgentMessage, CatalogResponse, ToolDefinition, ToolCall, ToolCallRequest, TraceEvent } from "../types";
 import type { Skill } from "../skills/types";
 import { beforeToolUse } from "../beforeToolUse";
+import { traceEvent } from "../trace";
+import {
+  buildSubagentTraceAttributes,
+  TRACE_SUBAGENT_START,
+  TRACE_SUBAGENT_MODEL_CALL,
+  TRACE_SUBAGENT_TOOL_CALL,
+  TRACE_SUBAGENT_SUMMARY,
+  TRACE_SUBAGENT_END
+} from "../traceTree";
 
 const PRIVILEGED_META_TOOLS = new Set(["invoke_skill"]);
 
@@ -23,6 +32,8 @@ export interface SubagentRunInput {
   task: string;
   parentCatalog: CatalogResponse;
   timeoutMs: number;
+  stepIndex?: number;
+  emitTrace?: (event: TraceEvent) => Promise<void>;
 }
 
 export interface SubagentRunResult {
@@ -43,7 +54,41 @@ export class SubagentDispatcher {
     const childConversationId = `${input.parent.conversationId}::${childExecutionId}`;
     const tools = deriveChildTools(input.parentCatalog.tools, input.skill.metadata.forbidden_tools ?? []);
 
+    const startedAt = Date.now();
+    const emitSubagentTrace = async (
+      eventType: string,
+      name: string,
+      extra?: { terminalClass?: string; costUsdMicros?: number; status?: "ok" | "error" | "timeout" }
+    ) => {
+      if (!input.emitTrace) return;
+      const durationMs = Date.now() - startedAt;
+      await input.emitTrace(traceEvent({
+        traceId: input.parent.traceId,
+        requestId: input.parent.requestId,
+        conversationId: input.parent.conversationId,
+        userId: input.parent.userId,
+        tenantId: input.parent.tenantId,
+        eventType,
+        name,
+        status: extra?.status,
+        attributes: buildSubagentTraceAttributes({
+          executionId: input.parent.executionId,
+          childExecutionId,
+          childConversationId,
+          skillName: input.skill.metadata.name,
+          toolCallId: input.toolCallId,
+          stepIndex: input.stepIndex,
+          terminalClass: extra?.terminalClass,
+          durationMs,
+          costUsdMicros: extra?.costUsdMicros
+        })
+      }));
+    };
+
+    await emitSubagentTrace(TRACE_SUBAGENT_START, "subagent start");
+
     if (input.parent.abortSignal.aborted) {
+      await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "error", terminalClass: "SUBAGENT_ABORTED" });
       return {
         status: "error",
         summary: "",
@@ -64,24 +109,40 @@ export class SubagentDispatcher {
     };
     const userMessage: AgentMessage = { role: "user", content: input.task };
 
-    const maybeResponse = await withTimeout(
-      this.javaClient.chat({
-        requestId: input.parent.requestId,
-        conversationId: childConversationId,
-        userId: input.parent.userId,
-        tenantId: input.parent.tenantId,
-        model: input.skill.metadata.subagent_model ?? "default",
-        stream: false,
-        messages: [systemMessage, userMessage],
-        tools,
-        meta: {
-          cacheEnabled: false
-        }
-      }, input.parent.headers),
-      input.timeoutMs
-    );
+    await emitSubagentTrace(TRACE_SUBAGENT_MODEL_CALL, input.skill.metadata.subagent_model ?? "default");
+
+    let maybeResponse: Awaited<ReturnType<typeof this.javaClient.chat>> | "__timeout__";
+    try {
+      maybeResponse = await withTimeout(
+        this.javaClient.chat({
+          requestId: input.parent.requestId,
+          conversationId: childConversationId,
+          userId: input.parent.userId,
+          tenantId: input.parent.tenantId,
+          model: input.skill.metadata.subagent_model ?? "default",
+          stream: false,
+          messages: [systemMessage, userMessage],
+          tools,
+          meta: {
+            cacheEnabled: false
+          }
+        }, input.parent.headers),
+        input.timeoutMs
+      );
+    } catch (err: any) {
+      await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "error", terminalClass: "SUBAGENT_MODEL_ERROR" });
+      return {
+        status: "error",
+        summary: "",
+        childExecutionId,
+        childConversationId,
+        errorClass: "SUBAGENT_MODEL_ERROR",
+        errorMessage: err instanceof Error ? err.message : String(err)
+      };
+    }
 
     if (maybeResponse === "__timeout__") {
+      await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "timeout", terminalClass: "SUBAGENT_TIMEOUT" });
       return {
         status: "error",
         summary: "",
@@ -97,6 +158,8 @@ export class SubagentDispatcher {
 
     const childToolCalls = response.message?.toolCalls ?? [];
     if (childToolCalls.length === 0) {
+      await emitSubagentTrace(TRACE_SUBAGENT_SUMMARY, "subagent summary", { status: "ok" });
+      await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "ok", costUsdMicros: aggregatedCost });
       return {
         status: "ok",
         summary: String(response.message?.content ?? ""),
@@ -109,6 +172,7 @@ export class SubagentDispatcher {
     const allowedToolNames = new Set(tools.map(tool => tool.name));
     for (const toolCall of childToolCalls) {
       if (!allowedToolNames.has(toolCall.name)) {
+        await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "error", terminalClass: "SUBAGENT_POLICY_DENY", costUsdMicros: aggregatedCost });
         return {
           status: "error",
           summary: "",
@@ -142,6 +206,7 @@ export class SubagentDispatcher {
     for (const toolCall of childToolCalls) {
       const decision = decisionMap.get(toolCall.id);
       if (!decision || decision.decision !== "ALLOW") {
+        await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "error", terminalClass: "SUBAGENT_POLICY_DENY", costUsdMicros: aggregatedCost });
         return {
           status: "error",
           summary: "",
@@ -164,6 +229,7 @@ export class SubagentDispatcher {
         }
         parsedArgs = parsed as Record<string, unknown>;
       } catch {
+        await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "error", terminalClass: "SUBAGENT_TOOL_ERROR", costUsdMicros: aggregatedCost });
         return {
           status: "error",
           summary: "",
@@ -188,8 +254,25 @@ export class SubagentDispatcher {
         idempotencyKey: `subagent-tool-${crypto.randomUUID()}`
       };
 
-      const toolResponse = await this.javaClient.executeTool(toolRequest, input.parent.headers);
+      await emitSubagentTrace(TRACE_SUBAGENT_TOOL_CALL, toolCall.name);
+
+      let toolResponse;
+      try {
+        toolResponse = await this.javaClient.executeTool(toolRequest, input.parent.headers);
+      } catch (err: any) {
+        await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "error", terminalClass: "SUBAGENT_TOOL_ERROR", costUsdMicros: aggregatedCost });
+        return {
+          status: "error",
+          summary: "",
+          childExecutionId,
+          childConversationId,
+          errorClass: "SUBAGENT_TOOL_ERROR",
+          errorMessage: err instanceof Error ? err.message : String(err),
+          usage: { costUsdMicros: aggregatedCost }
+        };
+      }
       if (toolResponse.status !== "ok") {
+        await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "error", terminalClass: "SUBAGENT_TOOL_ERROR", costUsdMicros: aggregatedCost });
         return {
           status: "error",
           summary: "",
@@ -217,24 +300,41 @@ export class SubagentDispatcher {
       ...childToolResultMessages
     ];
 
-    const maybeSecondResponse = await withTimeout(
-      this.javaClient.chat({
-        requestId: input.parent.requestId,
-        conversationId: childConversationId,
-        userId: input.parent.userId,
-        tenantId: input.parent.tenantId,
-        model: input.skill.metadata.subagent_model ?? "default",
-        stream: false,
-        messages: secondMessages,
-        tools,
-        meta: {
-          cacheEnabled: false
-        }
-      }, input.parent.headers),
-      input.timeoutMs
-    );
+    await emitSubagentTrace(TRACE_SUBAGENT_MODEL_CALL, input.skill.metadata.subagent_model ?? "default");
+
+    let maybeSecondResponse: Awaited<ReturnType<typeof this.javaClient.chat>> | "__timeout__";
+    try {
+      maybeSecondResponse = await withTimeout(
+        this.javaClient.chat({
+          requestId: input.parent.requestId,
+          conversationId: childConversationId,
+          userId: input.parent.userId,
+          tenantId: input.parent.tenantId,
+          model: input.skill.metadata.subagent_model ?? "default",
+          stream: false,
+          messages: secondMessages,
+          tools,
+          meta: {
+            cacheEnabled: false
+          }
+        }, input.parent.headers),
+        input.timeoutMs
+      );
+    } catch (err: any) {
+      await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "error", terminalClass: "SUBAGENT_MODEL_ERROR", costUsdMicros: aggregatedCost });
+      return {
+        status: "error",
+        summary: "",
+        childExecutionId,
+        childConversationId,
+        errorClass: "SUBAGENT_MODEL_ERROR",
+        errorMessage: err instanceof Error ? err.message : String(err),
+        usage: { costUsdMicros: aggregatedCost }
+      };
+    }
 
     if (maybeSecondResponse === "__timeout__") {
+      await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "timeout", terminalClass: "SUBAGENT_TIMEOUT", costUsdMicros: aggregatedCost });
       return {
         status: "error",
         summary: "",
@@ -248,6 +348,9 @@ export class SubagentDispatcher {
 
     const secondResponse = maybeSecondResponse;
     aggregatedCost += costOf(secondResponse);
+
+    await emitSubagentTrace(TRACE_SUBAGENT_SUMMARY, "subagent summary", { status: "ok" });
+    await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "ok", costUsdMicros: aggregatedCost });
 
     return {
       status: "ok",
