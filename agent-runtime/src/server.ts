@@ -22,6 +22,7 @@ import { JsonFileMemoryStore, type MemoryStore } from "./memoryStore";
 import { McpRegistry, loadMcpConfig } from "./mcpRegistry";
 import { InMemoryRuntimeEventStore, type RuntimeEventStore } from "./runtimeEventStore";
 import { InMemoryExecutionStateStore, type ExecutionStateStore } from "./executionStateStore";
+import { deriveRuntimeProgress } from "./runtimeProgress";
 import type { AgentChatRequest, AgentChatResponse, StopReason } from "./types";
 
 export interface CreateServerOptions {
@@ -455,6 +456,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     const messages = history.get(tenantId, conversationId);
     const active = executionStateStore.getActive(tenantId, conversationId);
     const pendingApprovals = approvalStore.listPending(tenantId, conversationId);
+    const runtimeProgress = progressForSession(runtimeEventStore, executionStateStore, tenantId, conversationId, active?.executionId);
     if (messages.length === 0 && !active && pendingApprovals.length === 0) {
       reply.status(404).send({
         error: { errorClass: "SESSION_NOT_FOUND", errorMessage: `Session not found: ${conversationId}` }
@@ -476,6 +478,7 @@ export async function createServer(options: CreateServerOptions = {}) {
             endReason: active.endReason
           }
         : null,
+      ...(runtimeProgress ? { runtimeProgress } : {}),
       pendingApprovals
     });
   });
@@ -594,4 +597,21 @@ function isUsage(value: unknown): value is { costUsdMicros?: number } {
   if (value == null || typeof value !== "object") return false;
   const cost = (value as { costUsdMicros?: unknown }).costUsdMicros;
   return cost === undefined || typeof cost === "number";
+}
+
+function progressForSession(
+  runtimeEventStore: RuntimeEventStore,
+  executionStateStore: ExecutionStateStore,
+  tenantId: string,
+  conversationId: string,
+  activeExecutionId?: string
+) {
+  const allEvents = runtimeEventStore.since(tenantId, conversationId, null);
+  const executionId = activeExecutionId ?? allEvents[allEvents.length - 1]?.executionId;
+  if (!executionId) return null;
+  const events = allEvents.filter((event) => event.executionId === executionId);
+  return deriveRuntimeProgress({
+    events,
+    state: executionStateStore.get(executionId)
+  });
 }

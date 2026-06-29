@@ -4,11 +4,16 @@
 TBD - created by archiving change implement-p0a-skeleton. Update Purpose after archive.
 ## Requirements
 ### Requirement: Shared Schema Package
-The system SHALL provide a TypeScript package at `packages/shared-schema` exporting zod schemas and TypeScript types for `AgentMessage`, `ReasoningBlock`, `ToolDefinition`, `ToolCall`, `ToolResult`, `ToolResultProvenance`, `CacheHint`, `ModelChatRequest`, `ModelChatResponse`, `ToolCallRequest`, `ToolCallResponse`, `StructuredError`, `TraceEvent`, `ReviewPolicyEvaluateRequest`, `ReviewPolicyEvaluateResponse`, `AskUserRequest`, `AskUserResponse`, and `ConversationLifecycle`.
+The system SHALL provide a TypeScript package at `packages/shared-schema` exporting zod schemas and TypeScript types for `AgentMessage`, `ReasoningBlock`, `ToolDefinition`, `ToolCall`, `ToolResult`, `ToolResultProvenance`, `CacheHint`, `ModelChatRequest`, `ModelChatResponse`, `ToolCallRequest`, `ToolCallResponse`, `StructuredError`, `TraceEvent`, `ReviewPolicyEvaluateRequest`, `ReviewPolicyEvaluateResponse`, `AskUserRequest`, `AskUserResponse`, and `ConversationLifecycle`. `TraceEvent` SHALL remain backward compatible with existing events and SHALL allow optional trace-tree attributes for parent/subagent execution relationships.
 
 #### Scenario: Importing shared schemas
 - **WHEN** another workspace package imports from `@openharness/shared-schema`
 - **THEN** the package exposes both zod schemas and inferred TypeScript types for the P0a contract objects
+
+#### Scenario: Trace tree attributes parse without breaking old events
+- **WHEN** zod parses a `TraceEvent` whose `attributes` include `traceNodeKind`, `executionId`, `parentExecutionId`, `childExecutionId`, `childConversationId`, `skillName`, and `toolCallId`
+- **THEN** parsing succeeds and preserves those attributes
+- **AND** parsing a historical `TraceEvent` without those attributes still succeeds
 
 ### Requirement: Canonical Tool Call Fields
 The shared schema SHALL model provider tool calls with `ToolCall.argumentsRaw` as a string and SHALL model Java tool execution requests with `ToolCallRequest.arguments` as `Record<string, unknown>`.
@@ -155,4 +160,20 @@ The shared schema SHALL allow `ModelChatRequest.meta` to carry optional selected
 #### Scenario: Invalid agent tool mode is rejected
 - **WHEN** zod parses a model chat request whose metadata has an unsupported `agentToolMode`
 - **THEN** parsing fails
+
+### Requirement: Runtime Progress Snapshot Schema
+The shared schema SHALL define `RuntimeProgressSnapshot` as a safe frontend-consumable projection of one agent execution's progress. The snapshot SHALL include identifiers, execution status, timing fields, loop counters, current activity, optional safe activity details, and a bounded list of recent safe events. The schema MUST NOT require or expose prompt content, skill content, tool output bodies, full tool arguments, authorization headers, or provider credentials.
+
+#### Scenario: Parse active progress snapshot
+- **WHEN** zod parses a runtime progress snapshot for a `running` execution with `currentActivity: "model_call"` and `currentStep: 2`
+- **THEN** parsing succeeds and preserves identifiers, status, timing, counters, and activity fields
+
+#### Scenario: Reject invalid progress status
+- **WHEN** zod parses a runtime progress snapshot with status `paused_unknown`
+- **THEN** parsing fails
+
+#### Scenario: Snapshot does not carry sensitive payload fields
+- **WHEN** a runtime progress snapshot is produced for frontend display
+- **THEN** it contains safe metadata such as event names, step indexes, tool names, skill names, execution IDs, statuses, timing, and terminal class
+- **AND** it does not contain prompt content, skill markdown content, tool output bodies, full tool arguments, authorization headers, or provider credentials
 

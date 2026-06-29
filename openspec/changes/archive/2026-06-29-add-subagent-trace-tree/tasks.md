@@ -20,4 +20,4 @@
 - [x] 4.4 运行 `pnpm --filter @openharness/frontend test`
 - [x] 4.5 运行 `npx openspec validate add-subagent-trace-tree --strict --no-interactive`
 - [x] 4.6 实现完成后同步 dashboard verified 状态并生成 closeout
-- [ ] 4.7 集成或部署确认后归档 OpenSpec，并将 dashboard 更新为 archived
+- [x] 4.7 集成或部署确认后归档 OpenSpec，并将 dashboard 更新为 archived

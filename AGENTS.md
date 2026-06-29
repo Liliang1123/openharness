@@ -113,3 +113,36 @@ Review 文档至少包含：
   ```
 - 提交前必须运行 `pnpm dashboard:check`，确保 `development-log.json` 通过脚本内置校验且生成产物未过期。
 - `development-log.schema.json` 用于 Draft-07 结构校验；`render-dashboard.mjs` 负责补充 `changeId` 唯一性、真实日期、状态条件必填等语义校验。
+
+# Commit Message Rules
+
+本项目默认使用中文分段式提交信息。除非用户明确要求英文或单行提交信息，否则禁止只给一行英文 Conventional Commit。
+
+## Commit Message Format
+
+提交信息必须使用以下结构：
+
+```text
+<type>(<scope>): <中文摘要>
+
+变更：
+- ...
+
+修复：
+- ...
+
+验证：
+- ...
+
+说明：
+- ...
+```
+
+## Commit Message Requirements
+
+- `type` 使用 `feat`、`fix`、`docs`、`test`、`refactor`、`chore`、`build`、`ci`、`style` 或 `perf`。
+- `scope` 使用英文模块名，例如 `runtime`、`subagent`、`openspec`、`dashboard`。
+- subject 的摘要和正文默认使用中文。
+- 涉及 OpenSpec archive、dashboard sync、review fix、跨模块实现或多步骤收口时，正文必须分段列出 `变更`、`修复`、`验证`、`说明` 中适用的部分。
+- 不适用的段落可以省略，但至少保留 `变更` 和 `验证`。
+- 禁止使用 `git add .` 生成提交；必须基于 `git status` 精确暂存本次已复核文件。

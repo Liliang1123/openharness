@@ -6,11 +6,14 @@ import {
   sendAgentChatStream,
   type SSEEvent,
   type PendingApproval,
+  type RuntimeProgressSnapshot,
   type SessionMeta
 } from "./api";
 import { ApprovalCard } from "./ApprovalCard";
+import { RuntimeProgressPanel } from "./RuntimeProgressPanel";
 import { SessionList } from "./SessionList";
 import { TraceTreePanel } from "./TraceTreePanel";
+import { deriveRuntimeProgressFromEvents } from "./runtimeProgress";
 import { newId } from "./trace";
 import "./App.css";
 
@@ -27,6 +30,7 @@ export function App() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [events, setEvents] = useState<SSEEvent[]>([]);
+  const [runtimeProgress, setRuntimeProgress] = useState<RuntimeProgressSnapshot | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
@@ -70,10 +74,12 @@ export function App() {
     if (busy) return;
     setError("");
     setEvents([]);
+    setRuntimeProgress(null);
     setConversationId(id);
     try {
       const data = await getSession(userId, tenantId, id);
       setMessages(data ? sessionMessagesToChat(data.messages, data.pendingApprovals ?? [], id) : []);
+      setRuntimeProgress(data?.runtimeProgress ?? null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Load failed");
     }
@@ -83,6 +89,7 @@ export function App() {
     if (busy) return;
     setError("");
     setEvents([]);
+    setRuntimeProgress(null);
     setMessages([]);
     setConversationId(newId("conv"));
   }
@@ -105,6 +112,7 @@ export function App() {
     setBusy(true);
     setError("");
     setEvents([]);
+    setRuntimeProgress(null);
     setMessages((m) => [...m, { role: "user", content: text }]);
     setInput("");
 
@@ -119,7 +127,11 @@ export function App() {
           tenantId
         },
         (ev) => {
-          setEvents((prev) => [...prev, ev]);
+          setEvents((prev) => {
+            const next = [...prev, ev];
+            setRuntimeProgress(deriveRuntimeProgressFromEvents(next));
+            return next;
+          });
           if (ev.event === "model_call_start") {
             setMessages((m) => [...m, { role: "system", content: "🤔 思考中..." }]);
           } else if (ev.event === "tool_call") {
@@ -206,6 +218,7 @@ export function App() {
         </form>
       </section>
       <aside className="trace-pane">
+        <RuntimeProgressPanel progress={runtimeProgress} />
         <TraceTreePanel events={events} />
       </aside>
     </main>

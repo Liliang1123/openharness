@@ -263,3 +263,62 @@ The TS Runtime MUST aggregate child model usage and `costUsdMicros` values repor
 - **THEN** the subagent trace summary includes the aggregated child `costUsdMicros`
 - **AND** the value is the sum of Java-provided child usage values, not a TS-side price calculation
 
+### Requirement: Agent runtime SHALL emit trace-tree metadata for subagent executions
+
+When a forked skill starts a subagent, the TS Runtime MUST emit trace events that allow consumers to reconstruct the parent execution and child execution relationship. Subagent trace events MUST include stable attributes for `traceNodeKind`, `executionId`, `parentExecutionId`, `childExecutionId`, `childConversationId`, `skillName`, and `toolCallId`. The runtime MUST NOT include child system prompt content, raw sensitive tool output, or provider credentials in trace attributes.
+
+#### Scenario: Subagent start event links parent and child
+- **WHEN** a parent execution dispatches a forked skill through `SubagentDispatcher`
+- **THEN** a trace event is emitted with `traceNodeKind: "subagent_execution"`
+- **AND** the event attributes include the parent `executionId`, `childExecutionId`, `childConversationId`, `skillName`, and `toolCallId`
+- **AND** the event does not contain the child system prompt or raw tool output
+
+#### Scenario: Subagent terminal event exposes outcome and cost
+- **WHEN** a subagent completes, fails, is denied, aborts, or times out
+- **THEN** the runtime emits a terminal subagent trace event with status, terminal classification, duration, and Java-provided `costUsdMicros` when available
+- **AND** missing usage data does not block the terminal trace event
+
+### Requirement: Agent runtime SHALL forward key trace-tree events to Java trace ingestion
+
+The TS Runtime MUST post key parent/subagent trace-tree events to Java Backend `POST /api/v1/trace/events` using the same service auth and trace headers as other Java calls. Trace ingestion failure MUST be non-blocking for the agent execution and MUST be observable as a local warning or trace attribute.
+
+#### Scenario: Trace tree event reaches Java Gateway
+- **WHEN** the runtime emits a subagent start or terminal trace event
+- **THEN** it posts the event to Java `/api/v1/trace/events`
+- **AND** the posted event carries the same `X-Trace-Id`, `X-Request-Id`, `X-User-Id`, and `X-Tenant-Id` context used by the execution
+
+#### Scenario: Trace ingestion failure does not fail the agent turn
+- **WHEN** Java trace ingestion is temporarily unavailable
+- **THEN** the agent execution continues according to existing runtime rules
+- **AND** the failure is recorded without exposing service tokens
+
+### Requirement: Runtime Progress Snapshot Derivation
+The agent-runtime SHALL derive `RuntimeProgressSnapshot` from existing `RuntimeEventStore` events and `ExecutionStateStore` state without introducing a second execution lifecycle model. The derived snapshot SHALL summarize the latest known status, current step, max observed step, model call count, tool call count, subagent call count, current activity, pending approval state, terminal reason, and recent safe events for one execution.
+
+#### Scenario: Running model call is summarized
+- **WHEN** an execution has emitted `agent_start`, `model_call_start`, and no matching terminal event
+- **THEN** the derived progress snapshot has status `running`, `currentActivity: "model_call"`, and the observed step index
+
+#### Scenario: Waiting approval is summarized
+- **WHEN** an execution state is `waiting_approval` and the event log contains an `approval_requested` event
+- **THEN** the derived progress snapshot has status `waiting_approval`, `currentActivity: "waiting_approval"`, and safe pending approval metadata
+
+#### Scenario: Terminal error is summarized
+- **WHEN** an execution emits `stream_error` with `errorClass: "TOOL_ERROR"`
+- **THEN** the derived progress snapshot has status `errored`, `currentActivity: "terminal"`, and terminal class `TOOL_ERROR`
+
+#### Scenario: Sensitive payloads are excluded
+- **WHEN** progress is derived from events that include tool arguments, tool outputs, prompt-derived content, or authorization-bearing request context
+- **THEN** the progress snapshot excludes those payloads and only exposes safe metadata
+
+### Requirement: Session Detail Includes Runtime Progress
+The agent-runtime SHALL include `runtimeProgress` in `GET /api/v1/sessions/:conversationId` when an active or recently terminal execution can be associated with the session. The response MUST remain backward compatible for clients that ignore this field.
+
+#### Scenario: Active session returns progress
+- **WHEN** a client fetches session detail for a conversation with an active execution
+- **THEN** the response includes `activeExecution` and `runtimeProgress` for the same `executionId`
+
+#### Scenario: Session without execution remains compatible
+- **WHEN** a client fetches session detail for a conversation with messages but no known active or recent execution
+- **THEN** the response remains valid and may omit `runtimeProgress`
+

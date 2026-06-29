@@ -7,9 +7,128 @@
   },
   "entries": [
     {
+      "changeId": "add-runtime-progress-panel",
+      "title": "Add Runtime Progress Panel",
+      "status": "archived",
+      "date": "2026-06-29",
+      "type": "feature",
+      "summary": "为 Agent Runtime 增加操作台级进度视图：从现有 RuntimeEventStore 与 ExecutionStateStore 派生安全的 progress snapshot，并在前端展示当前状态、step、活动模型/工具/子 Agent、审批等待和终止原因。",
+      "tags": [
+        "agent-runtime",
+        "observability",
+        "progress",
+        "frontend",
+        "runtime-events"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-06-29-add-runtime-progress-panel/proposal.md",
+        "design": "openspec/changes/archive/2026-06-29-add-runtime-progress-panel/design.md",
+        "tasks": "openspec/changes/archive/2026-06-29-add-runtime-progress-panel/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-06-29-add-runtime-progress-panel/specs/agent-runtime/spec.md",
+          "openspec/changes/archive/2026-06-29-add-runtime-progress-panel/specs/frontend-runtime/spec.md",
+          "openspec/changes/archive/2026-06-29-add-runtime-progress-panel/specs/shared-schema/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-runtime/spec.md",
+          "openspec/specs/frontend-runtime/spec.md",
+          "openspec/specs/shared-schema/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-29-add-runtime-progress-panel/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-06-29-add-runtime-progress-panel.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "packages/shared-schema/src/index.ts",
+          "agent-runtime/src/runtimeProgress.ts",
+          "agent-runtime/src/server.ts",
+          "frontend/src/api.ts",
+          "frontend/src/runtimeProgress.ts",
+          "frontend/src/RuntimeProgressPanel.tsx",
+          "frontend/src/App.tsx",
+          "frontend/src/App.css"
+        ],
+        "testFiles": [
+          "packages/shared-schema/test/schema.test.ts",
+          "agent-runtime/test/runtimeProgress.test.ts",
+          "agent-runtime/test/sessionsApi.test.ts",
+          "agent-runtime/test/nonStreamRunner.test.ts",
+          "frontend/test/runtimeProgress.test.ts",
+          "frontend/test/RuntimeProgressPanel.test.tsx"
+        ]
+      },
+      "verification": [
+        {
+          "command": "npx openspec validate add-runtime-progress-panel --strict --no-interactive",
+          "result": "passed",
+          "note": "Change is valid; PostHog telemetry network flush warning is non-blocking."
+        },
+        {
+          "command": "pnpm --filter @openharness/shared-schema test",
+          "result": "passed",
+          "note": "38 tests passed, including RuntimeProgressSnapshot schema coverage."
+        },
+        {
+          "command": "pnpm --filter @openharness/shared-schema typecheck",
+          "result": "passed",
+          "note": "tsc --noEmit completed with zero errors."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- runtimeProgress sessionsApi",
+          "result": "passed",
+          "note": "11 focused tests passed for initial progress derivation and session API integration."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- runtimeProgress sessionsApi nonStreamRunner",
+          "result": "passed",
+          "note": "13 focused tests passed after review fixes for trace interleaving and lifecycle assertions."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime typecheck",
+          "result": "passed",
+          "note": "tsc --noEmit completed with zero errors."
+        },
+        {
+          "command": "pnpm --filter @openharness/frontend test",
+          "result": "passed",
+          "note": "19 tests passed, including RuntimeProgressPanel rendering states and runtime progress derivation regressions."
+        },
+        {
+          "command": "pnpm --filter @openharness/frontend typecheck",
+          "result": "passed",
+          "note": "tsc --noEmit completed with zero errors."
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "Full workspace tests passed after review fixes: shared-schema 38, agent-runtime 235, frontend 19, integration-tests 17."
+        },
+        {
+          "command": "npx openspec archive add-runtime-progress-panel --yes",
+          "result": "passed",
+          "note": "Archived as 2026-06-29-add-runtime-progress-panel and updated current specs."
+        }
+      ],
+      "closeout": "docs/design/2026-06-29-add-runtime-progress-panel-closeout.md",
+      "next": [],
+      "nonGoals": [
+        "重写 AgentExecutionRunner、RuntimeEventStore 或 ExecutionStateStore",
+        "让 Java Backend 聚合 Agent 进度",
+        "在进度快照中暴露 prompt、skill content、tool output、完整工具参数或认证 header"
+      ],
+      "notes": [
+        "Proposal approved on 2026-06-29; Superpowers implementation plan generated.",
+        "Implementation verified on 2026-06-29. Runtime progress is a projection over existing runtime events/state, not a second lifecycle model.",
+        "Progress snapshots exclude prompt content, skill markdown, tool output bodies, full tool arguments, auth headers, and provider credentials.",
+        "Post-review fixes keep activity stable across generic trace interleaving, prevent frontend waiting_approval from sticking after execution resumes, and align frontend reason extraction with backend snapshots."
+      ]
+    },
+    {
       "changeId": "add-subagent-trace-tree",
       "title": "Add Subagent Trace Tree",
-      "status": "verified",
+      "status": "archived",
       "date": "2026-06-22",
       "type": "feature",
       "summary": "为 fork skill 子智能体补齐父子执行 Trace Tree：标准化 execution tree attributes，将关键 trace 事件投递 Java Gateway，并在 Frontend Debug Panel 中展示父子树、状态、耗时、cost 与终止原因。",
@@ -21,21 +140,22 @@
         "backend-gateway"
       ],
       "openspec": {
-        "proposal": "openspec/changes/add-subagent-trace-tree/proposal.md",
-        "design": "openspec/changes/add-subagent-trace-tree/design.md",
-        "tasks": "openspec/changes/add-subagent-trace-tree/tasks.md",
+        "proposal": "openspec/changes/archive/2026-06-29-add-subagent-trace-tree/proposal.md",
+        "design": "openspec/changes/archive/2026-06-29-add-subagent-trace-tree/design.md",
+        "tasks": "openspec/changes/archive/2026-06-29-add-subagent-trace-tree/tasks.md",
         "specDeltas": [
-          "openspec/changes/add-subagent-trace-tree/specs/agent-runtime/spec.md",
-          "openspec/changes/add-subagent-trace-tree/specs/backend-gateway/spec.md",
-          "openspec/changes/add-subagent-trace-tree/specs/frontend-runtime/spec.md",
-          "openspec/changes/add-subagent-trace-tree/specs/shared-schema/spec.md"
+          "openspec/changes/archive/2026-06-29-add-subagent-trace-tree/specs/agent-runtime/spec.md",
+          "openspec/changes/archive/2026-06-29-add-subagent-trace-tree/specs/backend-gateway/spec.md",
+          "openspec/changes/archive/2026-06-29-add-subagent-trace-tree/specs/frontend-runtime/spec.md",
+          "openspec/changes/archive/2026-06-29-add-subagent-trace-tree/specs/shared-schema/spec.md"
         ],
         "currentSpecs": [
           "openspec/specs/agent-runtime/spec.md",
           "openspec/specs/backend-gateway/spec.md",
           "openspec/specs/frontend-runtime/spec.md",
           "openspec/specs/shared-schema/spec.md"
-        ]
+        ],
+        "archivePath": "openspec/changes/archive/2026-06-29-add-subagent-trace-tree/"
       },
       "superpowers": {
         "plan": "docs/superpowers/plans/2026-06-23-add-subagent-trace-tree.md"
@@ -93,12 +213,25 @@
           "command": "npx openspec validate add-subagent-trace-tree --strict --no-interactive",
           "result": "passed",
           "note": "Change is valid; PostHog telemetry network flush warning is non-blocking."
+        },
+        {
+          "command": "npx openspec archive add-subagent-trace-tree --yes",
+          "result": "passed",
+          "note": "Archived as 2026-06-29-add-subagent-trace-tree and updated current specs."
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "Post-archive validation passed: all specs verified."
+        },
+        {
+          "command": "pnpm dashboard:check",
+          "result": "passed",
+          "note": "Dashboard generated artifacts are current after archived sync."
         }
       ],
       "closeout": "docs/design/2026-06-29-add-subagent-trace-tree-closeout.md",
-      "next": [
-        "在集成或部署确认后归档 add-subagent-trace-tree OpenSpec change"
-      ],
+      "next": [],
       "nonGoals": [
         "公开子 Agent API、SDK 或远程管理能力",
         "容器化或进程级 sandbox",
@@ -107,7 +240,8 @@
       "notes": [
         "Proposal-only sync; implementation is blocked until user approval.",
         "Proposal approved on 2026-06-23; Superpowers implementation plan generated.",
-        "Implementation verified on 2026-06-29. Runtime trace events now flow once to Java ingestion and through RuntimeEventStore to the frontend SSE tree panel."
+        "Implementation verified on 2026-06-29. Runtime trace events now flow once to Java ingestion and through RuntimeEventStore to the frontend SSE tree panel.",
+        "Archived as 2026-06-29-add-subagent-trace-tree and synchronized specs."
       ]
     },
     {

@@ -34,6 +34,7 @@
 ## File Structure
 
 ### Create
+
 - `agent-runtime/src/traceTree.ts` — typed helpers for trace-tree attributes and sanitized trace events.
 - `frontend/src/TraceTreePanel.tsx` — renders trace-tree nodes with fallback flat JSON.
 - `frontend/test/TraceTreePanel.test.tsx` — focused rendering tests.
@@ -42,6 +43,7 @@
 - `docs/design/2026-06-23-add-subagent-trace-tree-closeout.md` — final closeout after implementation.
 
 ### Modify
+
 - `packages/shared-schema/src/index.ts` — optional typed trace-tree attribute schema/helpers, keeping old `TraceEvent` valid.
 - `packages/shared-schema/test/schema.test.ts` — TraceEvent old/new compatibility tests.
 - `agent-runtime/src/trace.ts` — accepts optional attributes from trace-tree helper; preserve existing `traceEvent()` API.
@@ -61,34 +63,38 @@
 
 ## Step Evidence Gate Matrix
 
-| Step | Gate | Allowed files | Formal verification | Signoff condition |
-|---|---|---|---|---|
-| 1 Shared schema | Full | `packages/shared-schema/src/index.ts`, `packages/shared-schema/test/schema.test.ts` | `pnpm --filter @openharness/shared-schema test` | Old TraceEvent and new trace-tree attributes both parse |
-| 2 TS helpers | Full | `agent-runtime/src/traceTree.ts`, `agent-runtime/src/trace.ts`, `agent-runtime/test/subagentDispatcher.test.ts` | `pnpm --filter @openharness/agent-runtime test -- subagentDispatcher` | Helper emits stable sanitized attributes |
-| 3 Dispatcher/Runner | Full | `agent-runtime/src/subagent/dispatcher.ts`, `agent-runtime/src/agentExecutionRunner.ts`, `agent-runtime/test/subagentDispatcher.test.ts`, `agent-runtime/test/agentExecutionRunner.test.ts` | `pnpm --filter @openharness/agent-runtime test -- subagentDispatcher agentExecutionRunner` | Lifecycle events emitted and Java postTrace failure is non-blocking |
-| 4 Java Gateway | Compact | `backend/src/test/java/org/openharness/backend/BackendApiTest.java` | `mvn test -f backend/pom.xml` | Trace ingestion accepts and preserves attributes |
-| 5 Frontend | Full | `frontend/src/TraceTreePanel.tsx`, `frontend/src/App.tsx`, `frontend/src/App.css`, `frontend/test/TraceTreePanel.test.tsx`, optional `frontend/test/App.test.tsx` | `pnpm --filter @openharness/frontend test` | Tree view renders child node and fallback remains |
-| 6 Closeout | Compact | `openspec/changes/add-subagent-trace-tree/tasks.md`, `docs/project-dashboard/development-log.json`, generated dashboard files, closeout/review docs | all commands in Step 6 | Dashboard verified, OpenSpec valid, closeout ready |
+| Step                | Gate    | Allowed files                                                                                                                                                                                       | Formal verification                                                                          | Signoff condition                                                   |
+| ------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| 1 Shared schema     | Full    | `packages/shared-schema/src/index.ts`, `packages/shared-schema/test/schema.test.ts`                                                                                                             | `pnpm --filter @openharness/shared-schema test`                                            | Old TraceEvent and new trace-tree attributes both parse             |
+| 2 TS helpers        | Full    | `agent-runtime/src/traceTree.ts`, `agent-runtime/src/trace.ts`, `agent-runtime/test/subagentDispatcher.test.ts`                                                                               | `pnpm --filter @openharness/agent-runtime test -- subagentDispatcher`                      | Helper emits stable sanitized attributes                            |
+| 3 Dispatcher/Runner | Full    | `agent-runtime/src/subagent/dispatcher.ts`, `agent-runtime/src/agentExecutionRunner.ts`, `agent-runtime/test/subagentDispatcher.test.ts`, `agent-runtime/test/agentExecutionRunner.test.ts` | `pnpm --filter @openharness/agent-runtime test -- subagentDispatcher agentExecutionRunner` | Lifecycle events emitted and Java postTrace failure is non-blocking |
+| 4 Java Gateway      | Compact | `backend/src/test/java/org/openharness/backend/BackendApiTest.java`                                                                                                                               | `mvn test -f backend/pom.xml`                                                              | Trace ingestion accepts and preserves attributes                    |
+| 5 Frontend          | Full    | `frontend/src/TraceTreePanel.tsx`, `frontend/src/App.tsx`, `frontend/src/App.css`, `frontend/test/TraceTreePanel.test.tsx`, optional `frontend/test/App.test.tsx`                         | `pnpm --filter @openharness/frontend test`                                                 | Tree view renders child node and fallback remains                   |
+| 6 Closeout          | Compact | `openspec/changes/add-subagent-trace-tree/tasks.md`, `docs/project-dashboard/development-log.json`, generated dashboard files, closeout/review docs                                             | all commands in Step 6                                                                       | Dashboard verified, OpenSpec valid, closeout ready                  |
 
 ---
 
 ## Task 1: Shared Schema Trace Tree Contract
 
 **Files:**
+
 - Modify: `packages/shared-schema/src/index.ts`
 - Modify: `packages/shared-schema/test/schema.test.ts`
 
 **Step goal:** Make trace-tree attributes explicit and testable without breaking historical `TraceEvent` parsing.
 
 **Code fact anchors before editing:**
+
 - `packages/shared-schema/src/index.ts`: `TraceEventSchema` already has optional `attributes: z.record(z.unknown()).optional()`.
 - `packages/shared-schema/test/schema.test.ts`: shared schema tests already parse model/tool/request contracts.
 
 **Negative search before editing:**
 Run:
+
 ```bash
 rg -n "TraceTree|traceNodeKind|parentExecutionId|childExecutionId" packages/shared-schema/src packages/shared-schema/test
 ```
+
 Expected before this task: no existing shared-schema trace-tree contract except proposal files.
 
 - [ ] **Step 1.1: Write failing shared-schema tests**
@@ -159,9 +165,11 @@ Add tests inside `describe("shared schema", () => { ... })`:
 - [ ] **Step 1.2: Run test to verify it fails**
 
 Run:
+
 ```bash
 pnpm --filter @openharness/shared-schema test -- schema
 ```
+
 Expected: FAIL because `TraceTreeAttributesSchema` is not exported.
 
 - [ ] **Step 1.3: Implement shared-schema trace-tree attributes**
@@ -200,17 +208,21 @@ Keep `TraceEventSchema.attributes` as `z.record(z.unknown()).optional()` so old 
 - [ ] **Step 1.4: Run shared-schema verification**
 
 Run:
+
 ```bash
 pnpm --filter @openharness/shared-schema test -- schema
 ```
+
 Expected: PASS.
 
 - [ ] **Step 1.5: Self-review**
 
 Check:
+
 ```bash
 rg -n "TraceTreeAttributesSchema|TraceNodeKindSchema|traceNodeKind" packages/shared-schema/src/index.ts packages/shared-schema/test/schema.test.ts
 ```
+
 Expected: tests and exports exist; `TraceEventSchema.attributes` remains optional and not replaced with a strict required shape.
 
 ---
@@ -218,6 +230,7 @@ Expected: tests and exports exist; `TraceEventSchema.attributes` remains optiona
 ## Task 2: TS Runtime Trace Tree Helper
 
 **Files:**
+
 - Create: `agent-runtime/src/traceTree.ts`
 - Modify: `agent-runtime/src/trace.ts`
 - Modify: `agent-runtime/test/subagentDispatcher.test.ts`
@@ -225,14 +238,17 @@ Expected: tests and exports exist; `TraceEventSchema.attributes` remains optiona
 **Step goal:** Introduce a small helper that builds sanitized trace-tree attributes for subagents.
 
 **Code fact anchors before editing:**
+
 - `agent-runtime/src/trace.ts` exports trace event constants and `traceEvent()`.
 - `agent-runtime/test/subagentDispatcher.test.ts` already imports `TraceEvent` and has a fake Java client.
 
 **Negative search before editing:**
 Run:
+
 ```bash
 rg -n "subagentTrace|traceTree|SUBAGENT_START|SUBAGENT_END" agent-runtime/src agent-runtime/test
 ```
+
 Expected before this task: no helper or constants.
 
 - [ ] **Step 2.1: Write failing helper tests**
@@ -284,9 +300,11 @@ Add tests inside `describe("SubagentDispatcher", () => { ... })`:
 - [ ] **Step 2.2: Run test to verify it fails**
 
 Run:
+
 ```bash
 pnpm --filter @openharness/agent-runtime test -- subagentDispatcher
 ```
+
 Expected: FAIL because `../src/traceTree` does not exist.
 
 - [ ] **Step 2.3: Create trace tree helper**
@@ -340,9 +358,11 @@ function withoutUndefined<T extends Record<string, unknown>>(input: T): T {
 - [ ] **Step 2.4: Run helper verification**
 
 Run:
+
 ```bash
 pnpm --filter @openharness/agent-runtime test -- subagentDispatcher
 ```
+
 Expected: PASS for helper tests and existing dispatcher tests.
 
 ---
@@ -350,6 +370,7 @@ Expected: PASS for helper tests and existing dispatcher tests.
 ## Task 3: TS Runtime Subagent Lifecycle Events and Java Trace Posting
 
 **Files:**
+
 - Modify: `agent-runtime/src/subagent/dispatcher.ts`
 - Modify: `agent-runtime/src/agentExecutionRunner.ts`
 - Modify: `agent-runtime/test/subagentDispatcher.test.ts`
@@ -361,9 +382,11 @@ Expected: PASS for helper tests and existing dispatcher tests.
 
 **Negative search before editing:**
 Run:
+
 ```bash
 rg -n "TRACE_SUBAGENT|buildSubagentTraceAttributes|postTrace" agent-runtime/src/subagent agent-runtime/src/agentExecutionRunner.ts agent-runtime/test
 ```
+
 Expected: only Task 2 helper references before implementation.
 
 - [ ] **Step 3.1: Extend dispatcher input with optional trace emitter**
@@ -531,9 +554,11 @@ For policy/tool/model errors, use `status: "error"` and the matching `terminalCl
 - [ ] **Step 3.4: Run dispatcher tests**
 
 Run:
+
 ```bash
 pnpm --filter @openharness/agent-runtime test -- subagentDispatcher
 ```
+
 Expected: PASS.
 
 - [ ] **Step 3.5: Write failing runner postTrace tests**
@@ -598,10 +623,12 @@ Do not throw from the catch. Do not log `input.headers` or service token.
 - [ ] **Step 3.7: Run TS Runtime verification**
 
 Run:
+
 ```bash
 pnpm --filter @openharness/agent-runtime test -- subagentDispatcher agentExecutionRunner
 pnpm --filter @openharness/agent-runtime typecheck
 ```
+
 Expected: PASS.
 
 ---
@@ -609,11 +636,13 @@ Expected: PASS.
 ## Task 4: Java Gateway Trace Ingestion Preservation
 
 **Files:**
+
 - Modify: `backend/src/test/java/org/openharness/backend/BackendApiTest.java`
 
 **Step goal:** Verify Java accepts and preserves subagent trace-tree attributes without scheduling subagents or leaking auth tokens.
 
 **Code fact anchors:**
+
 - `backend/src/test/java/org/openharness/backend/BackendApiTest.java` has `traceEventIsAccepted()`.
 - `backend/src/main/java/org/openharness/backend/service/TraceService.java` records the incoming DTO as-is.
 
@@ -656,17 +685,21 @@ In `BackendApiTest.java`, add:
 - [ ] **Step 4.2: Run backend verification**
 
 Run:
+
 ```bash
 mvn test -f backend/pom.xml
 ```
+
 Expected: PASS.
 
 - [ ] **Step 4.3: Self-review backend scope**
 
 Run:
+
 ```bash
 git diff -- backend/src/main/java/org/openharness/backend backend/src/test/java/org/openharness/backend/BackendApiTest.java
 ```
+
 Expected: only tests changed unless an actual failing DTO issue required minimal implementation. No Java Agent Loop, no provider cost recalculation.
 
 ---
@@ -674,6 +707,7 @@ Expected: only tests changed unless an actual failing DTO issue required minimal
 ## Task 5: Frontend Trace Tree Panel
 
 **Files:**
+
 - Create: `frontend/src/TraceTreePanel.tsx`
 - Create: `frontend/test/TraceTreePanel.test.tsx`
 - Modify: `frontend/src/App.tsx`
@@ -745,9 +779,11 @@ describe("TraceTreePanel", () => {
 - [ ] **Step 5.2: Run frontend test to verify it fails**
 
 Run:
+
 ```bash
 pnpm --filter @openharness/frontend test -- TraceTreePanel
 ```
+
 Expected: FAIL because `TraceTreePanel` does not exist.
 
 - [ ] **Step 5.3: Implement TraceTreePanel**
@@ -909,10 +945,12 @@ Append to `frontend/src/App.css`:
 - [ ] **Step 5.6: Run frontend verification**
 
 Run:
+
 ```bash
 pnpm --filter @openharness/frontend test -- TraceTreePanel App
 pnpm --filter @openharness/frontend typecheck
 ```
+
 Expected: PASS.
 
 ---
@@ -920,6 +958,7 @@ Expected: PASS.
 ## Task 6: Formal Verification, Dashboard Sync, Review, Closeout
 
 **Files:**
+
 - Modify: `openspec/changes/add-subagent-trace-tree/tasks.md`
 - Modify: `docs/project-dashboard/development-log.json`
 - Generated: `docs/project-dashboard/development-log.md`
@@ -932,6 +971,7 @@ Expected: PASS.
 - [ ] **Step 6.1: Run formal verification suite**
 
 Run:
+
 ```bash
 pnpm --filter @openharness/shared-schema test
 pnpm --filter @openharness/agent-runtime test -- subagentDispatcher agentExecutionRunner
@@ -941,6 +981,7 @@ pnpm --filter @openharness/frontend test
 pnpm --filter @openharness/frontend typecheck
 npx openspec validate add-subagent-trace-tree --strict --no-interactive
 ```
+
 Expected: all pass. OpenSpec PostHog telemetry network flush warnings are non-blocking only if process exit code is 0.
 
 - [ ] **Step 6.2: Mark OpenSpec tasks complete**
@@ -985,10 +1026,12 @@ Also add verification command results exactly as observed.
 - [ ] **Step 6.4: Render and check dashboard**
 
 Run:
+
 ```bash
 node docs/project-dashboard/scripts/render-dashboard.mjs
 pnpm dashboard:check
 ```
+
 Expected: generated dashboard files are current.
 
 - [ ] **Step 6.5: Create closeout**
@@ -1004,6 +1047,7 @@ Create `docs/design/2026-06-23-add-subagent-trace-tree-closeout.md` with header:
 ```
 
 Include:
+
 - 结论：`通过` or `有风险` based on verification.
 - Scope: exact source/test/spec/dashboard files.
 - Core logic: shared schema attributes, TS trace emission/posting, Java ingestion, Frontend tree/fallback.
@@ -1017,11 +1061,13 @@ Create `docs/review/2026-06-23-add-subagent-trace-tree-implementation-review.md`
 - [ ] **Step 6.7: Final pre-archive validation**
 
 Run:
+
 ```bash
 git diff --stat
 pnpm dashboard:check
 npx openspec validate add-subagent-trace-tree --strict --no-interactive
 ```
+
 Expected: dashboard current and OpenSpec valid.
 
 ---
@@ -1029,6 +1075,7 @@ Expected: dashboard current and OpenSpec valid.
 ## Self-Review Checklist
 
 ### Spec coverage
+
 - `shared-schema`: Task 1 covers optional trace-tree attributes and legacy compatibility.
 - `agent-runtime`: Tasks 2 and 3 cover subagent start/terminal metadata, sanitization, Java trace posting, and non-blocking failure.
 - `backend-gateway`: Task 4 covers ingestion preservation and no Java scheduling responsibility.
@@ -1036,14 +1083,17 @@ Expected: dashboard current and OpenSpec valid.
 - Verification/dashboard/closeout: Task 6 covers formal checks and project governance.
 
 ### Placeholder scan
+
 - No `TBD`, unspecified test commands, or generic “add tests” steps remain.
 - Each code-changing task includes concrete files, code shape, commands, and expected outcomes.
 
 ### Type consistency
+
 - `TraceTreeAttributesSchema` / `TraceTreeAttributes` originate in `@openharness/shared-schema`.
 - `buildSubagentTraceAttributes()` returns `TraceTreeAttributes` and is consumed by TS Runtime trace events.
 - Frontend reads fields from `event.data.attributes` with defensive parsing and does not require backend DTO changes.
 
 ### Residual risks
+
 - The exact event stream shape exposed to Frontend may require adapting `sendAgentChatStream` if trace events are not currently emitted as SSE `trace` events. If missing, use the existing `tool_result`/`agent_*` event data as bridge only after confirming no sensitive payload is exposed.
 - `withTimeout` still uses Promise race and does not hard-cancel the underlying Java request; this plan only improves observability of timeout classification.

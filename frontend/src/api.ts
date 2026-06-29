@@ -37,11 +37,56 @@ export interface ActiveExecution {
   status: string;
 }
 
+export type RuntimeProgressStatus = "running" | "waiting_approval" | "completed" | "aborted" | "errored";
+export type RuntimeProgressActivity = "idle" | "model_call" | "tool_call" | "subagent" | "waiting_approval" | "terminal";
+
+export interface RuntimeProgressDetail {
+  toolCallId?: string;
+  toolName?: string;
+  skillName?: string;
+  childExecutionId?: string;
+  childConversationId?: string;
+  askUserId?: string;
+  terminalClass?: string;
+  reason?: string;
+  costUsdMicros?: number;
+}
+
+export interface RuntimeProgressRecentEvent {
+  kind: string;
+  createdAt: number;
+  stepIndex?: number;
+  status?: string;
+  toolName?: string;
+}
+
+export interface RuntimeProgressSnapshot {
+  conversationId: string;
+  executionId: string;
+  tenantId: string;
+  traceId: string;
+  requestId: string;
+  status: RuntimeProgressStatus;
+  currentActivity: RuntimeProgressActivity;
+  startedAt: number;
+  updatedAt: number;
+  endedAt?: number | null;
+  elapsedMs?: number;
+  currentStep?: number;
+  maxObservedStep: number;
+  modelCalls: number;
+  toolCalls: number;
+  subagentCalls: number;
+  detail?: RuntimeProgressDetail;
+  recentEvents: RuntimeProgressRecentEvent[];
+}
+
 export interface SessionDetail {
   conversationId: string;
   messages: SessionMessage[];
   activeExecution?: ActiveExecution | null;
   pendingApprovals?: PendingApproval[];
+  runtimeProgress?: RuntimeProgressSnapshot | null;
 }
 
 const agentRuntimeUrl = import.meta.env.VITE_AGENT_RUNTIME_URL ?? "http://localhost:3001";

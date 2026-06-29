@@ -473,6 +473,77 @@ export const AskUserResponseSchema = z.object({
 });
 export type AskUserResponse = z.infer<typeof AskUserResponseSchema>;
 
+// ── Runtime Progress ────────────────────────────────────────────────────────
+
+export const RuntimeProgressStatusSchema = z.enum([
+  "running",
+  "waiting_approval",
+  "completed",
+  "aborted",
+  "errored"
+]);
+export type RuntimeProgressStatus = z.infer<typeof RuntimeProgressStatusSchema>;
+
+export const RuntimeProgressActivitySchema = z.enum([
+  "idle",
+  "model_call",
+  "tool_call",
+  "subagent",
+  "waiting_approval",
+  "terminal"
+]);
+export type RuntimeProgressActivity = z.infer<typeof RuntimeProgressActivitySchema>;
+
+export const RuntimeProgressDetailSchema = z
+  .object({
+    toolCallId: z.string().optional(),
+    toolName: z.string().optional(),
+    skillName: z.string().optional(),
+    childExecutionId: z.string().optional(),
+    childConversationId: z.string().optional(),
+    askUserId: z.string().optional(),
+    terminalClass: z.string().optional(),
+    reason: z.string().optional(),
+    costUsdMicros: z.number().int().nonnegative().optional()
+  })
+  .strict();
+export type RuntimeProgressDetail = z.infer<typeof RuntimeProgressDetailSchema>;
+
+export const RuntimeProgressRecentEventSchema = z
+  .object({
+    kind: z.string(),
+    createdAt: z.number().int().nonnegative(),
+    stepIndex: z.number().int().positive().optional(),
+    status: z.string().optional(),
+    toolName: z.string().optional()
+  })
+  .strict();
+export type RuntimeProgressRecentEvent = z.infer<typeof RuntimeProgressRecentEventSchema>;
+
+export const RuntimeProgressSnapshotSchema = z
+  .object({
+    conversationId: z.string(),
+    executionId: z.string(),
+    tenantId: z.string(),
+    traceId: z.string(),
+    requestId: z.string(),
+    status: RuntimeProgressStatusSchema,
+    currentActivity: RuntimeProgressActivitySchema,
+    startedAt: z.number().int().nonnegative(),
+    updatedAt: z.number().int().nonnegative(),
+    endedAt: z.number().int().nonnegative().nullable().optional(),
+    elapsedMs: z.number().int().nonnegative().optional(),
+    currentStep: z.number().int().positive().optional(),
+    maxObservedStep: z.number().int().nonnegative().default(0),
+    modelCalls: z.number().int().nonnegative().default(0),
+    toolCalls: z.number().int().nonnegative().default(0),
+    subagentCalls: z.number().int().nonnegative().default(0),
+    detail: RuntimeProgressDetailSchema.optional(),
+    recentEvents: z.array(RuntimeProgressRecentEventSchema).default([])
+  })
+  .strict();
+export type RuntimeProgressSnapshot = z.infer<typeof RuntimeProgressSnapshotSchema>;
+
 // ── Runtime Events (add-execution-lifecycle-and-stream-recovery Phase 1) ──
 
 export const RuntimeEventKindSchema = z.enum([

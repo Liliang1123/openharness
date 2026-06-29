@@ -200,7 +200,8 @@ input {
   background: #0f172a;
   color: #dbeafe;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 16px;
   min-width: 0;
   padding: 18px;
 }
@@ -222,9 +223,71 @@ input {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  grid-row: 1 / -1;
   min-height: 0;
   overflow: auto;
+}
+
+.runtime-progress {
+  border-bottom: 1px solid #334155;
+  display: grid;
+  gap: 10px;
+  padding-bottom: 14px;
+}
+
+.progress-header {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.progress-pill {
+  background: #1e293b;
+  border: 1px solid #475569;
+  border-radius: 999px;
+  color: #bfdbfe;
+  font-size: 12px;
+  padding: 3px 8px;
+}
+
+.runtime-progress.running .progress-pill {
+  border-color: #38bdf8;
+  color: #bae6fd;
+}
+
+.runtime-progress.waiting_approval .progress-pill {
+  border-color: #f59e0b;
+  color: #fde68a;
+}
+
+.runtime-progress.completed .progress-pill {
+  border-color: #22c55e;
+  color: #bbf7d0;
+}
+
+.runtime-progress.errored .progress-pill,
+.runtime-progress.aborted .progress-pill {
+  border-color: #ef4444;
+  color: #fecaca;
+}
+
+.progress-grid {
+  display: grid;
+  font-size: 12px;
+  gap: 6px 10px;
+  grid-template-columns: minmax(82px, auto) minmax(0, 1fr);
+}
+
+.progress-grid span,
+.progress-muted {
+  color: #93a4ba;
+}
+
+.progress-grid strong {
+  color: #e0f2fe;
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .trace-node {

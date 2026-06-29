@@ -14,6 +14,9 @@ import {
   ModelChatRequestSchema,
   ReviewPolicyEvaluateRequestSchema,
   PromptTemplateSchema,
+  RuntimeProgressActivitySchema,
+  RuntimeProgressSnapshotSchema,
+  RuntimeProgressStatusSchema,
   RuntimeEventKindSchema,
   SessionEventSchema,
   ToolCallRequestSchema,
@@ -208,6 +211,57 @@ describe("shared schema", () => {
         }
       })
     ).toThrow();
+  });
+
+  it("parses runtime progress snapshot metadata", () => {
+    const parsed = RuntimeProgressSnapshotSchema.parse({
+      conversationId: "conv-1",
+      executionId: "exec-1",
+      tenantId: "tenant-1",
+      traceId: "trace-1",
+      requestId: "req-1",
+      status: "running",
+      currentActivity: "model_call",
+      startedAt: 1000,
+      updatedAt: 1500,
+      elapsedMs: 500,
+      currentStep: 2,
+      maxObservedStep: 2,
+      modelCalls: 2,
+      toolCalls: 1,
+      subagentCalls: 0,
+      recentEvents: [
+        { kind: "model_call_start", createdAt: 1500, stepIndex: 2 }
+      ]
+    });
+
+    expect(parsed.status).toBe("running");
+    expect(parsed.currentActivity).toBe("model_call");
+    expect(parsed.recentEvents[0].kind).toBe("model_call_start");
+  });
+
+  it("rejects invalid runtime progress enums", () => {
+    expect(() => RuntimeProgressStatusSchema.parse("paused_unknown")).toThrow();
+    expect(() => RuntimeProgressActivitySchema.parse("thinking_secretly")).toThrow();
+  });
+
+  it("rejects sensitive fields on runtime progress snapshot", () => {
+    expect(() => RuntimeProgressSnapshotSchema.parse({
+      conversationId: "conv-1",
+      executionId: "exec-1",
+      tenantId: "tenant-1",
+      traceId: "trace-1",
+      requestId: "req-1",
+      status: "running",
+      currentActivity: "tool_call",
+      startedAt: 1000,
+      updatedAt: 1500,
+      modelCalls: 1,
+      toolCalls: 1,
+      subagentCalls: 0,
+      prompt: "secret",
+      authorization: "Bearer secret"
+    })).toThrow();
   });
 
 

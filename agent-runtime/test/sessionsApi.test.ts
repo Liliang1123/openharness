@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { createServer } from "../src/server";
+import { InMemoryExecutionStateStore } from "../src/executionStateStore";
+import { InMemoryRuntimeEventStore } from "../src/runtimeEventStore";
 import type { JavaClient, PolicyEvaluateRequest, PolicyEvaluateResponse } from "../src/javaClient";
 import type { CatalogResponse, ModelChatRequest, ToolCallRequest, TraceEvent } from "../src/types";
 
@@ -120,6 +122,50 @@ describe("Sessions API", () => {
     expect(body.conversationId).toBe("c1");
     expect(body.messages.length).toBeGreaterThan(0);
     expect(body.messages[0].role).toBe("user");
+  });
+
+  it("GET /api/v1/sessions/:id includes runtime progress for active execution", async () => {
+    const runtimeEventStore = new InMemoryRuntimeEventStore();
+    const executionStateStore = new InMemoryExecutionStateStore();
+    const localApp = await createServer({
+      javaClient: new StubJavaClient(),
+      runtimeEventStore,
+      executionStateStore
+    });
+    try {
+      executionStateStore.create({
+        tenantId: "t1",
+        conversationId: "conv-progress",
+        executionId: "exec-progress"
+      });
+      runtimeEventStore.append("t1", "conv-progress", {
+        executionId: "exec-progress",
+        conversationId: "conv-progress",
+        tenantId: "t1",
+        traceId: "tr-progress",
+        requestId: "req-progress",
+        createdAt: 1500,
+        kind: "model_call_start",
+        data: { stepIndex: 2 }
+      });
+
+      const res = await localApp.inject({
+        method: "GET",
+        url: "/api/v1/sessions/conv-progress",
+        headers: { "x-tenant-id": "t1" }
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.payload);
+      expect(body.runtimeProgress).toMatchObject({
+        executionId: "exec-progress",
+        status: "running",
+        currentActivity: "model_call",
+        currentStep: 2
+      });
+    } finally {
+      await localApp.close();
+    }
   });
 
   it("DELETE /api/v1/sessions/:id removes session file", async () => {

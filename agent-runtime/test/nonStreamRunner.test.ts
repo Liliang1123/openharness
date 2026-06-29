@@ -31,7 +31,8 @@ describe("non-stream chat runner convergence", () => {
       stopReason: "FINAL_ANSWER"
     });
     const events = runtimeEventStore.since("t1", "conv-sync-runner", null);
-    expect(events.map((event) => event.kind)).toEqual([
+    expect(events.some((event) => event.kind === "trace")).toBe(true);
+    expect(events.filter((event) => event.kind !== "trace").map((event) => event.kind)).toEqual([
       "agent_start",
       "model_call_start",
       "model_call_end",
