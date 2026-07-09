@@ -9,16 +9,16 @@ export function deriveRuntimeProgressFromEvents(events: SSEEvent[]): RuntimeProg
   const detailEvent = latestDetailEvent(events, status) ?? last;
   const activity = activityFromEvent(status, activityEvent);
   const currentStep = latestStep(events);
-  const startedAt = numberValue(first.data.createdAt) ?? Date.now();
-  const updatedAt = numberValue(last.data.createdAt) ?? startedAt;
+  const startedAt = first.createdAt;
+  const updatedAt = last.createdAt;
   const endedAt = activity === "terminal" ? updatedAt : null;
 
   return {
-    conversationId: stringValue(first.data.conversationId) ?? "",
-    executionId: stringValue(first.data.executionId) ?? "",
-    tenantId: stringValue(first.data.tenantId) ?? "",
-    traceId: stringValue(first.data.traceId) ?? "",
-    requestId: stringValue(first.data.requestId) ?? "",
+    conversationId: first.conversationId,
+    executionId: first.executionId,
+    tenantId: first.tenantId,
+    traceId: first.traceId,
+    requestId: first.requestId,
     status,
     currentActivity: activity,
     startedAt,
@@ -27,13 +27,13 @@ export function deriveRuntimeProgressFromEvents(events: SSEEvent[]): RuntimeProg
     elapsedMs: Math.max(0, updatedAt - startedAt),
     ...(currentStep ? { currentStep } : {}),
     maxObservedStep: maxStep(events),
-    modelCalls: events.filter((event) => event.event === "model_call_start").length,
-    toolCalls: events.filter((event) => event.event === "tool_call").length,
+    modelCalls: events.filter((event) => event.kind === "model_call_start").length,
+    toolCalls: events.filter((event) => event.kind === "tool_call").length,
     subagentCalls: countSubagents(events),
     detail: detailFromEvent(detailEvent, status),
     recentEvents: events.slice(-8).map((event) => ({
-      kind: event.event,
-      createdAt: numberValue(event.data.createdAt) ?? 0,
+      kind: event.kind,
+      createdAt: event.createdAt,
       ...(numberValue(event.data.stepIndex) ? { stepIndex: numberValue(event.data.stepIndex) } : {}),
       ...(stringValue(event.data.status) ? { status: stringValue(event.data.status) } : {}),
       ...(stringValue(event.data.toolName) ? { toolName: stringValue(event.data.toolName) } : {})
@@ -43,11 +43,11 @@ export function deriveRuntimeProgressFromEvents(events: SSEEvent[]): RuntimeProg
 
 function statusFromEvents(events: SSEEvent[]): RuntimeProgressSnapshot["status"] {
   const last = events[events.length - 1];
-  if (last.event === "stream_done") return "completed";
-  if (last.event === "stream_error") {
+  if (last.kind === "stream_done") return "completed";
+  if (last.kind === "stream_error") {
     return stringValue(last.data.errorClass) === "EXECUTION_ABORTED" ? "aborted" : "errored";
   }
-  if (latestActivityEvent(events)?.event === "approval_requested") return "waiting_approval";
+  if (latestActivityEvent(events)?.kind === "approval_requested") return "waiting_approval";
   return "running";
 }
 
@@ -58,8 +58,8 @@ function activityFromEvent(
   if (status === "completed" || status === "aborted" || status === "errored") return "terminal";
   if (status === "waiting_approval") return "waiting_approval";
   if (!event) return "idle";
-  if (event.event === "model_call_start") return "model_call";
-  if (event.event === "tool_call" || event.event === "tool_result") return "tool_call";
+  if (event.kind === "model_call_start") return "model_call";
+  if (event.kind === "tool_call" || event.kind === "tool_result") return "tool_call";
   if (attributes(event)?.traceNodeKind === "subagent_execution") return "subagent";
   return "idle";
 }
@@ -108,11 +108,11 @@ function latestActivityEvent(events: SSEEvent[]): SSEEvent | undefined {
   for (let i = events.length - 1; i >= 0; i -= 1) {
     const event = events[i];
     if (
-      event.event === "model_call_start" ||
-      event.event === "model_call_end" ||
-      event.event === "tool_call" ||
-      event.event === "tool_result" ||
-      event.event === "approval_requested" ||
+      event.kind === "model_call_start" ||
+      event.kind === "model_call_end" ||
+      event.kind === "tool_call" ||
+      event.kind === "tool_result" ||
+      event.kind === "approval_requested" ||
       attributes(event)?.traceNodeKind === "subagent_execution"
     ) {
       return event;
@@ -126,7 +126,7 @@ function latestDetailEvent(
   status: RuntimeProgressSnapshot["status"]
 ): SSEEvent | undefined {
   if (status === "completed" || status === "aborted" || status === "errored") {
-    return [...events].reverse().find((event) => event.event === "stream_error" || event.event === "stream_done");
+    return [...events].reverse().find((event) => event.kind === "stream_error" || event.kind === "stream_done");
   }
   return latestActivityEvent(events);
 }

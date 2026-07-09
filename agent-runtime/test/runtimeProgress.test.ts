@@ -9,6 +9,8 @@ function event(kind: SessionEvent["kind"], data: Record<string, unknown>, create
     executionId: "exec-1",
     conversationId: "c1",
     tenantId: "t1",
+    userId: "u1",
+    durability: "durable",
     traceId: "tr1",
     requestId: "req1",
     createdAt,

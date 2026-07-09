@@ -4,17 +4,18 @@ import { deriveRuntimeProgressFromEvents } from "../src/runtimeProgress";
 
 function event(eventName: string, data: Record<string, unknown> = {}): SSEEvent {
   return {
-    event: eventName,
-    data: {
-      executionId: "exec-1",
-      conversationId: "conv-1",
-      tenantId: "tenant-1",
-      traceId: "trace-1",
-      requestId: "req-1",
-      createdAt: 1000,
-      ...data
-    }
-  };
+    durability: "durable",
+    eventId: `tenant-1::user-1::conv-1:${eventName}`,
+    kind: eventName as Extract<SSEEvent, { durability: "durable" }>["kind"],
+    executionId: "exec-1",
+    conversationId: "conv-1",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    traceId: "trace-1",
+    requestId: "req-1",
+    createdAt: 1000,
+    data
+  } as SSEEvent;
 }
 
 describe("deriveRuntimeProgressFromEvents", () => {

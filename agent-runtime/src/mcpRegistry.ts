@@ -177,7 +177,8 @@ export class McpRegistry {
     serverName: string,
     toolName: string,
     args: Record<string, unknown>,
-    request: { requestId: string; conversationId: string; toolCallId: string }
+    request: { requestId: string; conversationId: string; toolCallId: string },
+    options?: { signal?: AbortSignal }
   ): Promise<ToolCallResponse> {
     const record = this.servers.get(serverName);
     if (!record || record.status !== "ready" || !record.client) {
@@ -186,10 +187,11 @@ export class McpRegistry {
     }
 
     try {
-      const result = await Promise.race([
-        record.client.callTool({ name: toolName, arguments: args }),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), record.timeoutMs))
-      ]) as { content?: unknown[]; isError?: boolean };
+      const result = await record.client.callTool(
+        { name: toolName, arguments: args },
+        undefined,
+        { timeout: record.timeoutMs, maxTotalTimeout: record.timeoutMs, signal: options?.signal }
+      ) as { content?: unknown[]; isError?: boolean };
 
       if (result.isError) {
         const text = this.extractText(result.content) || "MCP tool returned error";
@@ -201,11 +203,12 @@ export class McpRegistry {
         toolCallId: request.toolCallId,
         toolName,
         result: { content: result.content ?? [] },
-        status: "ok"
+        status: "ok",
+        provenance: "untrusted"
       };
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      const errorClass = message === "timeout" ? "MCP_TOOL_TIMEOUT" : "MCP_TOOL_ERROR";
+      const errorClass = this.classifyMcpError(e, message);
       // Mark as unavailable on transport-level errors
       if (errorClass === "MCP_TOOL_ERROR" && message.toLowerCase().includes("connection")) {
         record.status = "unavailable";
@@ -248,6 +251,15 @@ export class McpRegistry {
         httpStatus: 500
       }
     };
+  }
+
+  private classifyMcpError(error: unknown, message: string): string {
+    const lower = message.toLowerCase();
+    if (error instanceof DOMException && error.name === "AbortError") return "MCP_TOOL_CANCELLED";
+    if (error instanceof Error && error.name === "AbortError") return "MCP_TOOL_CANCELLED";
+    if (lower.includes("abort") || lower.includes("cancel")) return "MCP_TOOL_CANCELLED";
+    if (lower.includes("timeout") || lower.includes("timed out")) return "MCP_TOOL_TIMEOUT";
+    return "MCP_TOOL_ERROR";
   }
 
   private extractText(content: unknown): string {

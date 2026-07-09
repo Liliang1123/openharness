@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import { InMemoryRuntimeEventStore } from "../src/runtimeEventStore";
 import type { SessionEvent } from "../src/types";
 
-function makeEvent(partial: Partial<SessionEvent> = {}): Omit<SessionEvent, "eventId"> {
+function makeEvent(partial: Partial<SessionEvent> = {}): Omit<SessionEvent, "eventId" | "durability"> {
   return {
     executionId: partial.executionId ?? "exec-1",
     conversationId: partial.conversationId ?? "conv-1",
     tenantId: partial.tenantId ?? "t1",
+    userId: partial.userId ?? "u1",
     traceId: partial.traceId ?? "tr-1",
     requestId: partial.requestId ?? "req-1",
     createdAt: partial.createdAt ?? Date.now(),

@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@openharness/shared-schema": "workspace:*",
     "@vitejs/plugin-react": "^5.1.2",
     "vite": "^7.3.3",
     "react": "^19.2.3",

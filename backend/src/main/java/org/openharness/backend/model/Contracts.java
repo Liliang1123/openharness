@@ -102,6 +102,10 @@ public final class Contracts {
       StructuredError error,
       String provenance) {}
 
+  public record ToolCancelRequest(String requestId, String toolCallId) {}
+
+  public record ToolCancelResponse(String requestId, String toolCallId, boolean cancelled) {}
+
   public record TraceEvent(
       String traceId,
       String spanId,

@@ -145,6 +145,26 @@ describe("Memory Management API", () => {
     expect(res.json()).toEqual({ memoryId: "missing", deleted: false });
   });
 
+  it("does not reveal same-tenant cross-user memory existence on delete", async () => {
+    const memoryStore = new InMemoryMemoryStore();
+    await memoryStore.upsert({ memoryId: "mem-secret", tenantId: "tenant-a", userId: "user-a", content: "secret", tags: [] });
+    const app = await createServer({
+      javaClient: new RecordingJavaClient(),
+      disableMcp: true,
+      memoryStore
+    });
+
+    const res = await app.inject({
+      method: "DELETE",
+      url: "/api/v1/memory/facts/mem-secret",
+      headers: { "x-tenant-id": "tenant-a", "x-user-id": "user-b" }
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({ memoryId: "mem-secret", deleted: false });
+    expect(await memoryStore.list("tenant-a", "user-a")).toHaveLength(1);
+  });
+
   it("rejects client-controlled scope and leaves history and Java untouched", async () => {
     const javaClient = new RecordingJavaClient();
     const history = new InMemoryHistoryStore();

@@ -40,6 +40,23 @@ function seedEvents(store: InMemoryRuntimeEventStore, tenantId: string, conversa
       executionId: "exec-seed",
       conversationId,
       tenantId,
+      userId: "u1",
+      traceId: "tr-seed",
+      requestId: "req-seed",
+      createdAt: Date.now(),
+      kind: kind as "agent_start",
+      data: { seed: true }
+    });
+  }
+}
+
+function seedEventsForUser(store: InMemoryRuntimeEventStore, tenantId: string, userId: string, conversationId: string, kinds: string[]) {
+  for (const kind of kinds) {
+    store.append(tenantId, conversationId, {
+      executionId: `exec-${userId}`,
+      conversationId,
+      tenantId,
+      userId,
       traceId: "tr-seed",
       requestId: "req-seed",
       createdAt: Date.now(),
@@ -109,7 +126,7 @@ describe("session events SSE endpoint", () => {
 
     const events = parseSse(res.body);
     expect(events.map(e => e.event)).toEqual(["stream_resync_required"]);
-    expect(events[0].data.lastAvailableEventId).toBe("t1::conv-gap:2");
+    expect((events[0].data.data as Record<string, unknown>).lastAvailableEventId).toBe("t1::conv-gap:2");
   });
 
   it("isolates events across tenants for the same conversationId", async () => {
@@ -131,6 +148,21 @@ describe("session events SSE endpoint", () => {
 
     expect(parseSse(resA.body).map(e => e.event)).toEqual(["agent_start", "stream_done"]);
     expect(parseSse(resB.body).map(e => e.event)).toEqual(["agent_start", "model_call_start", "stream_done"]);
+  });
+
+  it("does not replay same-tenant cross-user events or cursors", async () => {
+    seedEventsForUser(store, "tenant-A", "user-A", "conv-shared-user", ["agent_start", "stream_done"]);
+    const app = await createServer({ javaClient: new StubJavaClient(), runtimeEventStore: store });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/sessions/conv-shared-user/events?last_event_id=tenant-A::conv-shared-user:1",
+      headers: { "x-tenant-id": "tenant-A", "x-user-id": "user-B" }
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).not.toContain("user-A");
+    expect(res.body).not.toContain("tenant-A::conv-shared-user:1");
   });
 
   it("delivers live events appended after subscription", async () => {

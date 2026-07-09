@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteSession,
+  appendSSEWireEvent,
   getSession,
   listSessions,
   sendAgentChatStream,
@@ -128,17 +129,17 @@ export function App() {
         },
         (ev) => {
           setEvents((prev) => {
-            const next = [...prev, ev];
+            const next = appendSSEWireEvent(prev, ev);
             setRuntimeProgress(deriveRuntimeProgressFromEvents(next));
             return next;
           });
-          if (ev.event === "model_call_start") {
+          if (ev.kind === "model_call_start") {
             setMessages((m) => [...m, { role: "system", content: "🤔 思考中..." }]);
-          } else if (ev.event === "tool_call") {
+          } else if (ev.kind === "tool_call") {
             setMessages((m) => [...m, { role: "system", content: `🔧 调用工具: ${ev.data.toolName}` }]);
-          } else if (ev.event === "tool_result" && ev.data.status === "denied") {
+          } else if (ev.kind === "tool_result" && ev.data.status === "denied") {
             setMessages((m) => [...m, { role: "system", content: `❌ 工具被拒绝: ${ev.data.toolName}` }]);
-          } else if (ev.event === "approval_requested" || (ev.event === "tool_result" && ev.data.status === "pending_approval")) {
+          } else if (ev.kind === "approval_requested" || (ev.kind === "tool_result" && ev.data.status === "pending_approval")) {
             setMessages((m) => [
               ...m,
               {
@@ -147,14 +148,14 @@ export function App() {
                 approval: {
                   askUserId: String(ev.data.askUserId ?? ""),
                   conversationId,
-                  executionId: String(ev.data.executionId ?? ""),
+                  executionId: ev.executionId,
                   toolCallId: String(ev.data.toolCallId ?? ""),
                   toolName: String(ev.data.toolName ?? ""),
                   reason: ev.data.reason ? String(ev.data.reason) : undefined
                 }
               }
             ]);
-          } else if (ev.event === "final_answer") {
+          } else if (ev.kind === "final_answer") {
             setMessages((m) => [...m, { role: "assistant", content: String(ev.data.answer ?? "") }]);
           }
         }

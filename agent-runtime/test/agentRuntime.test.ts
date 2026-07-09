@@ -238,7 +238,9 @@ describe("agent runtime", () => {
       payload: { conversationId: "conv-006", message: "现在几点？" }
     });
 
-    const assistantWithReasoning = javaClient.modelRequests[1]?.messages.find((message) => message.role === "assistant");
+    const assistantWithReasoning = javaClient.modelRequests[1]?.messages.find(
+      (message) => message.role === "assistant" && message.reasoningBlocks !== undefined
+    );
     expect(assistantWithReasoning?.reasoningBlocks).toEqual([
       { type: "thinking", signature: "sig-001", providerExtra: true }
     ]);

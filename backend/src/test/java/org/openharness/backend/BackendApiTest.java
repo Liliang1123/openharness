@@ -16,6 +16,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.openharness.backend.model.Contracts.TraceEvent;
 import org.openharness.backend.service.TraceService;
 import org.junit.jupiter.api.Test;
@@ -89,6 +93,84 @@ class BackendApiTest {
           .andExpect(jsonPath("$.result.exitCode", equalTo(0)))
           .andExpect(jsonPath("$.result.stdout", equalTo("hello\n")));
     } finally {
+      System.clearProperty("TOOL_WORKSPACE_DIR");
+    }
+  }
+
+  @Test
+  void runCommandReportsOutputCapWhenStdoutIsTruncated() throws Exception {
+    Path dir = Files.createTempDirectory("openharness-tool-protocol-test");
+    System.setProperty("TOOL_WORKSPACE_DIR", dir.toString());
+    try {
+      JsonNode catalog = catalog();
+      MvcResult result =
+          executeProtocol(catalog, "run_command", Map.of("command", "echo", "args", new String[] {"x".repeat(5000)}))
+              .andExpect(status().isOk())
+              .andExpect(jsonPath("$.result.truncated", equalTo(true)))
+              .andReturn();
+      JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
+      assertEquals(4096, body.get("result").get("stdout").asText().length());
+    } finally {
+      System.clearProperty("TOOL_WORKSPACE_DIR");
+    }
+  }
+
+  @Test
+  void runCommandHonorsRequestTimeout() throws Exception {
+    Path dir = Files.createTempDirectory("openharness-tool-timeout-test");
+    System.setProperty("TOOL_WORKSPACE_DIR", dir.toString());
+    try {
+      JsonNode catalog = catalog();
+      executeProtocol(catalog, "run_command", Map.of("command", "sleep", "args", new String[] {"5"}, "timeoutMs", 100))
+          .andExpect(status().isBadRequest())
+          .andExpect(jsonPath("$.error.errorClass", equalTo("TOOL_TIMEOUT")));
+    } finally {
+      System.clearProperty("TOOL_WORKSPACE_DIR");
+    }
+  }
+
+  @Test
+  void runCommandCanBeCancelledByRequestAndToolCallId() throws Exception {
+    Path dir = Files.createTempDirectory("openharness-tool-cancel-test");
+    System.setProperty("TOOL_WORKSPACE_DIR", dir.toString());
+    ExecutorService executor = Executors.newSingleThreadExecutor();
+    try {
+      JsonNode catalog = catalog();
+      String requestId = "req-cancel-001";
+      String toolCallId = "call-cancel-001";
+      String payload =
+          json(
+              Map.of(
+                  "requestId", requestId,
+                  "conversationId", "conv-cancel",
+                  "userId", "user-001",
+                  "tenantId", "tenant-001",
+                  "toolCallId", toolCallId,
+                  "toolName", "run_command",
+                  "arguments", Map.of("command", "sleep", "args", new String[] {"5"}, "timeoutMs", 5000),
+                  "catalogVersion", catalog.get("catalogVersion").asText(),
+                  "catalogHash", catalog.get("catalogHash").asText(),
+                  "idempotencyKey", "idem-cancel-001"));
+
+      Future<MvcResult> execution =
+          executor.submit(
+              () ->
+                  mvc.perform(valid(post("/api/v1/tools/execute")).contentType(MediaType.APPLICATION_JSON).content(payload))
+                      .andReturn());
+      Thread.sleep(150);
+      mvc.perform(
+              valid(post("/api/v1/tools/cancel"))
+                  .contentType(MediaType.APPLICATION_JSON)
+                  .content(json(Map.of("requestId", requestId, "toolCallId", toolCallId))))
+          .andExpect(status().isOk())
+          .andExpect(jsonPath("$.cancelled", equalTo(true)));
+
+      MvcResult cancelled = execution.get(2, TimeUnit.SECONDS);
+      assertEquals(400, cancelled.getResponse().getStatus());
+      JsonNode body = objectMapper.readTree(cancelled.getResponse().getContentAsString());
+      assertEquals("TOOL_CANCELLED", body.get("error").get("errorClass").asText());
+    } finally {
+      executor.shutdownNow();
       System.clearProperty("TOOL_WORKSPACE_DIR");
     }
   }

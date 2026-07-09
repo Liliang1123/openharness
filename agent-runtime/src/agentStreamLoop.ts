@@ -63,14 +63,16 @@ export class AgentStreamLoop {
       seen.add(e.eventId);
 
       const data = {
-        ...e.data,
+        durability: e.durability,
         eventId: e.eventId,
         executionId: e.executionId,
         conversationId: e.conversationId,
         tenantId: e.tenantId,
+        userId: e.userId,
         traceId: e.traceId,
         requestId: e.requestId,
-        createdAt: e.createdAt
+        createdAt: e.createdAt,
+        data: e.data
       };
       try {
         reply.raw.write(`event: ${e.kind}\ndata: ${JSON.stringify(data)}\n\n`);

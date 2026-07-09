@@ -222,11 +222,11 @@ describe("stream event ids", () => {
 
     // legacy fields preserved on specific events
     const modelEnd = events.find(e => e.event === "model_call_end");
-    expect(modelEnd?.data).toHaveProperty("stepIndex");
-    expect(modelEnd?.data).toHaveProperty("hasToolCalls");
+    expect(modelEnd?.data.data).toHaveProperty("stepIndex");
+    expect(modelEnd?.data.data).toHaveProperty("hasToolCalls");
 
     const toolCall = events.find(e => e.event === "tool_call");
-    expect(toolCall?.data).toHaveProperty("toolName");
+    expect(toolCall?.data.data).toHaveProperty("toolName");
   });
 
   it("appends events to the injected RuntimeEventStore mirroring the SSE wire", async () => {

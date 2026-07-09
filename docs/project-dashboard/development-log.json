@@ -3,9 +3,71 @@
   "project": {
     "name": "openharness",
     "root": ".",
-    "updatedAt": "2026-06-29"
+    "updatedAt": "2026-07-03"
   },
   "entries": [
+    {
+      "changeId": "harden-agent-runtime-single-node-production",
+      "title": "Harden Agent Runtime for Single-Node Production",
+      "status": "proposed",
+      "date": "2026-07-03",
+      "type": "feature",
+      "summary": "将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：以 SQLite 统一持久化和崩溃恢复；先完成 fake Provider、真实本地 Java 沙箱与 MCP 的 local_verified 全链路，再以独立生产证据完成真实 Provider、迁移和 24 小时 soak 门禁。",
+      "tags": [
+        "agent-runtime",
+        "production-readiness",
+        "sqlite",
+        "recovery",
+        "real-provider",
+        "soak-test"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/harden-agent-runtime-single-node-production/proposal.md",
+        "design": "openspec/changes/harden-agent-runtime-single-node-production/design.md",
+        "tasks": "openspec/changes/harden-agent-runtime-single-node-production/tasks.md",
+        "specDeltas": [
+          "openspec/changes/harden-agent-runtime-single-node-production/specs/agent-runtime/spec.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/specs/agent-sse/spec.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/specs/shared-schema/spec.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/specs/backend-gateway/spec.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/specs/message-history/spec.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/specs/long-term-memory/spec.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/specs/provider-adapter/spec.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/specs/mcp-tools/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/agent-runtime/spec.md",
+          "openspec/specs/agent-sse/spec.md",
+          "openspec/specs/shared-schema/spec.md",
+          "openspec/specs/backend-gateway/spec.md",
+          "openspec/specs/message-history/spec.md",
+          "openspec/specs/long-term-memory/spec.md",
+          "openspec/specs/provider-adapter/spec.md",
+          "openspec/specs/mcp-tools/spec.md"
+        ]
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md"
+      },
+      "next": [
+        "Continue local-only Tasks 9-12 with fake Provider servers and real local Java sandbox/MCP processes",
+        "Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review",
+        "Do not begin production cutover, real credential tests, formal soak, or production promotion without their required human gates"
+      ],
+      "nonGoals": [
+        "Multi-node high availability or PostgreSQL deployment",
+        "User login, tenant administration, browser sessions, or platform UI",
+        "Model configuration UI or provider credentials in TypeScript Runtime/Frontend",
+        "SDK or Agent Definition management UI"
+      ],
+      "notes": [
+        "Product direction approved on 2026-07-03: both OpenAI-compatible and Anthropic providers, both Java sandbox and MCP tools, SQLite durability, private-service deployment, and a 20-concurrency/10000-conversation/24-hour qualification gate.",
+        "Proposal creation does not authorize implementation.",
+        "Independent review initially returned BLOCK; after six revision/re-review rounds, both architecture and contract reviewers returned PASS with no remaining findings.",
+        "OpenSpec proposal formally approved on 2026-07-03; staged strict-evidence implementation plan generated.",
+        "Dual-track qualification approved on 2026-07-06: local_verified may proceed through fake Provider plus real local Java/MCP chains while Gate B remains pending_production_evidence; local evidence cannot promote production state."
+      ]
+    },
     {
       "changeId": "add-runtime-progress-panel",
       "title": "Add Runtime Progress Panel",

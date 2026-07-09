@@ -4,6 +4,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.openharness.backend.model.Contracts.CatalogResponse;
 import org.openharness.backend.model.Contracts.ToolCallRequest;
 import org.openharness.backend.model.Contracts.ToolCallResponse;
+import org.openharness.backend.model.Contracts.ToolCancelRequest;
+import org.openharness.backend.model.Contracts.ToolCancelResponse;
 import org.openharness.backend.service.CatalogService;
 import org.openharness.backend.service.TraceService;
 import org.openharness.backend.service.ToolExecutionService;
@@ -48,5 +50,10 @@ public class ToolController {
         servletRequest.getHeader("X-Request-Id"),
         servletRequest.getHeader("X-User-Id"),
         request);
+  }
+
+  @PostMapping("/cancel")
+  ToolCancelResponse cancel(@RequestBody ToolCancelRequest request) {
+    return toolExecutionService.cancel(request);
   }
 }

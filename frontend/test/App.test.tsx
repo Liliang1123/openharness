@@ -4,7 +4,18 @@ import { describe, expect, it, vi } from "vitest";
 import { App } from "../src/App";
 
 function mockSSEResponse(events: { event: string; data: Record<string, unknown> }[]) {
-  const body = events.map(e => `event: ${e.event}\ndata: ${JSON.stringify(e.data)}\n\n`).join("");
+  const body = events.map((e, index) => `event: ${e.event}\ndata: ${JSON.stringify({
+    durability: "durable",
+    eventId: `tenant-001::user-001::conv-1:${index + 1}`,
+    executionId: "exec-1",
+    conversationId: "conv-1",
+    tenantId: "tenant-001",
+    userId: "user-001",
+    traceId: "trace-1",
+    requestId: "req-1",
+    createdAt: index + 1,
+    data: e.data
+  })}\n\n`).join("");
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     start(controller) {
@@ -96,6 +107,25 @@ describe("App with SSE", () => {
 
     await waitFor(() => {
       expect(screen.getByText("ok-with-ids")).toBeTruthy();
+    });
+
+    vi.restoreAllMocks();
+  });
+
+  it("renders interrupted terminal state from durable SSE", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      makeFetchRouter([
+        { event: "agent_start", data: {} },
+        { event: "stream_error", data: { errorClass: "EXECUTION_INTERRUPTED" } }
+      ]) as unknown as typeof fetch
+    );
+
+    render(<App />);
+    await userEvent.type(screen.getByLabelText("Message"), "resume");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("EXECUTION_INTERRUPTED")).toBeTruthy();
     });
 
     vi.restoreAllMocks();

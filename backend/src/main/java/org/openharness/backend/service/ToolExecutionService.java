@@ -12,23 +12,28 @@ import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import org.openharness.backend.model.Contracts.ToolCallRequest;
 import org.openharness.backend.model.Contracts.ToolCallResponse;
+import org.openharness.backend.model.Contracts.ToolCancelRequest;
+import org.openharness.backend.model.Contracts.ToolCancelResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 @Service
 public class ToolExecutionService {
   private static final int OUTPUT_CAP_BYTES = 4096;
-  private static final List<String> ALLOWED_COMMANDS = List.of("echo", "pwd");
+  private static final long DEFAULT_COMMAND_TIMEOUT_MS = 2_000;
+  private static final long MAX_COMMAND_TIMEOUT_MS = 10_000;
+  private static final List<String> ALLOWED_COMMANDS = List.of("echo", "pwd", "sleep");
   private final CatalogService catalogService;
   private final PolicyService policyService;
   private final ObjectMapper objectMapper;
   private final TraceService traceService;
-  private final Map<String, IdempotencyRecord> idempotency = new HashMap<>();
+  private final Map<String, IdempotencyRecord> idempotency = new ConcurrentHashMap<>();
+  private final Map<String, ActiveCommand> activeCommands = new ConcurrentHashMap<>();
 
   public ToolExecutionService(CatalogService catalogService, PolicyService policyService, ObjectMapper objectMapper, TraceService traceService) {
     this.catalogService = catalogService;
@@ -79,18 +84,40 @@ public class ToolExecutionService {
         "TOOL_CALL_START",
         "tool call start",
         Map.of("toolName", request.toolName()));
-    ToolCallResponse response = executeFresh(request);
-    idempotency.put(key, new IdempotencyRecord(payload, response, System.currentTimeMillis()));
-    traceService.backendEvent(
-        traceId,
-        requestHeaderId,
-        request.conversationId(),
-        userId,
-        tenantId,
-        "TOOL_CALL_END",
-        "tool call end",
-        Map.of("toolName", request.toolName(), "idempotentReplay", false));
-    return response;
+    try {
+      ToolCallResponse response = executeFresh(request);
+      idempotency.put(key, new IdempotencyRecord(payload, response, System.currentTimeMillis()));
+      traceService.backendEvent(
+          traceId,
+          requestHeaderId,
+          request.conversationId(),
+          userId,
+          tenantId,
+          "TOOL_CALL_END",
+          "tool call end",
+          Map.of("toolName", request.toolName(), "idempotentReplay", false, "status", response.status()));
+      return response;
+    } catch (RuntimeException exception) {
+      traceService.backendEvent(
+          traceId,
+          requestHeaderId,
+          request.conversationId(),
+          userId,
+          tenantId,
+          "TOOL_CALL_END",
+          "tool call end",
+          Map.of("toolName", request.toolName(), "status", "error"));
+      throw exception;
+    }
+  }
+
+  public ToolCancelResponse cancel(ToolCancelRequest request) {
+    ActiveCommand active = activeCommands.get(activeCommandKey(request.requestId(), request.toolCallId()));
+    if (active == null) {
+      return new ToolCancelResponse(request.requestId(), request.toolCallId(), false);
+    }
+    active.cancel();
+    return new ToolCancelResponse(request.requestId(), request.toolCallId(), true);
   }
 
   private ToolCallResponse executeFresh(ToolCallRequest request) {
@@ -117,7 +144,7 @@ public class ToolExecutionService {
           case "submit_payment" -> submitPayment(request.arguments());
           case "read_file" -> readFile(request.arguments());
           case "search" -> search(request.arguments());
-          case "run_command" -> runCommand(request.arguments());
+          case "run_command" -> runCommand(request);
           default -> throw error(HttpStatus.INTERNAL_SERVER_ERROR, "TOOL_INTERNAL_ERROR", "Unhandled tool.", true, "ts");
         };
 
@@ -191,7 +218,8 @@ public class ToolExecutionService {
     }
   }
 
-  private Map<String, Object> runCommand(Map<String, Object> arguments) {
+  private Map<String, Object> runCommand(ToolCallRequest request) {
+    Map<String, Object> arguments = request.arguments();
     String command = requiredString(arguments, "command");
     if (!ALLOWED_COMMANDS.contains(command)) {
       throw error(HttpStatus.BAD_REQUEST, "TOOL_USER_ERROR", "Command is not allow-listed: " + command, false, "none");
@@ -202,19 +230,39 @@ public class ToolExecutionService {
     if (rawArgs instanceof List<?> args) {
       for (Object arg : args) cmd.add(String.valueOf(arg));
     }
+    Process process = null;
+    ActiveCommand active = null;
+    String activeKey = activeCommandKey(request.requestId(), request.toolCallId());
     try {
-      Process process = new ProcessBuilder(cmd).directory(workspace().toFile()).start();
-      boolean finished = process.waitFor(2, TimeUnit.SECONDS);
+      process = new ProcessBuilder(cmd).directory(workspace().toFile()).start();
+      active = new ActiveCommand(process);
+      activeCommands.put(activeKey, active);
+      boolean finished = process.waitFor(commandTimeoutMs(arguments), TimeUnit.MILLISECONDS);
+      if (active.cancelled()) {
+        throw error(HttpStatus.BAD_REQUEST, "TOOL_CANCELLED", "Command cancelled.", false, "none");
+      }
       if (!finished) {
         process.destroyForcibly();
-        throw error(HttpStatus.BAD_REQUEST, "TOOL_USER_ERROR", "Command timed out.", false, "none");
+        throw error(HttpStatus.BAD_REQUEST, "TOOL_TIMEOUT", "Command timed out.", false, "none");
       }
-      String stdout = cap(new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
-      String stderr = cap(new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8));
-      return Map.of("exitCode", process.exitValue(), "stdout", stdout, "stderr", stderr, "truncated", false);
+      CappedText stdout = capText(new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8));
+      CappedText stderr = capText(new String(process.getErrorStream().readAllBytes(), StandardCharsets.UTF_8));
+      return Map.of(
+          "exitCode", process.exitValue(),
+          "stdout", stdout.value(),
+          "stderr", stderr.value(),
+          "truncated", stdout.truncated() || stderr.truncated());
     } catch (IOException | InterruptedException exception) {
       if (exception instanceof InterruptedException) Thread.currentThread().interrupt();
+      if (active != null && active.cancelled()) {
+        throw error(HttpStatus.BAD_REQUEST, "TOOL_CANCELLED", "Command cancelled.", false, "none");
+      }
       throw error(HttpStatus.BAD_REQUEST, "TOOL_USER_ERROR", "Command failed: " + command, false, "none");
+    } finally {
+      activeCommands.remove(activeKey);
+      if (process != null && process.isAlive()) {
+        process.destroyForcibly();
+      }
     }
   }
 
@@ -243,8 +291,35 @@ public class ToolExecutionService {
   }
 
   private String cap(String value) {
-    if (value.getBytes(StandardCharsets.UTF_8).length <= OUTPUT_CAP_BYTES) return value;
-    return value.substring(0, Math.min(value.length(), OUTPUT_CAP_BYTES));
+    return capText(value).value();
+  }
+
+  private CappedText capText(String value) {
+    if (value.getBytes(StandardCharsets.UTF_8).length <= OUTPUT_CAP_BYTES) return new CappedText(value, false);
+    return new CappedText(value.substring(0, Math.min(value.length(), OUTPUT_CAP_BYTES)), true);
+  }
+
+  private long commandTimeoutMs(Map<String, Object> arguments) {
+    Object raw = arguments.get("timeoutMs");
+    if (raw == null) return DEFAULT_COMMAND_TIMEOUT_MS;
+    long parsed;
+    if (raw instanceof Number number) {
+      parsed = number.longValue();
+    } else {
+      try {
+        parsed = Long.parseLong(String.valueOf(raw));
+      } catch (NumberFormatException exception) {
+        throw error(HttpStatus.BAD_REQUEST, "TOOL_USER_ERROR", "Invalid timeoutMs.", false, "none");
+      }
+    }
+    if (parsed <= 0) {
+      throw error(HttpStatus.BAD_REQUEST, "TOOL_USER_ERROR", "Invalid timeoutMs.", false, "none");
+    }
+    return Math.min(parsed, MAX_COMMAND_TIMEOUT_MS);
+  }
+
+  private String activeCommandKey(String requestId, String toolCallId) {
+    return requestId + ":" + toolCallId;
   }
 
   private String canonical(ToolCallRequest request) {
@@ -256,4 +331,23 @@ public class ToolExecutionService {
   }
 
   private record IdempotencyRecord(String payload, ToolCallResponse response, long createdAt) {}
+  private record CappedText(String value, boolean truncated) {}
+
+  private static final class ActiveCommand {
+    private final Process process;
+    private volatile boolean cancelled;
+
+    private ActiveCommand(Process process) {
+      this.process = process;
+    }
+
+    private void cancel() {
+      cancelled = true;
+      process.destroyForcibly();
+    }
+
+    private boolean cancelled() {
+      return cancelled;
+    }
+  }
 }

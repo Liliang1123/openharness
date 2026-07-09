@@ -1,3 +1,5 @@
+import { SSEWireEventSchema, type SSEWireEvent } from "@openharness/shared-schema";
+
 export interface AgentChatResponse {
   conversationId: string;
   answer: string;
@@ -6,9 +8,22 @@ export interface AgentChatResponse {
   trace?: Record<string, unknown>;
 }
 
-export interface SSEEvent {
-  event: string;
-  data: Record<string, unknown>;
+export type SSEEvent = SSEWireEvent;
+
+export function parseSSEWireEvent(eventName: string, payload: unknown): SSEEvent {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Invalid SSE data payload");
+  }
+  return SSEWireEventSchema.parse({ ...payload, kind: eventName });
+}
+
+export function appendSSEWireEvent(events: SSEEvent[], event: SSEEvent): SSEEvent[] {
+  if (event.durability === "durable" && events.some((existing) =>
+    existing.durability === "durable" && existing.eventId === event.eventId
+  )) {
+    return events;
+  }
+  return [...events, event];
 }
 
 export interface SessionMeta {
@@ -157,7 +172,7 @@ export async function sendAgentChatStream(
         else if (line.startsWith("data: ")) data = line.slice(6);
       }
       if (data) {
-        try { onEvent({ event: eventName, data: JSON.parse(data) }); } catch { /* skip */ }
+        try { onEvent(parseSSEWireEvent(eventName, JSON.parse(data))); } catch { /* skip invalid wire event */ }
       }
     }
   }

@@ -14,12 +14,20 @@ import {
   ModelChatRequestSchema,
   ReviewPolicyEvaluateRequestSchema,
   PromptTemplateSchema,
+  PreviewDeltaEventSchema,
+  QualificationMatrixRowSchema,
+  QualificationReportSchema,
+  RuntimeTerminalErrorSchema,
   RuntimeProgressActivitySchema,
   RuntimeProgressSnapshotSchema,
   RuntimeProgressStatusSchema,
   RuntimeEventKindSchema,
+  RuntimeBaselineReportSchema,
   SessionEventSchema,
+  SSEWireEventSchema,
   ToolCallRequestSchema,
+  ToolCancelRequestSchema,
+  ToolCancelResponseSchema,
   ToolDefinitionSchema,
   ToolCallResponseSchema,
   ToolCallSchema,
@@ -74,6 +82,76 @@ describe("shared schema", () => {
     });
 
     expect(parsed.arguments.timezone).toBe("Asia/Shanghai");
+  });
+
+  it("parses tool cancellation request and response contracts", () => {
+    const request = ToolCancelRequestSchema.parse({
+      requestId: "req-cancel-001",
+      toolCallId: "call-cancel-001"
+    });
+    const response = ToolCancelResponseSchema.parse({
+      requestId: "req-cancel-001",
+      toolCallId: "call-cancel-001",
+      cancelled: true
+    });
+
+    expect(request.toolCallId).toBe("call-cancel-001");
+    expect(response.cancelled).toBe(true);
+  });
+
+  it("parses local runtime baseline reports and rejects production wording on local track", () => {
+    const report = {
+      track: "local",
+      generatedAt: "2026-07-09T00:00:00.000Z",
+      result: "local_verified",
+      workload: {
+        seededConversations: 10_000,
+        concurrency: 20,
+        mix: {
+          noTool: 0.6,
+          javaSandbox: 0.2,
+          mcp: 0.15,
+          approvalInterruption: 0.05
+        }
+      },
+      environment: {
+        nodeVersion: "v20.20.2",
+        platform: "darwin",
+        track: "local"
+      },
+      thresholds: {
+        admissionP95Ms: 100,
+        durableReplayP95Ms: 250,
+        rssBytes: 1610612736,
+        openFileDescriptors: 1024,
+        walBytes: 268435456,
+        mcpChildCount: 2,
+        sustainedBreachMs: 300000
+      },
+      samples: [
+        {
+          sampledAt: "2026-07-09T00:00:30.000Z",
+          admissionP95Ms: 80,
+          durableReplayP95Ms: 120,
+          rssBytes: 100000000,
+          openFileDescriptors: 100,
+          walBytes: 1024,
+          mcpChildCount: 2,
+          hardFailures: []
+        }
+      ],
+      failures: [],
+      reportHash: "a".repeat(64)
+    };
+
+    expect(RuntimeBaselineReportSchema.parse(report).result).toBe("local_verified");
+    expect(() => RuntimeBaselineReportSchema.parse({ ...report, result: "pass" })).toThrow();
+    expect(() =>
+      RuntimeBaselineReportSchema.parse({
+        ...report,
+        failures: [{ code: "SECRET_LEAK", message: "secret canary leaked", severity: "hard" }]
+      })
+    ).toThrow();
   });
 
   it("parses usage with costUsdMicros", () => {
@@ -262,6 +340,87 @@ describe("shared schema", () => {
       prompt: "secret",
       authorization: "Bearer secret"
     })).toThrow();
+  });
+
+  it("parses a durable session event with complete owner scope", () => {
+    const parsed = SSEWireEventSchema.parse({
+      durability: "durable",
+      eventId: "tenant-1::user-1::conv-1:1",
+      executionId: "exec-1",
+      conversationId: "conv-1",
+      tenantId: "tenant-1",
+      userId: "user-1",
+      traceId: "trace-1",
+      requestId: "req-1",
+      createdAt: 1,
+      kind: "agent_start",
+      data: {}
+    });
+
+    expect(parsed.durability).toBe("durable");
+    expect(SessionEventSchema.parse(parsed).userId).toBe("user-1");
+  });
+
+  it("rejects a durable session event without userId", () => {
+    expect(() => SessionEventSchema.parse({
+      durability: "durable",
+      eventId: "tenant-1::conv-1:1",
+      executionId: "exec-1",
+      conversationId: "conv-1",
+      tenantId: "tenant-1",
+      traceId: "trace-1",
+      requestId: "req-1",
+      createdAt: 1,
+      kind: "agent_start",
+      data: {}
+    })).toThrow();
+  });
+
+  it("parses transient preview without a durable cursor", () => {
+    const parsed = PreviewDeltaEventSchema.parse({
+      durability: "transient",
+      kind: "preview_delta",
+      previewSeq: 1,
+      executionId: "exec-1",
+      conversationId: "conv-1",
+      tenantId: "tenant-1",
+      userId: "user-1",
+      traceId: "trace-1",
+      requestId: "req-1",
+      createdAt: 1,
+      data: { delta: "hello" }
+    });
+
+    expect(SSEWireEventSchema.parse(parsed).durability).toBe("transient");
+  });
+
+  it("rejects transient preview carrying durable eventId", () => {
+    expect(() => PreviewDeltaEventSchema.parse({
+      durability: "transient",
+      kind: "preview_delta",
+      previewSeq: 1,
+      eventId: "must-not-exist",
+      executionId: "exec-1",
+      conversationId: "conv-1",
+      tenantId: "tenant-1",
+      userId: "user-1",
+      traceId: "trace-1",
+      requestId: "req-1",
+      createdAt: 1,
+      data: { delta: "hello" }
+    })).toThrow();
+  });
+
+  it("parses interrupted terminal vocabulary in runtime and eval schemas", () => {
+    expect(RuntimeTerminalErrorSchema.parse("EXECUTION_INTERRUPTED")).toBe("EXECUTION_INTERRUPTED");
+    expect(EvalCaseSchema.parse({
+      evalId: "eval-interrupted",
+      tenantId: "tenant-1",
+      userId: "user-1",
+      conversationId: "conv-1",
+      input: "resume",
+      expectedStopReason: "EXECUTION_INTERRUPTED"
+    }).expectedStopReason).toBe("EXECUTION_INTERRUPTED");
   });
 
 
@@ -549,7 +708,6 @@ describe("shared schema", () => {
       reason: "requires approval",
       decisionSource: "ORG_POLICY",
       decisionReason: "demo rule",
-      approvalToken: "approval-token",
       expiresAt: "2026-05-20T00:00:00.000Z"
     });
     const lifecycle = ConversationLifecycleSchema.parse({
@@ -601,10 +759,12 @@ describe("shared schema", () => {
 
   it("parses SessionEvent with all required fields", () => {
     const parsed = SessionEventSchema.parse({
-      eventId: "t1::conv-1:1",
+      durability: "durable",
+      eventId: "t1::u1::conv-1:1",
       executionId: "exec-uuid-001",
       conversationId: "conv-1",
       tenantId: "t1",
+      userId: "u1",
       traceId: "trace-1",
       requestId: "req-1",
       createdAt: 1779700000000,
@@ -618,7 +778,8 @@ describe("shared schema", () => {
   it("rejects SessionEvent missing required fields", () => {
     expect(() =>
       SessionEventSchema.parse({
-        eventId: "t1::conv-1:1",
+        durability: "durable",
+        eventId: "t1::u1::conv-1:1",
         kind: "agent_start"
         // missing other required fields
       })
@@ -627,10 +788,12 @@ describe("shared schema", () => {
 
   it("parses trace SessionEvent for frontend replay", () => {
     const parsed = SessionEventSchema.parse({
-      eventId: "t1::conv-1:2",
+      durability: "durable",
+      eventId: "t1::u1::conv-1:2",
       executionId: "exec-parent",
       conversationId: "conv-1",
       tenantId: "t1",
+      userId: "u1",
       traceId: "trace-1",
       requestId: "req-1",
       createdAt: 1779700000000,
@@ -714,5 +877,126 @@ describe("shared schema", () => {
 
     const parsed = TraceEventSchema.parse(historicalEvent);
     expect(parsed.attributes).toBeUndefined();
+  });
+
+  it("parses a complete local qualification matrix row", () => {
+    const parsed = QualificationMatrixRowSchema.parse({
+      id: "local-provider-sync",
+      required: true,
+      track: "local",
+      environment: { node: "20", os: "darwin" },
+      protocolVersion: "fake-openai-v1",
+      capabilities: ["sync", "usage"],
+      requestHash: "a".repeat(64),
+      observed: { status: 200 },
+      oracle: { status: 200 },
+      usage: { promptTokens: 3, completionTokens: 2 },
+      cost: { currency: "USD", micros: 5 },
+      durationMs: 12,
+      result: "pass"
+    });
+
+    expect(parsed.track).toBe("local");
+  });
+
+  it("rejects missing or invalid qualification tracks", () => {
+    const base = {
+      id: "row",
+      required: true,
+      environment: {},
+      protocolVersion: "v1",
+      capabilities: [],
+      requestHash: "b".repeat(64),
+      observed: {},
+      oracle: {},
+      durationMs: 1,
+      result: "pass"
+    };
+
+    expect(QualificationMatrixRowSchema.safeParse(base).success).toBe(false);
+    expect(QualificationMatrixRowSchema.safeParse({ ...base, track: "staging" }).success).toBe(false);
+  });
+
+  it("prevents an overall pass/local_verified when a required row is blocked", () => {
+    const report = QualificationReportSchema.safeParse({
+      track: "local",
+      generatedAt: "2026-07-06T08:00:00.000Z",
+      result: "local_verified",
+      rows: [{
+        id: "required-mcp",
+        required: true,
+        track: "local",
+        environment: {},
+        protocolVersion: "mcp-2025-11-25",
+        capabilities: ["tools/list"],
+        requestHash: "c".repeat(64),
+        observed: { reason: "missing binary" },
+        oracle: { required: true },
+        durationMs: 0,
+        result: "blocked"
+      }]
+    });
+
+    expect(report.success).toBe(false);
+  });
+
+  it("rejects invalid combinations of result and track", () => {
+    // 1. Row-level local_verified must be rejected
+    const rowParse = QualificationMatrixRowSchema.safeParse({
+      id: "row-1",
+      required: true,
+      track: "local",
+      environment: {},
+      protocolVersion: "mcp-2025-11-25",
+      capabilities: ["tools/list"],
+      requestHash: "c".repeat(64),
+      observed: {},
+      oracle: {},
+      durationMs: 10,
+      result: "local_verified"
+    });
+    expect(rowParse.success).toBe(false);
+
+    // 2. Production track report using local_verified must be rejected
+    const prodReportParse = QualificationReportSchema.safeParse({
+      track: "production",
+      generatedAt: "2026-07-06T08:00:00.000Z",
+      result: "local_verified",
+      rows: [{
+        id: "row-1",
+        required: true,
+        track: "production",
+        environment: {},
+        protocolVersion: "mcp-2025-11-25",
+        capabilities: ["tools/list"],
+        requestHash: "c".repeat(64),
+        observed: {},
+        oracle: {},
+        durationMs: 10,
+        result: "pass"
+      }]
+    });
+    expect(prodReportParse.success).toBe(false);
+
+    // 3. Local track report using pass must be rejected
+    const localReportParse = QualificationReportSchema.safeParse({
+      track: "local",
+      generatedAt: "2026-07-06T08:00:00.000Z",
+      result: "pass",
+      rows: [{
+        id: "row-1",
+        required: true,
+        track: "local",
+        environment: {},
+        protocolVersion: "mcp-2025-11-25",
+        capabilities: ["tools/list"],
+        requestHash: "c".repeat(64),
+        observed: {},
+        oracle: {},
+        durationMs: 10,
+        result: "pass"
+      }]
+    });
+    expect(localReportParse.success).toBe(false);
   });
 });

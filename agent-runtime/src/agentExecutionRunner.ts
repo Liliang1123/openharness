@@ -125,7 +125,8 @@ export class AgentExecutionRunner {
     this.executionStateStore.create({
       executionId,
       conversationId: input.conversationId,
-      tenantId: input.tenantId
+      tenantId: input.tenantId,
+      userId: input.userId
     });
     const done = this.runLoop(executionId, input);
     return { executionId, done };
@@ -141,6 +142,7 @@ export class AgentExecutionRunner {
         executionId,
         conversationId: input.conversationId,
         tenantId: input.tenantId,
+        userId: input.userId,
         traceId: input.traceId,
         requestId: input.requestId,
         createdAt: Date.now(),
@@ -428,6 +430,7 @@ export class AgentExecutionRunner {
         if (decision?.decision === "REQUIRE_APPROVAL" && this.approvalStore) {
           const pending = this.approvalStore.createPending({
             tenantId: input.tenantId,
+            userId: input.userId,
             conversationId: input.conversationId,
             executionId: this.currentExecutionId(input.tenantId, input.conversationId),
             toolCallId: toolCall.id,

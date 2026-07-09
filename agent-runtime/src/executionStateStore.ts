@@ -6,6 +6,7 @@ export interface ExecutionState {
   executionId: ExecutionId;
   conversationId: string;
   tenantId: string;
+  userId?: string;
   status: ExecutionStatus;
   startedAt: number;
   updatedAt: number;
@@ -15,9 +16,9 @@ export interface ExecutionState {
 }
 
 export interface ExecutionStateStore {
-  create(input: { executionId: ExecutionId; conversationId: string; tenantId: string }): ExecutionState;
+  create(input: { executionId: ExecutionId; conversationId: string; tenantId: string; userId?: string }): ExecutionState;
   get(executionId: ExecutionId): ExecutionState | null;
-  getActive(tenantId: string, conversationId: string): ExecutionState | null;
+  getActive(tenantId: string, conversationId: string, userId?: string): ExecutionState | null;
   transition(executionId: ExecutionId, status: ExecutionStatus, endReason?: string): ExecutionState | null;
   /**
    * Transition a running execution to a terminal state. No-op if already terminal.
@@ -42,12 +43,13 @@ function isTerminal(status: ExecutionStatus): boolean {
 export class InMemoryExecutionStateStore implements ExecutionStateStore {
   private readonly states = new Map<ExecutionId, ExecutionState>();
 
-  create(input: { executionId: ExecutionId; conversationId: string; tenantId: string }): ExecutionState {
+  create(input: { executionId: ExecutionId; conversationId: string; tenantId: string; userId?: string }): ExecutionState {
     const now = Date.now();
     const state: ExecutionState = {
       executionId: input.executionId,
       conversationId: input.conversationId,
       tenantId: input.tenantId,
+      userId: input.userId,
       status: "running",
       startedAt: now,
       updatedAt: now,
@@ -62,11 +64,12 @@ export class InMemoryExecutionStateStore implements ExecutionStateStore {
     return this.states.get(executionId) ?? null;
   }
 
-  getActive(tenantId: string, conversationId: string): ExecutionState | null {
+  getActive(tenantId: string, conversationId: string, userId?: string): ExecutionState | null {
     for (const state of this.states.values()) {
       if (
         state.tenantId === tenantId &&
         state.conversationId === conversationId &&
+        (userId === undefined || state.userId === undefined || state.userId === userId) &&
         !isTerminal(state.status)
       ) {
         return state;

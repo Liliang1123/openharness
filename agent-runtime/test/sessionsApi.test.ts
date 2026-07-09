@@ -101,6 +101,46 @@ describe("Sessions API", () => {
     expect(JSON.parse(res1.payload)[0].conversationId).toBe("c-t1");
   });
 
+  it("GET /api/v1/sessions/:id hides same-tenant cross-user active execution state", async () => {
+    const executionStateStore = new InMemoryExecutionStateStore();
+    const runtimeEventStore = new InMemoryRuntimeEventStore();
+    const localApp = await createServer({
+      javaClient: new StubJavaClient(),
+      executionStateStore,
+      runtimeEventStore
+    });
+    try {
+      executionStateStore.create({
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-shared",
+        executionId: "exec-user-a"
+      });
+      runtimeEventStore.append("tenant-a", "conv-shared", {
+        executionId: "exec-user-a",
+        conversationId: "conv-shared",
+        tenantId: "tenant-a",
+        userId: "user-a",
+        traceId: "trace-a",
+        requestId: "request-a",
+        createdAt: 1,
+        kind: "agent_start",
+        data: {}
+      });
+
+      const res = await localApp.inject({
+        method: "GET",
+        url: "/api/v1/sessions/conv-shared",
+        headers: { "x-tenant-id": "tenant-a", "x-user-id": "user-b" }
+      });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.payload).not.toContain("exec-user-a");
+    } finally {
+      await localApp.close();
+    }
+  });
+
   it("GET /api/v1/sessions/:id returns 404 for missing session", async () => {
     const res = await app.inject({
       method: "GET",
@@ -142,6 +182,7 @@ describe("Sessions API", () => {
         executionId: "exec-progress",
         conversationId: "conv-progress",
         tenantId: "t1",
+        userId: "u1",
         traceId: "tr-progress",
         requestId: "req-progress",
         createdAt: 1500,

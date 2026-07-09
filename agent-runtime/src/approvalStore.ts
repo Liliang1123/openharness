@@ -6,6 +6,7 @@ export type ApprovalAction = "approve" | "reject" | "revise";
 export interface PendingApproval {
   askUserId: string;
   tenantId: string;
+  userId?: string;
   conversationId: string;
   executionId: string;
   toolCallId: string;
@@ -25,7 +26,7 @@ export interface ApprovalDecision {
 
 export interface ApprovalStore {
   createPending(input: Omit<PendingApproval, "askUserId" | "createdAt">): PendingApproval;
-  listPending(tenantId: string, conversationId: string): PendingApproval[];
+  listPending(tenantId: string, conversationId: string, userId?: string): PendingApproval[];
   get(executionId: string, toolCallId: string): PendingApproval | null;
   getByAskUserId(askUserId: string): PendingApproval | null;
   waitForDecision(executionId: string, toolCallId: string): Promise<ApprovalDecision>;
@@ -61,10 +62,10 @@ export class JsonFileApprovalStore implements ApprovalStore {
     return pending;
   }
 
-  listPending(tenantId: string, conversationId: string): PendingApproval[] {
+  listPending(tenantId: string, conversationId: string, userId?: string): PendingApproval[] {
     this.loadConversation(tenantId, conversationId);
     return [...this.pending.values()].filter(
-      (p) => p.tenantId === tenantId && p.conversationId === conversationId
+      (p) => p.tenantId === tenantId && p.conversationId === conversationId && (userId === undefined || p.userId === undefined || p.userId === userId)
     );
   }
 

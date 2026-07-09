@@ -1,9 +1,13 @@
 # openharness — 开发导航台
 
 > 自动生成，请勿直接编辑。数据源：`development-log.json`  
-> 最后更新：2026-06-29
+> 最后更新：2026-07-03
 
 ## Timeline
+
+### 2026-07-03
+
+- 📋 proposed **harden-agent-runtime-single-node-production** — 将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：以 SQLite 统一持久化和崩溃恢复；先完成 fake Provider、真实本地 Java 沙箱与 MCP 的 local_verified 全链路，再以独立生产证据完成真实 Provider、迁移和 24 小时 soak 门禁。
 
 ### 2026-06-29
 
@@ -58,6 +62,7 @@
 
 | 功能点 | 状态 | Spec | Plan | Code | Tests | Closeout |
 |---|---|---|---|---|---|---|
+| harden-agent-runtime-single-node-production | 📋 proposed | agent-runtime, agent-sse, shared-schema, backend-gateway, message-history, long-term-memory, provider-adapter, mcp-tools | [plan](docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md) | — | — | — |
 | add-runtime-progress-panel | 📦 archived | agent-runtime, frontend-runtime, shared-schema | [plan](docs/superpowers/plans/2026-06-29-add-runtime-progress-panel.md) | 8 files | 6 files | [closeout](docs/design/2026-06-29-add-runtime-progress-panel-closeout.md) |
 | add-subagent-trace-tree | 📦 archived | agent-runtime, backend-gateway, frontend-runtime, shared-schema | [plan](docs/superpowers/plans/2026-06-23-add-subagent-trace-tree.md) | 7 files | 5 files | [closeout](docs/design/2026-06-29-add-subagent-trace-tree-closeout.md) |
 | add-subagent-dispatcher | 📦 archived | agent-loop, agent-runtime | [plan](docs/superpowers/plans/2026-06-22-add-subagent-dispatcher.md) | 3 files | 3 files | [closeout](docs/design/2026-06-22-add-subagent-dispatcher-closeout.md) |
@@ -110,6 +115,7 @@
 
 ### agent-runtime
 
+- 📋 proposed harden-agent-runtime-single-node-production
 - 📦 archived add-runtime-progress-panel
 - 📦 archived add-runtime-cache-stability
 - 📦 archived add-agent-definition-model-selection
@@ -338,6 +344,10 @@
 - ⚠️ partial add-p3c-policy-mcp-aware
 - ⚠️ partial implement-p0b-hookable
 
+### production-readiness
+
+- 📋 proposed harden-agent-runtime-single-node-production
+
 ### progress
 
 - 📦 archived add-runtime-progress-panel
@@ -359,6 +369,14 @@
 
 - 📦 archived add-p3b-cost-and-router
 - ⚠️ partial add-p1a-provider-adapter
+
+### real-provider
+
+- 📋 proposed harden-agent-runtime-single-node-production
+
+### recovery
+
+- 📋 proposed harden-agent-runtime-single-node-production
 
 ### renderer
 
@@ -419,6 +437,14 @@
 - 📦 archived add-subagent-dispatcher
 - 📦 archived add-skill-invocation-sandbox
 
+### soak-test
+
+- 📋 proposed harden-agent-runtime-single-node-production
+
+### sqlite
+
+- 📋 proposed harden-agent-runtime-single-node-production
+
 ### sse
 
 - ⚠️ partial add-execution-lifecycle-and-stream-recovery
@@ -474,6 +500,9 @@
 
 ### 推荐下一步
 
+- Continue local-only Tasks 9-12 with fake Provider servers and real local Java sandbox/MCP processes _(from harden-agent-runtime-single-node-production)_
+- Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review _(from harden-agent-runtime-single-node-production)_
+- Do not begin production cutover, real credential tests, formal soak, or production promotion without their required human gates _(from harden-agent-runtime-single-node-production)_
 - 真实 Java Gateway 联调与 trace tree 视图优化 _(from add-subagent-dispatcher)_
 - 按独立 OpenSpec 评估子智能体系统级隔离能力 _(from add-subagent-dispatcher)_
 - 如需更细粒度成本归因，扩展 token usage 聚合契约 _(from add-subagent-dispatcher)_
@@ -534,6 +563,10 @@
 
 ### 暂不建议
 
+- Multi-node high availability or PostgreSQL deployment _(from harden-agent-runtime-single-node-production)_
+- User login, tenant administration, browser sessions, or platform UI _(from harden-agent-runtime-single-node-production)_
+- Model configuration UI or provider credentials in TypeScript Runtime/Frontend _(from harden-agent-runtime-single-node-production)_
+- SDK or Agent Definition management UI _(from harden-agent-runtime-single-node-production)_
 - 重写 AgentExecutionRunner、RuntimeEventStore 或 ExecutionStateStore _(from add-runtime-progress-panel)_
 - 让 Java Backend 聚合 Agent 进度 _(from add-runtime-progress-panel)_
 - 在进度快照中暴露 prompt、skill content、tool output、完整工具参数或认证 header _(from add-runtime-progress-panel)_

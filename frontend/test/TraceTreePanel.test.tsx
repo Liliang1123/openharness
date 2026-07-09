@@ -1,11 +1,26 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { TraceTreePanel } from "../src/TraceTreePanel";
+import type { SSEEvent } from "../src/api";
+
+function event(kind: Extract<SSEEvent, { durability: "durable" }>["kind"], data: Record<string, unknown>, seq: number): SSEEvent {
+  return {
+    durability: "durable",
+    eventId: `tenant-1::user-1::conv-1:${seq}`,
+    kind,
+    executionId: "exec-parent",
+    conversationId: "conv-1",
+    tenantId: "tenant-1",
+    userId: "user-1",
+    traceId: "trace-1",
+    requestId: "req-1",
+    createdAt: seq,
+    data
+  };
+}
 
 const subagentEvents = [
-  {
-    event: "trace",
-    data: {
+  event("trace", {
       eventType: "SUBAGENT_START",
       status: "ok",
       attributes: {
@@ -17,11 +32,8 @@ const subagentEvents = [
         skillName: "worker-skill",
         toolCallId: "call-skill"
       }
-    }
-  },
-  {
-    event: "trace",
-    data: {
+    }, 1),
+  event("trace", {
       eventType: "SUBAGENT_END",
       status: "error",
       attributes: {
@@ -36,8 +48,7 @@ const subagentEvents = [
         costUsdMicros: 7,
         terminalClass: "SUBAGENT_TOOL_ERROR"
       }
-    }
-  }
+    }, 2)
 ];
 
 describe("TraceTreePanel", () => {
@@ -55,7 +66,7 @@ describe("TraceTreePanel", () => {
   });
 
   it("falls back to flat JSON for events without trace-tree attributes", () => {
-    render(<TraceTreePanel events={[{ event: "agent_start", data: { traceId: "trace-legacy" } }]} />);
+    render(<TraceTreePanel events={[event("agent_start", { traceId: "trace-legacy" }, 1)]} />);
 
     expect(screen.getByRole("heading", { name: "SSE Events" })).toBeTruthy();
     expect(screen.getByText(/trace-legacy/)).toBeTruthy();

@@ -1,0 +1,182 @@
+{
+  "track" : "local",
+  "generatedAt" : "2026-07-06T09:14:35.923788Z",
+  "result" : "local_verified",
+  "rows" : [ {
+    "id" : "anthropic-sync",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "anthropic-2023-06-01",
+    "capabilities" : [ "sync" ],
+    "requestHash" : "8ab29ea4132ab99c861f2900fbcf06a8d198bb787147492c774ea2f997189f45",
+    "observed" : {
+      "content" : "ok"
+    },
+    "oracle" : {
+      "content" : "ok"
+    },
+    "durationMs" : 11,
+    "result" : "pass"
+  }, {
+    "id" : "anthropic-exact-usage",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "anthropic-2023-06-01",
+    "capabilities" : [ "usage" ],
+    "requestHash" : "c284f4aada3016db0bcbd248599473f4e3a6b42f6ebea8a830d70fa042ae4754",
+    "observed" : {
+      "promptTokens" : 9,
+      "completionTokens" : 4,
+      "cacheReadTokens" : 2,
+      "cacheWriteTokens" : 1
+    },
+    "oracle" : {
+      "cacheReadTokens" : 2,
+      "cacheWriteTokens" : 1,
+      "completionTokens" : 4,
+      "promptTokens" : 9
+    },
+    "durationMs" : 4,
+    "result" : "pass"
+  }, {
+    "id" : "anthropic-structured-tool",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "anthropic-2023-06-01",
+    "capabilities" : [ "tool_use" ],
+    "requestHash" : "f0d6ed4b3ddcda6483bf772e4e1657343a89e98be0a5acf68f6bf2574dfa2706",
+    "observed" : {
+      "arguments" : {
+        "id" : 1
+      }
+    },
+    "oracle" : {
+      "arguments" : {
+        "id" : 1
+      }
+    },
+    "durationMs" : 3,
+    "result" : "pass"
+  }, {
+    "id" : "anthropic-503-retry",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "anthropic-2023-06-01",
+    "capabilities" : [ "retry" ],
+    "requestHash" : "dd4368818cb21efbc95916c02f0141e9f6ab30a073e776a7c1d8f9a7315fc92e",
+    "observed" : {
+      "attempts" : 2
+    },
+    "oracle" : {
+      "attempts" : 2
+    },
+    "durationMs" : 2,
+    "result" : "pass"
+  }, {
+    "id" : "anthropic-terminal-error",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "anthropic-2023-06-01",
+    "capabilities" : [ "terminal_error" ],
+    "requestHash" : "03b0f5caf52185ecafe62910a82ad5b5c5009f5a9530e0bb37ce956d58e588dc",
+    "observed" : {
+      "status" : 400
+    },
+    "oracle" : {
+      "status" : 400
+    },
+    "durationMs" : 1,
+    "result" : "pass"
+  }, {
+    "id" : "anthropic-stream",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "anthropic-2023-06-01",
+    "capabilities" : [ "stream" ],
+    "requestHash" : "ddb24729356cc1fa574944916778776327b159e61ebc1a23753c28641a15fc3e",
+    "observed" : {
+      "content" : "ok"
+    },
+    "oracle" : {
+      "stream" : true
+    },
+    "durationMs" : 2,
+    "result" : "pass"
+  }, {
+    "id" : "anthropic-timeout",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "anthropic-2023-06-01",
+    "capabilities" : [ "timeout" ],
+    "requestHash" : "f061d17be0b5a4da9fc9af10b92de9d8b948c7e87ad88ebf779b25c5bdbe6df6",
+    "observed" : {
+      "timeoutMs" : 100
+    },
+    "oracle" : {
+      "bounded" : true
+    },
+    "durationMs" : 101,
+    "result" : "pass"
+  }, {
+    "id" : "anthropic-cancellation",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "anthropic-2023-06-01",
+    "capabilities" : [ "cancellation" ],
+    "requestHash" : "071804abc86a2abb62f0199d64ee6a4571cfe7a18531f2f70c5f609bd08739de",
+    "observed" : {
+      "cancelled" : true
+    },
+    "oracle" : {
+      "cancel" : true
+    },
+    "durationMs" : 104,
+    "result" : "pass"
+  }, {
+    "id" : "anthropic-reasoning",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "anthropic-2023-06-01",
+    "capabilities" : [ "reasoning" ],
+    "requestHash" : "62937163818a6b66cf97676ead5a871b8a11217844f45a07fd9d460c8e0cd7c2",
+    "observed" : {
+      "reasoningBlocks" : [ {
+        "type" : "thinking",
+        "text" : "thinking process",
+        "signature" : "sig"
+      } ]
+    },
+    "oracle" : {
+      "preserved" : true
+    },
+    "durationMs" : 1306,
+    "result" : "pass"
+  } ]
+}

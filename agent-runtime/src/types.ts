@@ -4,6 +4,8 @@ export type {
   ModelChatResponse,
   RuntimeEventKind,
   SessionEvent,
+  ToolCancelRequest,
+  ToolCancelResponse,
   ToolCall,
   ToolCallRequest,
   ToolCallResponse,
@@ -41,6 +43,7 @@ export type RuntimeTerminalError =
   | "STEP_BUDGET_EXHAUSTED"
   | "EVENT_REPLAY_GAP"
   | "EXECUTION_ABORTED"
+  | "EXECUTION_INTERRUPTED"
   | "EMPTY_MODEL_RESPONSE";
 
 export interface AgentChatRequest {

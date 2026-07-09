@@ -218,6 +218,7 @@ export const EvalCaseSchema = z.object({
     "STEP_BUDGET_EXHAUSTED",
     "EVENT_REPLAY_GAP",
     "EXECUTION_ABORTED",
+    "EXECUTION_INTERRUPTED",
     "EMPTY_MODEL_RESPONSE"
   ]).optional()
 });
@@ -333,6 +334,23 @@ export const ToolCallResponseSchema = z.discriminatedUnion("status", [
 ]);
 export type ToolCallResponse = z.infer<typeof ToolCallResponseSchema>;
 
+export const ToolCancelRequestSchema = z
+  .object({
+    requestId: z.string(),
+    toolCallId: z.string()
+  })
+  .strict();
+export type ToolCancelRequest = z.infer<typeof ToolCancelRequestSchema>;
+
+export const ToolCancelResponseSchema = z
+  .object({
+    requestId: z.string(),
+    toolCallId: z.string(),
+    cancelled: z.boolean()
+  })
+  .strict();
+export type ToolCancelResponse = z.infer<typeof ToolCancelResponseSchema>;
+
 export const TraceNodeKindSchema = z.enum([
   "agent_execution",
   "subagent_execution",
@@ -388,6 +406,204 @@ export const TraceEventSchema = z.object({
   redacted: z.boolean().optional()
 });
 export type TraceEvent = z.infer<typeof TraceEventSchema>;
+
+export const QualificationTrackSchema = z.enum(["local", "production"]);
+export type QualificationTrack = z.infer<typeof QualificationTrackSchema>;
+
+export const QualificationRowResultSchema = z.enum(["pass", "fail", "blocked"]);
+export type QualificationRowResult = z.infer<typeof QualificationRowResultSchema>;
+
+export const QualificationReportResultSchema = z.enum(["pass", "fail", "blocked", "local_verified"]);
+export type QualificationReportResult = z.infer<typeof QualificationReportResultSchema>;
+
+export const QualificationMatrixRowSchema = z
+  .object({
+    id: z.string().min(1),
+    required: z.boolean(),
+    track: QualificationTrackSchema,
+    environment: z.record(z.unknown()),
+    protocolVersion: z.string().min(1),
+    capabilities: z.array(z.string()),
+    requestHash: z.string().regex(/^[a-f0-9]{64}$/i),
+    observed: z.record(z.unknown()),
+    oracle: z.record(z.unknown()),
+    usage: z.record(z.number().nonnegative()).optional(),
+    cost: z
+      .object({
+        currency: z.string().min(1),
+        micros: z.number().int().nonnegative()
+      })
+      .strict()
+      .optional(),
+    durationMs: z.number().nonnegative(),
+    result: QualificationRowResultSchema
+  })
+  .strict();
+export type QualificationMatrixRow = z.infer<typeof QualificationMatrixRowSchema>;
+
+export const QualificationReportSchema = z
+  .object({
+    track: QualificationTrackSchema,
+    generatedAt: z.string().datetime(),
+    result: QualificationReportResultSchema,
+    rows: z.array(QualificationMatrixRowSchema)
+  })
+  .strict()
+  .superRefine((report, context) => {
+    if (report.rows.some((row) => row.track !== report.track)) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "row track must match report track", path: ["rows"] });
+    }
+    // local track validation
+    if (report.track === "local") {
+      if (report.result === "pass") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "local track report result cannot be 'pass'; must use 'local_verified', 'fail', or 'blocked'",
+          path: ["result"]
+        });
+      }
+      if (report.result === "local_verified" && report.rows.some((row) => row.required && row.result !== "pass")) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "required blocked or failed rows prevent overall local_verified",
+          path: ["result"]
+        });
+      }
+    }
+    // production track validation
+    if (report.track === "production") {
+      if (report.result === "local_verified") {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "production track report result cannot be 'local_verified'",
+          path: ["result"]
+        });
+      }
+      if (report.result === "pass" && report.rows.some((row) => row.required && row.result !== "pass")) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "required blocked or failed rows prevent overall pass",
+          path: ["result"]
+        });
+      }
+    }
+  });
+export type QualificationReport = z.infer<typeof QualificationReportSchema>;
+
+export const RuntimeBaselineOperationKindSchema = z.enum(["no_tool", "java_sandbox", "mcp", "approval_interruption"]);
+export type RuntimeBaselineOperationKind = z.infer<typeof RuntimeBaselineOperationKindSchema>;
+
+export const RuntimeBaselineOperationSchema = z
+  .object({
+    operationId: z.string().min(1),
+    tenantId: z.string().min(1),
+    userId: z.string().min(1),
+    conversationId: z.string().min(1),
+    kind: RuntimeBaselineOperationKindSchema
+  })
+  .strict();
+export type RuntimeBaselineOperation = z.infer<typeof RuntimeBaselineOperationSchema>;
+
+export const RuntimeBaselineWorkloadMixSchema = z
+  .object({
+    noTool: z.number().nonnegative(),
+    javaSandbox: z.number().nonnegative(),
+    mcp: z.number().nonnegative(),
+    approvalInterruption: z.number().nonnegative()
+  })
+  .strict()
+  .superRefine((mix, context) => {
+    const total = mix.noTool + mix.javaSandbox + mix.mcp + mix.approvalInterruption;
+    if (Math.abs(total - 1) > 0.000001) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "runtime baseline workload mix must sum to 1" });
+    }
+  });
+export type RuntimeBaselineWorkloadMix = z.infer<typeof RuntimeBaselineWorkloadMixSchema>;
+
+export const RuntimeBaselineWorkloadSchema = z
+  .object({
+    seededConversations: z.number().int().positive(),
+    concurrency: z.number().int().positive(),
+    mix: RuntimeBaselineWorkloadMixSchema,
+    operations: z.array(RuntimeBaselineOperationSchema).optional()
+  })
+  .strict();
+export type RuntimeBaselineWorkload = z.infer<typeof RuntimeBaselineWorkloadSchema>;
+
+export const RuntimeBaselineThresholdsSchema = z
+  .object({
+    admissionP95Ms: z.number().nonnegative(),
+    durableReplayP95Ms: z.number().nonnegative(),
+    rssBytes: z.number().int().nonnegative(),
+    openFileDescriptors: z.number().int().nonnegative(),
+    walBytes: z.number().int().nonnegative(),
+    mcpChildCount: z.number().int().nonnegative(),
+    sustainedBreachMs: z.number().int().positive()
+  })
+  .strict();
+export type RuntimeBaselineThresholds = z.infer<typeof RuntimeBaselineThresholdsSchema>;
+
+export const RuntimeBaselineSampleSchema = z
+  .object({
+    sampledAt: z.string().datetime(),
+    admissionP95Ms: z.number().nonnegative(),
+    durableReplayP95Ms: z.number().nonnegative(),
+    rssBytes: z.number().int().nonnegative(),
+    openFileDescriptors: z.number().int().nonnegative(),
+    walBytes: z.number().int().nonnegative(),
+    mcpChildCount: z.number().int().nonnegative(),
+    hardFailures: z.array(z.string().min(1))
+  })
+  .strict();
+export type RuntimeBaselineSample = z.infer<typeof RuntimeBaselineSampleSchema>;
+
+export const RuntimeBaselineFailureSchema = z
+  .object({
+    code: z.string().min(1),
+    message: z.string().min(1),
+    severity: z.enum(["hard", "threshold"]),
+    metric: z.string().min(1).optional()
+  })
+  .strict();
+export type RuntimeBaselineFailure = z.infer<typeof RuntimeBaselineFailureSchema>;
+
+export const RuntimeBaselineReportSchema = z
+  .object({
+    track: QualificationTrackSchema,
+    generatedAt: z.string().datetime(),
+    result: QualificationReportResultSchema,
+    workload: RuntimeBaselineWorkloadSchema,
+    environment: z.record(z.unknown()),
+    thresholds: RuntimeBaselineThresholdsSchema,
+    samples: z.array(RuntimeBaselineSampleSchema),
+    failures: z.array(RuntimeBaselineFailureSchema),
+    reportHash: z.string().regex(/^[a-f0-9]{64}$/i)
+  })
+  .strict()
+  .superRefine((report, context) => {
+    if (report.track === "local" && report.result === "pass") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "local baseline report result cannot be 'pass'; must use 'local_verified', 'fail', or 'blocked'",
+        path: ["result"]
+      });
+    }
+    if (report.track === "production" && report.result === "local_verified") {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "production baseline report result cannot be 'local_verified'",
+        path: ["result"]
+      });
+    }
+    if ((report.result === "pass" || report.result === "local_verified") && report.failures.length > 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "passing baseline report cannot contain failures",
+        path: ["failures"]
+      });
+    }
+  });
+export type RuntimeBaselineReport = z.infer<typeof RuntimeBaselineReportSchema>;
 
 export const ConversationLifecycleSchema = z.object({
   conversationId: z.string(),
@@ -459,7 +675,6 @@ export const AskUserRequestSchema = z.object({
   reason: z.string().optional(),
   decisionSource: DecisionSourceSchema.exclude(["NONE"]).optional(),
   decisionReason: z.string().optional(),
-  approvalToken: z.string().optional(),
   expiresAt: z.string().optional()
 });
 export type AskUserRequest = z.infer<typeof AskUserRequestSchema>;
@@ -563,15 +778,52 @@ export const RuntimeEventKindSchema = z.enum([
 ]);
 export type RuntimeEventKind = z.infer<typeof RuntimeEventKindSchema>;
 
+export const RuntimeTerminalErrorSchema = z.enum([
+  "MODEL_ERROR",
+  "TOOL_ERROR",
+  "POLICY_DENY",
+  "APPROVAL_TIMEOUT",
+  "EXECUTION_TIMEOUT",
+  "STEP_BUDGET_EXHAUSTED",
+  "EVENT_REPLAY_GAP",
+  "EXECUTION_ABORTED",
+  "EXECUTION_INTERRUPTED",
+  "EMPTY_MODEL_RESPONSE"
+]);
+export type RuntimeTerminalError = z.infer<typeof RuntimeTerminalErrorSchema>;
+
 export const SessionEventSchema = z.object({
+  durability: z.literal("durable"),
   eventId: z.string(),
   executionId: z.string(),
   conversationId: z.string(),
   tenantId: z.string(),
+  userId: z.string(),
   traceId: z.string(),
   requestId: z.string(),
   createdAt: z.number(),
   kind: RuntimeEventKindSchema,
   data: z.record(z.unknown())
-});
+}).strict();
 export type SessionEvent = z.infer<typeof SessionEventSchema>;
+
+export const PreviewDeltaEventSchema = z.object({
+  durability: z.literal("transient"),
+  kind: z.literal("preview_delta"),
+  previewSeq: z.number().int().positive(),
+  executionId: z.string(),
+  conversationId: z.string(),
+  tenantId: z.string(),
+  userId: z.string(),
+  traceId: z.string(),
+  requestId: z.string(),
+  createdAt: z.number(),
+  data: z.record(z.unknown())
+}).strict();
+export type PreviewDeltaEvent = z.infer<typeof PreviewDeltaEventSchema>;
+
+export const SSEWireEventSchema = z.discriminatedUnion("durability", [
+  SessionEventSchema,
+  PreviewDeltaEventSchema
+]);
+export type SSEWireEvent = z.infer<typeof SSEWireEventSchema>;

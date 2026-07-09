@@ -6,4 +6,5 @@ import org.openharness.backend.model.Contracts.ModelChatResponse;
 public interface ProviderAdapter {
   ModelChatResponse chat(ModelChatRequest request, ProviderConfig config);
   String providerType();
+  default void cancel(String requestId) {}
 }

@@ -19,7 +19,7 @@ export interface RuntimeEventStore {
   append(
     tenantId: string,
     conversationId: string,
-    event: Omit<SessionEvent, "eventId">
+    event: Omit<SessionEvent, "eventId" | "durability">
   ): SessionEvent;
   since(
     tenantId: string,
@@ -47,12 +47,16 @@ export class InMemoryRuntimeEventStore implements RuntimeEventStore {
   append(
     tenantId: string,
     conversationId: string,
-    event: Omit<SessionEvent, "eventId">
+    event: Omit<SessionEvent, "eventId" | "durability">
   ): SessionEvent {
     const k = key(tenantId, conversationId);
     const seq = (this.nextSeq.get(k) ?? 0) + 1;
     this.nextSeq.set(k, seq);
-    const stamped: SessionEvent = { ...event, eventId: `${tenantId}::${conversationId}:${seq}` };
+    const stamped: SessionEvent = {
+      ...event,
+      durability: "durable",
+      eventId: `${tenantId}::${conversationId}:${seq}`
+    };
 
     let bucket = this.events.get(k);
     if (!bucket) {

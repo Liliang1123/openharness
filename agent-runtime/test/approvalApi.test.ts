@@ -89,4 +89,68 @@ describe("approval API", () => {
     await app.close();
     rmSync(TEST_DIR, { recursive: true, force: true });
   });
+
+  it("rejects same-tenant cross-user approval decisions without leaking existence", async () => {
+    rmSync(TEST_DIR, { recursive: true, force: true });
+    const approvalStore = new JsonFileApprovalStore(TEST_DIR);
+    const executionStateStore = new InMemoryExecutionStateStore();
+    executionStateStore.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-1" });
+    executionStateStore.transition("exec-1", "waiting_approval");
+    approvalStore.createPending({
+      tenantId: "t1",
+      userId: "u1",
+      conversationId: "c1",
+      executionId: "exec-1",
+      toolCallId: "call-1",
+      toolName: "submit_payment",
+      argumentsRaw: "{}",
+      approvalToken: "raw-secret-token"
+    });
+    const app = await createServer({ javaClient: new StubJavaClient(), disableMcp: true, approvalStore, executionStateStore });
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/api/v1/sessions/c1/executions/exec-1/approvals/call-1",
+      headers: { "x-tenant-id": "t1", "x-user-id": "u2", "content-type": "application/json" },
+      payload: { action: "approve" }
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.payload).not.toContain("raw-secret-token");
+    expect(approvalStore.listPending("t1", "c1")).toHaveLength(1);
+    await app.close();
+    rmSync(TEST_DIR, { recursive: true, force: true });
+  });
+
+  it("does not expose raw approval tokens in pending approval API shapes", async () => {
+    rmSync(TEST_DIR, { recursive: true, force: true });
+    const approvalStore = new JsonFileApprovalStore(TEST_DIR);
+    const executionStateStore = new InMemoryExecutionStateStore();
+    executionStateStore.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-1" });
+    executionStateStore.transition("exec-1", "waiting_approval");
+    approvalStore.createPending({
+      tenantId: "t1",
+      userId: "u1",
+      conversationId: "c1",
+      executionId: "exec-1",
+      toolCallId: "call-secret",
+      toolName: "submit_payment",
+      argumentsRaw: "{}",
+      approvalToken: "raw-secret-token"
+    });
+    const app = await createServer({ javaClient: new StubJavaClient(), disableMcp: true, approvalStore, executionStateStore });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/sessions/c1",
+      headers: { "x-tenant-id": "t1", "x-user-id": "u1" }
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.payload).toContain("call-secret");
+    expect(res.payload).not.toContain("raw-secret-token");
+    expect(res.payload).not.toContain("approvalToken");
+    await app.close();
+    rmSync(TEST_DIR, { recursive: true, force: true });
+  });
 });

@@ -1,0 +1,179 @@
+{
+  "track" : "local",
+  "generatedAt" : "2026-07-06T09:14:34.376480Z",
+  "result" : "local_verified",
+  "rows" : [ {
+    "id" : "openai-sync",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "sync" ],
+    "requestHash" : "7e48fe63cdd169a19d1979a9d8df27119f9ef8f6b106fb86c2dd51a3fcaabb41",
+    "observed" : {
+      "content" : "ok"
+    },
+    "oracle" : {
+      "content" : "ok"
+    },
+    "durationMs" : 63,
+    "result" : "pass"
+  }, {
+    "id" : "openai-exact-usage",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "usage" ],
+    "requestHash" : "7e48fe63cdd169a19d1979a9d8df27119f9ef8f6b106fb86c2dd51a3fcaabb41",
+    "observed" : {
+      "promptTokens" : 7,
+      "completionTokens" : 3,
+      "totalTokens" : 10
+    },
+    "oracle" : {
+      "completionTokens" : 3,
+      "promptTokens" : 7,
+      "totalTokens" : 10
+    },
+    "durationMs" : 2,
+    "result" : "pass"
+  }, {
+    "id" : "openai-structured-tool",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "tool_calls" ],
+    "requestHash" : "e0d7906451ae6e45b02e1595b85eb6b8dc82e2badbdfcd7a3a43148cb9dd0ac2",
+    "observed" : {
+      "arguments" : {
+        "id" : 1
+      }
+    },
+    "oracle" : {
+      "arguments" : {
+        "id" : 1
+      }
+    },
+    "durationMs" : 4,
+    "result" : "pass"
+  }, {
+    "id" : "openai-503-retry",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "retry" ],
+    "requestHash" : "006667e7b1948a78ef6a768995f0e7366251c94b57c674a2676a5c60200ba717",
+    "observed" : {
+      "attempts" : 2
+    },
+    "oracle" : {
+      "attempts" : 2
+    },
+    "durationMs" : 209,
+    "result" : "pass"
+  }, {
+    "id" : "openai-terminal-error",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "terminal_error" ],
+    "requestHash" : "4420f57bb75ec23b54e61c0a609e7eda8c17e496958a66f0c2bf60d78e96f122",
+    "observed" : {
+      "status" : 400
+    },
+    "oracle" : {
+      "status" : 400
+    },
+    "durationMs" : 3,
+    "result" : "pass"
+  }, {
+    "id" : "openai-stream",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "stream" ],
+    "requestHash" : "14b7bdf4c0a6d6444fb8f113ad1a2756deb0200fb9c134ddd55ca7a359795927",
+    "observed" : {
+      "content" : "ok"
+    },
+    "oracle" : {
+      "stream" : true
+    },
+    "durationMs" : 8,
+    "result" : "pass"
+  }, {
+    "id" : "openai-timeout",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "timeout" ],
+    "requestHash" : "26ec988bed90b878b6b6bfa0444f7930b8652b575296cd3b5fd3ccfae5cafc18",
+    "observed" : {
+      "timeoutMs" : 100
+    },
+    "oracle" : {
+      "bounded" : true
+    },
+    "durationMs" : 102,
+    "result" : "pass"
+  }, {
+    "id" : "openai-cancellation",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "cancellation" ],
+    "requestHash" : "935acc687e1b9191ec47f600869656796b221c96946ac4f0460acf3c829a90fc",
+    "observed" : {
+      "cancelled" : true
+    },
+    "oracle" : {
+      "cancel" : true
+    },
+    "durationMs" : 104,
+    "result" : "pass"
+  }, {
+    "id" : "openai-reasoning",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "reasoning" ],
+    "requestHash" : "10336c2751492e4b91ab7645aa5c937f8f9584ebf6aa75ba5ae1cc283db9a670",
+    "observed" : {
+      "reasoningBlocks" : [ {
+        "type" : "thinking",
+        "text" : "thinking process"
+      } ]
+    },
+    "oracle" : {
+      "preserved" : true
+    },
+    "durationMs" : 1309,
+    "result" : "pass"
+  } ]
+}

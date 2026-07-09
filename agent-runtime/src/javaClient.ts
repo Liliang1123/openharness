@@ -1,5 +1,6 @@
 import {
   ModelChatResponseSchema,
+  ToolCancelResponseSchema,
   ToolCallResponseSchema,
   TraceEventSchema
 } from "@openharness/shared-schema";
@@ -7,6 +8,8 @@ import type {
   CatalogResponse,
   ModelChatRequest,
   ModelChatResponse,
+  ToolCancelRequest,
+  ToolCancelResponse,
   ToolCallRequest,
   ToolCallResponse,
   TraceEvent,
@@ -39,6 +42,7 @@ export interface JavaClient {
   getCatalog(headers: Record<string, string>): Promise<CatalogResponse>;
   chat(request: ModelChatRequest, headers: Record<string, string>): Promise<ModelChatResponse>;
   executeTool(request: ToolCallRequest, headers: Record<string, string>): Promise<ToolCallResponse>;
+  cancelTool?(request: ToolCancelRequest, headers: Record<string, string>): Promise<ToolCancelResponse>;
   postTrace(event: TraceEvent, headers: Record<string, string>): Promise<void>;
   evaluatePolicy(request: PolicyEvaluateRequest, headers: Record<string, string>): Promise<PolicyEvaluateResponse>;
   compress?(messages: AgentMessage[], headers: Record<string, string>): Promise<string>;
@@ -67,6 +71,15 @@ export class HttpJavaClient implements JavaClient {
       body: JSON.stringify(request)
     });
     return ToolCallResponseSchema.parse(response);
+  }
+
+  async cancelTool(request: ToolCancelRequest, headers: Record<string, string>): Promise<ToolCancelResponse> {
+    const response = await this.request<unknown>("/api/v1/tools/cancel", {
+      method: "POST",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify(request)
+    });
+    return ToolCancelResponseSchema.parse(response);
   }
 
   async postTrace(event: TraceEvent, headers: Record<string, string>): Promise<void> {
