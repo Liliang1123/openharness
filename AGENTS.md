@@ -17,6 +17,12 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
+# 全局绝对路径规范
+
+为了保证不同 Agent 在独立窗口和执行环境中能够准确读取、跳转和识别文件：
+- 本项目内所有 Review 文档、Handoff 交接包、Task Prompt 任务提示词中引用的所有文件与目录路径，**必须**使用以 `file:///` 开头的完整绝对路径 Markdown 链接形式（例如 `[文件名](file:///完整路径)`）。
+- 在与用户的任何会话返回中，凡是提及或输出的文件与目录路径，也**必须**使用以 `file:///` 开头的完整绝对路径 Markdown 链接形式。绝对禁止使用相对路径（如 `docs/xxx`）或纯文本路径。
+
 # Project Review Rules
 
 本项目的 review、方案评审、架构评审和实施计划评审必须遵循以下落盘规则：
@@ -33,7 +39,7 @@ Review 文档至少包含：
 
 - `结论`：使用 `通过`、`有风险` 或 `需修改` 开头。
 - `Review 范围`：列出被评审的文件、方案、代码或文档。所有被评审的文件与目录路径**必须**使用以 `file:///` 开头的完整绝对路径 Markdown 链接形式（禁止使用相对路径或纯文本路径）。
-- `主要发现`：按严重度列出问题、风险和依据。
+- `主要发现`：按严重度列出问题、风险 and 依据。
 - `最终建议`：给出可执行的修正方向或最终方案。
 - `后续门禁`：说明是否需要 OpenSpec proposal、Superpowers plan、测试或人工审批。
 
@@ -48,9 +54,17 @@ Review 文档至少包含：
 
 完成 review 后，最终回复必须说明：
 
-- 落盘文件路径。
+- 落盘文件路径（必须使用 `file:///` 绝对路径链接）。
 - 是否修改了项目规则。
 - 是否仍需 OpenSpec 或后续实施计划。
+
+## Task Prompt Closeout
+
+当用户要求“给其他 agent review / 让其他 agent 继续 / 来个任务提示词 / 任务交给别的 agent / 我用其他 agent review”或语义相近的跨 Agent 协作场景时，最终回复不得只给文档路径，必须同时提供：
+
+- 文档路径：本次生成或推荐对方阅读的关键文档路径（必须使用 `file:///` 绝对路径链接）。
+- 可直接复制给其他 Agent 的任务提示词：包含项目路径、必读文件（必须使用 `file:///` 绝对路径链接）、任务目标、评审或实施边界、不得重复/不得执行事项、必须遵守的 OpenSpec / Superpowers 门禁、期望输出格式。
+- 若本次已落盘 review / handoff / plan 文档，任务提示词必须引用这些文档（必须使用 `file:///` 绝对路径链接），并说明是否需要落盘新的 review 结论。
 
 # New Window Handoff Rules
 

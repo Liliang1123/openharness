@@ -71,3 +71,6 @@ pnpm-debug.log*
 # AI handoff scratch files
 /docs/handoffs/latest.md
 /docs/handoffs/local/
+
+# Local git worktrees
+/.worktrees/
