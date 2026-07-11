@@ -25,7 +25,7 @@
 |---|---|---|
 | Gate A — dependency/driver | `better-sqlite3` transaction, WAL, busy deadline, advisory-lock spike on target Node/platform | Required before durable implementation |
 | Gate B — pre-cutover | backup hashes, import report, quarantine report, restore rehearsal, crash matrix, full deterministic tests | Required before first real SQLite write |
-| Gate C — real integrations | redacted OpenAI-compatible, Anthropic, Java sandbox, and MCP matrix reports; no skipped required row | Required before real credentials/tools run and before Stage 3 |
+| Gate C — real integrations | redacted **OpenAI-compatible** (required), Java sandbox, and MCP matrix reports; no skipped **required** row. Anthropic real matrix is **deferred / post-Gate-C** (2026-07-09 `defer-anthropic-from-gate-c`); missing Anthropic credentials MUST NOT block Gate C | Required before Stage 3; real credential calls still need human authorization |
 | Gate D — soak promotion | short baseline passed, then fixed 24h report passed without threshold relaxation | Required before Runtime v1 freeze |
 
 ## Planned Files
@@ -389,21 +389,24 @@ Human approval was received on 2026-07-06 at 15:55 CST. Step 5 remains open beca
 
 **Signoff:** canary count is zero outside test source fixtures; required-row `BLOCKED` prevents overall PASS.
 
-### Task 10: OpenAI-Compatible And Anthropic Real Matrix
+### Task 10: OpenAI-Compatible Real Matrix (Gate C) + Deferred Anthropic
 
 **Gate:** Gate C credential authorization required before any real call.
+
+**Gate C required family (amended 2026-07-09 via `defer-anthropic-from-gate-c`):** OpenAI-compatible only. Anthropic real matrix is deferred / post-Gate-C and MUST NOT block Gate C when Anthropic credentials are absent. OpenAI-compatible PASS does not qualify Anthropic.
 
 **Allowed files:** qualification harness plus evidence-backed adapter fixes/tests.
 
 - [x] **Step 1: Write report-builder RED tests** in `agent-runtime/test/qualificationReport.test.ts` for shared-schema validation, recursive redaction, `promptTokens`/`completionTokens` preservation, track consistency, and required-row veto. Implement `agent-runtime/src/qualification/report.ts` minimally and run focused GREEN plus Runtime typecheck.
 - [x] **Step 2: Write OpenAI-compatible fake-server RED matrix tests** in `backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java` covering sync, structured tool calls, exact usage, 503 retry, timeout, terminal error, Authorization redaction, and explicit blocked rows for unsupported stream/cancellation/reasoning capabilities.
 - [x] **Step 3: Implement only evidence-backed OpenAI adapter/harness changes**, then run the focused matrix. Do not relax a required oracle or convert unsupported capability to PASS.
-- [x] **Step 4: Write Anthropic fake-server RED matrix tests** in `backend/src/test/java/org/openharness/backend/qualification/AnthropicFakeProviderMatrixTest.java` covering sync, structured tool use, exact usage/cache usage, 503 retry, timeout, terminal error, API-key redaction, and explicit blocked rows for unsupported stream/cancellation/reasoning capabilities.
-- [x] **Step 5: Implement only evidence-backed Anthropic adapter/harness changes**, then run the focused matrix. Preserve the fixed protocol version and required capability semantics.
+- [x] **Step 4: Write Anthropic fake-server RED matrix tests** in `backend/src/test/java/org/openharness/backend/qualification/AnthropicFakeProviderMatrixTest.java` covering sync, structured tool use, exact usage/cache usage, 503 retry, timeout, terminal error, API-key redaction, and explicit blocked rows for unsupported stream/cancellation/reasoning capabilities. (Supporting / local evidence; not Gate C required.)
+- [x] **Step 5: Implement only evidence-backed Anthropic adapter/harness changes**, then run the focused matrix. Preserve the fixed protocol version and required capability semantics. (Supporting; Anthropic real matrix remains deferred.)
 - [x] **Step 6: Generate immutable local reports** under `docs/verification/agent-runtime-v1/providers/`, validate them through the shared schema, verify intentional fail/blocked fixtures prevent overall PASS, and scan reports for secret canaries.
 - [x] **Step 7: Run Task 10 local verification**: focused/full Runtime and Backend tests, typecheck, OpenSpec strict validation, dashboard check, and `git diff --check`.
 - [ ] Stop and obtain explicit authorization for real credentials/endpoints.
-- [ ] Run OpenAI-compatible matrix and Anthropic matrix separately; missing credentials/capability is `BLOCKED`, never skipped/pass.
+- [ ] Run **OpenAI-compatible** real matrix; missing credentials/capability on required rows is `BLOCKED` or `FAIL`, never skipped/pass. This matrix is **Gate C required**.
+- [ ] Anthropic real matrix is **deferred / post-Gate-C**: run only when Anthropic credentials are available; absence MUST NOT block Gate C; never mark Anthropic production-qualified from OpenAI-compatible evidence alone.
 - [ ] Save redacted immutable reports under `docs/verification/agent-runtime-v1/providers/`.
 
 **Formal commands:** focused Runtime tests/typecheck; `mvn -f backend/pom.xml test`; qualification CLI with explicit `--real --provider ...`; post-run canary scan.
@@ -420,7 +423,7 @@ Human approval was received on 2026-07-06 at 15:55 CST. Step 5 remains open beca
 - [x] Run deterministic matrices first; then stop for explicit real sandbox/MCP authorization.
 - [x] Run real matrices and save redacted reports under `docs/verification/agent-runtime-v1/tools/`.
 
-**Stage 2 signoff:** every required row PASS; no skip; canary scan clean; full TS/Java regression green; human Gate C promotion approved.
+**Stage 2 signoff:** every **Gate C required** row PASS (OpenAI-compatible real matrix + Java sandbox + MCP; Anthropic real matrix deferred); no skip of required rows; canary scan clean; full TS/Java regression green; human Gate C promotion approved.
 
 ## Stage 3 — Baseline, Soak, And Runtime v1 Freeze
 

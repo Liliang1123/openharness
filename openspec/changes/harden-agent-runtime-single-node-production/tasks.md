@@ -19,8 +19,8 @@
 ## 3. Stage 2 — Real Provider And Tool Qualification
 
 - [x] 3.0 Complete the local qualification preflight with fake Provider servers, a real local Java sandbox process, and real local MCP stdio subprocesses; record results only as `local_verified`, never as production qualification.
-- [ ] 3.1 Qualify OpenAI-compatible sync, stream, multi-step tools, usage/cost, reasoning, retry, timeout, cancellation, and redaction through the fixed evidence matrix.
-- [ ] 3.2 Qualify Anthropic sync, stream, multi-step tools, usage/cost, reasoning, retry, timeout, cancellation, and redaction through the fixed evidence matrix.
+- [ ] 3.1 Qualify OpenAI-compatible sync, stream, multi-step tools, usage/cost, reasoning, retry, timeout, cancellation, and redaction through the fixed evidence matrix. **Gate C required** real-provider family.
+- [ ] 3.2 **Deferred / post-Gate-C** — Qualify Anthropic sync, stream, multi-step tools, usage/cost, reasoning, retry, timeout, cancellation, and redaction through the fixed evidence matrix when Anthropic credentials are available. Missing Anthropic credentials MUST NOT block Gate C. OpenAI-compatible PASS MUST NOT mark Anthropic production-qualified. (Amended 2026-07-09 via approved `defer-anthropic-from-gate-c`.)
 - [x] 3.3 Qualify Java sandbox protocol tools through the fixed evidence matrix for workspace containment, output limits, timeout, policy, idempotency, cancellation, and trace-ingest deduplication.
 - [x] 3.4 Qualify MCP lifecycle, catalog merge, real calls, approval, failure isolation, cancellation where supported, and shutdown.
 - [ ] 3.5 Fix only evidence-backed contract gaps and add deterministic regression tests for each fix.
