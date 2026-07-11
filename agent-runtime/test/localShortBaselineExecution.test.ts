@@ -2,7 +2,10 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { runLocalThirtyMinuteBaseline } from "../src/baseline/localShortBaselineExecution";
+import {
+  runLocalThirtyMinuteBaseline,
+  runLocalTwentyFourHourSoak
+} from "../src/baseline/localShortBaselineExecution";
 
 describe("local short baseline execution", () => {
   it("seeds SQLite workload, triggers restart hook, and writes a no-overwrite local report", async () => {
@@ -38,10 +41,73 @@ describe("local short baseline execution", () => {
         generatedAt: "2026-07-09T00:00:00.000Z",
         durationMs: 30_000,
         sampleIntervalMs: 30_000,
+        allowCompressedScheduleForTest: true,
         seededConversations: 20,
         concurrency: 5,
         delayMs: async () => undefined
       })).rejects.toThrow(/already exists/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("prepares the 24-hour soak runner with a compressed multi-restart schedule without overwriting reports", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "openharness-soak-exec-"));
+    try {
+      const outputPath = join(dir, "soak-report.json");
+      const result = await runLocalTwentyFourHourSoak({
+        outputPath,
+        generatedAt: "2026-07-09T00:00:00.000Z",
+        durationMs: 120_000,
+        sampleIntervalMs: 30_000,
+        restartScheduleMs: [30_000, 90_000],
+        allowCompressedScheduleForTest: true,
+        seededConversations: 40,
+        concurrency: 5,
+        delayMs: async () => undefined,
+        readRssBytes: () => 100_000_000,
+        readOpenFileDescriptors: () => 100
+      });
+
+      expect(result.report.track).toBe("local");
+      expect(result.report.result).toBe("local_verified");
+      expect(result.report.environment.baselineKind).toBe("fixed-24-hour-local-soak");
+      expect(result.report.samples).toHaveLength(4);
+      expect(result.restartEvents).toEqual([
+        { elapsedMs: 30_000, sampleIndex: 0 },
+        { elapsedMs: 90_000, sampleIndex: 2 }
+      ]);
+      expect(JSON.parse(readFileSync(outputPath, "utf8"))).toEqual(result.report);
+
+      await expect(runLocalTwentyFourHourSoak({
+        outputPath,
+        generatedAt: "2026-07-09T00:00:00.000Z",
+        durationMs: 60_000,
+        sampleIntervalMs: 30_000,
+        restartScheduleMs: [30_000],
+        allowCompressedScheduleForTest: true,
+        seededConversations: 20,
+        concurrency: 5,
+        delayMs: async () => undefined
+      })).rejects.toThrow(/already exists/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects compressed 24-hour soak schedules unless test compression is explicit", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "openharness-soak-exec-invalid-"));
+    try {
+      await expect(runLocalTwentyFourHourSoak({
+        outputPath: join(dir, "soak-report.json"),
+        generatedAt: "2026-07-09T00:00:00.000Z",
+        durationMs: 120_000,
+        sampleIntervalMs: 30_000,
+        restartScheduleMs: [30_000, 90_000],
+        seededConversations: 20,
+        concurrency: 5,
+        delayMs: async () => undefined
+      })).rejects.toThrow(/compressed restart schedule/i);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

@@ -5,9 +5,11 @@ import { performance } from "node:perf_hooks";
 import type { RuntimeBaselineReport } from "@openharness/shared-schema";
 import { collectRuntimeBaselineSample, type RuntimeBaselineEventObservation } from "./localBaseline";
 import {
+  createTwentyFourHourLocalSoakConfig,
   createThirtyMinuteLocalBaselineConfig,
   runDeterministicLocalShortBaseline,
-  writeRuntimeBaselineReport
+  writeRuntimeBaselineReport,
+  type LocalShortBaselineConfig
 } from "./localShortBaselineRunner";
 import {
   migrateRuntimeDatabase,
@@ -27,6 +29,8 @@ export interface RunLocalThirtyMinuteBaselineInput {
   durationMs?: number;
   sampleIntervalMs?: number;
   restartAtMs?: number;
+  restartScheduleMs?: number[];
+  allowCompressedScheduleForTest?: boolean;
   seededConversations?: number;
   concurrency?: number;
   delayMs?: (ms: number) => Promise<void> | void;
@@ -45,29 +49,71 @@ export interface RunLocalThirtyMinuteBaselineResult {
 export async function runLocalThirtyMinuteBaseline(
   input: RunLocalThirtyMinuteBaselineInput = {}
 ): Promise<RunLocalThirtyMinuteBaselineResult> {
+  return runLocalBaselineExecution({
+    input,
+    outputSuffix: "local-short-baseline",
+    baselineKind: "deterministic-local-short-baseline",
+    createConfig: ({ generatedAt, environment }) => createThirtyMinuteLocalBaselineConfig({
+      generatedAt,
+      environment,
+      durationMs: input.durationMs,
+      sampleIntervalMs: input.sampleIntervalMs,
+      restartAtMs: input.restartAtMs,
+      seededConversations: input.seededConversations,
+      concurrency: input.concurrency
+    })
+  });
+}
+
+export async function runLocalTwentyFourHourSoak(
+  input: RunLocalThirtyMinuteBaselineInput = {}
+): Promise<RunLocalThirtyMinuteBaselineResult> {
+  return runLocalBaselineExecution({
+    input,
+    outputSuffix: "local-24h-soak",
+    baselineKind: "fixed-24-hour-local-soak",
+    createConfig: ({ generatedAt, environment }) => createTwentyFourHourLocalSoakConfig({
+      generatedAt,
+      environment,
+      durationMs: input.durationMs,
+      sampleIntervalMs: input.sampleIntervalMs,
+      restartScheduleMs: input.restartScheduleMs,
+      allowCompressedScheduleForTest: input.allowCompressedScheduleForTest,
+      seededConversations: input.seededConversations,
+      concurrency: input.concurrency
+    })
+  });
+}
+
+interface RunLocalBaselineExecutionInput {
+  input: RunLocalThirtyMinuteBaselineInput;
+  outputSuffix: string;
+  baselineKind: string;
+  createConfig(input: { generatedAt: string; environment: Record<string, unknown> }): LocalShortBaselineConfig;
+}
+
+async function runLocalBaselineExecution(
+  options: RunLocalBaselineExecutionInput
+): Promise<RunLocalThirtyMinuteBaselineResult> {
+  const input = options.input;
   const generatedAt = input.generatedAt ?? new Date().toISOString();
   const databasePath = input.databasePath ?? join(mkdtempSync(join(tmpdir(), DEFAULT_DATABASE_DIR_PREFIX)), "runtime-baseline.db");
-  const outputPath = input.outputPath ?? join(DEFAULT_OUTPUT_DIR, `${generatedAt.replace(/[:.]/g, "-")}-local-short-baseline.json`);
+  const outputPath = input.outputPath ?? join(DEFAULT_OUTPUT_DIR, `${generatedAt.replace(/[:.]/g, "-")}-${options.outputSuffix}.json`);
   let database = openRuntimeDatabase(databasePath);
   migrateRuntimeDatabase(database);
 
   const restartEvents: { elapsedMs: number; sampleIndex: number }[] = [];
-  const config = createThirtyMinuteLocalBaselineConfig({
+  const config = options.createConfig({
     generatedAt,
     environment: {
       track: "local",
-      baselineKind: "deterministic-local-short-baseline",
+      baselineKind: options.baselineKind,
       nodeVersion: process.version,
       platform: process.platform,
       arch: process.arch,
       databasePath,
       restartEvents
-    },
-    durationMs: input.durationMs,
-    sampleIntervalMs: input.sampleIntervalMs,
-    restartAtMs: input.restartAtMs,
-    seededConversations: input.seededConversations,
-    concurrency: input.concurrency
+    }
   });
 
   try {

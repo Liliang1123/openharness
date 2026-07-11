@@ -62,6 +62,30 @@ describe("local runtime baseline harness", () => {
     ]);
   });
 
+  it("marks first-to-last two-hour median RSS or FD growth above ten percent as fail", () => {
+    const cleanSoak = evaluateRuntimeBaselineSamples(
+      longSoakSamples({ firstRssBytes: 100_000_000, lastRssBytes: 109_000_000, firstFds: 100, lastFds: 110 }),
+      DEFAULT_RUNTIME_BASELINE_THRESHOLDS
+    );
+    expect(cleanSoak.failures).toEqual([]);
+
+    const rssGrowth = evaluateRuntimeBaselineSamples(
+      longSoakSamples({ firstRssBytes: 100_000_000, lastRssBytes: 111_000_000, firstFds: 100, lastFds: 100 }),
+      DEFAULT_RUNTIME_BASELINE_THRESHOLDS
+    );
+    expect(rssGrowth.failures).toMatchObject([
+      { code: "RESOURCE_GROWTH_BREACH", metric: "rssBytes", severity: "hard" }
+    ]);
+
+    const fdGrowth = evaluateRuntimeBaselineSamples(
+      longSoakSamples({ firstRssBytes: 100_000_000, lastRssBytes: 100_000_000, firstFds: 100, lastFds: 112 }),
+      DEFAULT_RUNTIME_BASELINE_THRESHOLDS
+    );
+    expect(fdGrowth.failures).toMatchObject([
+      { code: "RESOURCE_GROWTH_BREACH", metric: "openFileDescriptors", severity: "hard" }
+    ]);
+  });
+
   it("creates a canonical local_verified report hash when all local baseline oracles pass", () => {
     const workload = buildDeterministicBaselineWorkload({ seededConversations: 20, concurrency: 5 });
     const report = createRuntimeBaselineReport({
@@ -97,6 +121,29 @@ function samples(count: number, overrides: Partial<RuntimeBaselineSampleInput>):
     hardFailures: [],
     ...overrides
   }));
+}
+
+function longSoakSamples(input: {
+  firstRssBytes: number;
+  lastRssBytes: number;
+  firstFds: number;
+  lastFds: number;
+}): RuntimeBaselineSampleInput[] {
+  const count = 12 * 60;
+  return Array.from({ length: count }, (_, index) => {
+    const inFirstTwoHours = index < 240;
+    const inLastTwoHours = index >= count - 240;
+    return {
+      sampledAt: new Date(Date.UTC(2026, 6, 9, 0, 0, (index + 1) * 30)).toISOString(),
+      admissionP95Ms: 80,
+      durableReplayP95Ms: 120,
+      rssBytes: inFirstTwoHours ? input.firstRssBytes : (inLastTwoHours ? input.lastRssBytes : input.firstRssBytes),
+      openFileDescriptors: inFirstTwoHours ? input.firstFds : (inLastTwoHours ? input.lastFds : input.firstFds),
+      walBytes: 1024,
+      mcpChildCount: 2,
+      hardFailures: []
+    };
+  });
 }
 
 function countByKind(kinds: string[]): Record<string, number> {

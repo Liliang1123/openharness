@@ -13,6 +13,8 @@ import {
 } from "@openharness/shared-schema";
 
 const SAMPLE_INTERVAL_MS = 30_000;
+const RESOURCE_GROWTH_WINDOW_MS = 2 * 60 * 60 * 1000;
+const RESOURCE_GROWTH_MAX_RATIO = 0.10;
 
 export const DEFAULT_RUNTIME_BASELINE_THRESHOLDS: RuntimeBaselineThresholds = {
   admissionP95Ms: 100,
@@ -128,12 +130,25 @@ export function evaluateRuntimeBaselineSamples(
     }
   }
 
+  for (const metric of resourceGrowthMetrics()) {
+    if (hasResourceGrowthBreach(samples, metric)) {
+      failures.set(`RESOURCE_GROWTH_BREACH:${metric}`, {
+        code: "RESOURCE_GROWTH_BREACH",
+        message: `${metric} first-to-last two-hour median growth exceeded ${RESOURCE_GROWTH_MAX_RATIO * 100}%`,
+        severity: "hard",
+        metric
+      });
+    }
+  }
+
   return { failures: [...failures.values()] };
 }
 
 export function createRuntimeBaselineReport(input: CreateRuntimeBaselineReportInput): RuntimeBaselineReport {
   const thresholds = input.thresholds ?? DEFAULT_RUNTIME_BASELINE_THRESHOLDS;
   const { failures } = evaluateRuntimeBaselineSamples(input.samples, thresholds);
+  const restartScheduleFailure = evaluateRestartSchedule(input.environment);
+  if (restartScheduleFailure) failures.push(restartScheduleFailure);
   const result = failures.length === 0
     ? (input.track === "local" ? "local_verified" : "pass")
     : "fail";
@@ -302,6 +317,10 @@ function thresholdMetrics(): (keyof Omit<RuntimeBaselineThresholds, "sustainedBr
   ];
 }
 
+function resourceGrowthMetrics(): ("rssBytes" | "openFileDescriptors")[] {
+  return ["rssBytes", "openFileDescriptors"];
+}
+
 function hasSustainedBreach(
   samples: RuntimeBaselineSampleInput[],
   thresholds: RuntimeBaselineThresholds,
@@ -318,6 +337,65 @@ function hasSustainedBreach(
     }
   }
   return false;
+}
+
+function hasResourceGrowthBreach(
+  samples: RuntimeBaselineSampleInput[],
+  metric: "rssBytes" | "openFileDescriptors"
+): boolean {
+  const timestamps = samples.map((sample) => Date.parse(sample.sampledAt));
+  if (timestamps.some((timestamp) => Number.isNaN(timestamp))) return false;
+  const firstTimestamp = timestamps[0];
+  const lastTimestamp = timestamps.at(-1);
+  if (firstTimestamp === undefined || lastTimestamp === undefined) return false;
+  if ((lastTimestamp - firstTimestamp) < RESOURCE_GROWTH_WINDOW_MS * 2) return false;
+
+  const firstWindowEnd = firstTimestamp + RESOURCE_GROWTH_WINDOW_MS;
+  const lastWindowStart = lastTimestamp - RESOURCE_GROWTH_WINDOW_MS;
+  const firstValues = samples
+    .filter((_, index) => timestamps[index]! <= firstWindowEnd)
+    .map((sample) => sample[metric]);
+  const lastValues = samples
+    .filter((_, index) => timestamps[index]! >= lastWindowStart)
+    .map((sample) => sample[metric]);
+  if (firstValues.length === 0 || lastValues.length === 0) return false;
+
+  const firstMedian = median(firstValues);
+  const lastMedian = median(lastValues);
+  if (firstMedian === 0) return lastMedian > 0;
+  return ((lastMedian - firstMedian) / firstMedian) > RESOURCE_GROWTH_MAX_RATIO;
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 1) return sorted[middle]!;
+  return (sorted[middle - 1]! + sorted[middle]!) / 2;
+}
+
+function evaluateRestartSchedule(environment: Record<string, unknown>): RuntimeBaselineFailure | null {
+  if (environment.baselineKind !== "fixed-24-hour-local-soak") return null;
+
+  const planned = numberArray(environment.restartScheduleMs);
+  const observed = numberArray(environment.observedRestartScheduleMs);
+  if (planned && planned.length > 0 && observed && sameNumberArray(planned, observed)) return null;
+
+  return {
+    code: "RESTART_SCHEDULE_MISMATCH",
+    message: "Observed TS-only restart schedule did not match the planned 24-hour soak schedule",
+    severity: "hard",
+    metric: "restartScheduleMs"
+  };
+}
+
+function numberArray(value: unknown): number[] | null {
+  return Array.isArray(value) && value.every((item) => typeof item === "number")
+    ? value
+    : null;
+}
+
+function sameNumberArray(left: number[], right: number[]): boolean {
+  return left.length === right.length && left.every((item, index) => item === right[index]);
 }
 
 function hashCanonicalJson(value: unknown): string {
