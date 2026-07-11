@@ -10,6 +10,12 @@
 - `.env` is gitignored
 - Java 21 + Maven, Node 20+, pnpm
 
+For the optional local Codex OAuth transport:
+
+- Install the official Codex CLI. The validated protocol baseline is `codex-cli 0.144.1`; later versions require the fake protocol and focused command tests before use.
+- Complete authentication only through the official Codex application/CLI. Do not place Codex OAuth values or credential paths in `.env`, Java configuration, shell history, or this repository.
+- Configure a `codex-app-server` provider with a local `stdio://`, Unix socket, or approved loopback endpoint and an explicit model allow-list.
+
 ## Verified working baseline (2026-05-25)
 
 `default-provider: zhipu`, `glm-4-flash` model, `https://open.bigmodel.cn/api/paas/v4/chat/completions`. Real answer received with `trace.events = [AGENT_START, MODEL_NODE_START, MODEL_NODE_END, FINAL_ANSWER]`.
@@ -23,6 +29,42 @@ cd backend && set -a && . ../.env && set +a && mvn spring-boot:run
 # terminal 2 — agent-runtime
 cd agent-runtime && pnpm dev
 ```
+
+## Local Codex operator control
+
+The Java local command handler is `org.openharness.backend.service.provider.CodexOperatorCommand`. A local Gateway launcher constructs it with the active `ProviderConfig` and `CodexProcessSupervisor`, then calls `execute("login"|"status"|"logout", output)`. This task does not add ProviderAdapter wiring, a Frontend login page, or a remote operator endpoint.
+
+Expected delegation:
+
+```text
+login   -> codex login
+status  -> codex login status
+logout  -> codex logout
+```
+
+OpenHarness discards official CLI stdout/stderr and reports only fixed non-secret output. Do not replace the invoker with shell evaluation, credential-file reads, or verbatim process-output forwarding.
+
+`status` prints only `providerId`, `readiness`, `processState`, `modelAvailability`, and `needsLogin`. It reports model availability as `available` or `unavailable` and never emits configured model names. A nonzero official status result reports `needsLogin=true`; any non-ready supervisor or empty model allow-list reports unavailable and exits nonzero.
+
+Login recovery sequence:
+
+1. Stop new `openai-codex/*` traffic or leave it fail-closed.
+2. Run the local `login` operation through the official Codex surface.
+3. Restart or re-check the owned app-server process through the Gateway lifecycle owner.
+4. Run local `status`; continue only when readiness is `ready`, process state is `READY`, at least one configured model is available, and `needsLogin=false`.
+
+Logout sequence:
+
+1. Drain or cancel active Codex work through its owning lifecycle before logout.
+2. Run the local `logout` operation.
+3. Confirm local `status` exits nonzero with `needsLogin=true` or unavailable.
+4. Codex routes remain fail-closed until official login is restored. Existing API-key routes are unchanged.
+
+Platform limits:
+
+- Only process-local supervisor state is reported; the command handler does not discover or control an unrelated Gateway process.
+- Local stdio/Unix/loopback transports are supported by the approved design; arbitrary remote app-server endpoints remain rejected.
+- Real login/logout and real Provider smoke require separate operator authorization. Automated tests use a fake process with synthetic output only.
 
 ## Real LLM chat (zhipu glm-4-flash by default)
 

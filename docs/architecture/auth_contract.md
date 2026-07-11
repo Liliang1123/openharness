@@ -120,3 +120,25 @@ OPENHARNESS_DEV_USER_ID=user-001
 OPENHARNESS_DEV_TENANT_ID=tenant-001
 MODEL_PROVIDER=mock
 ```
+
+## 8. Codex OAuth Operator Boundary
+
+ChatGPT/Codex OAuth credentials remain owned by the official local Codex CLI/app. The Java Gateway local operator command surface delegates only these operations:
+
+- `login` -> `codex login`
+- `status` -> `codex login status`
+- `logout` -> `codex logout`
+
+OpenHarness MUST NOT read credential files, import tokens, receive authorization codes, or copy child-process output into logs, traces, HTTP responses, or command output. The official process output and error streams are discarded by the OpenHarness command invoker.
+
+The OpenHarness `status` response is generated from the official command exit status, the Java process-supervisor snapshot, and the configured model allow-list. It contains exactly these fields:
+
+```text
+providerId=<provider id>
+readiness=<ready|unavailable>
+processState=<STOPPED|STARTING|READY|DEGRADED|UNAVAILABLE|SHUTDOWN>
+modelAvailability=<available|unavailable>
+needsLogin=<true|false>
+```
+
+The operator surface is local-only. It is not exposed through Frontend, TS Runtime, or an unauthenticated HTTP endpoint. A nonzero official status result or a non-ready supervisor fails closed; it never enables an API-key or mock fallback.
