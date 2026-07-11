@@ -252,12 +252,12 @@
 <body>
   <header>
     <h1>openharness — 开发导航台</h1>
-    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-03</div>
+    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-11</div>
     <div class="stats">
-      <div class="stat"><div class="number">32</div><div class="label">Total</div></div>
+      <div class="stat"><div class="number">34</div><div class="label">Total</div></div>
       <div class="stat"><div class="number">17</div><div class="label">Archived</div></div>
-      <div class="stat"><div class="number">13</div><div class="label">Partial</div></div>
-      <div class="stat"><div class="number">1</div><div class="label">Proposed</div></div>
+      <div class="stat"><div class="number">14</div><div class="label">Partial</div></div>
+      <div class="stat"><div class="number">2</div><div class="label">Proposed</div></div>
       <div class="stat"><div class="number">1</div><div class="label">Verified</div></div>
     </div>
   </header>
@@ -272,6 +272,22 @@
   <section id="timeline" class="active">
     <h2>Timeline</h2>
     
+      <div class="timeline-group">
+        <div class="timeline-date">2026-07-09</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-proposed">proposed</span>
+            <strong>add-chatgpt-oauth-auth</strong>
+            <span class="summary">为 OpenHarness Java Gateway 增加 openai-codex provider，通过本机官方 Codex app-server/CLI 复用 ChatGPT/Codex OAuth；新增异步 pending-turn 工具桥接，由 Java 保持 app-server turn、TS Runtime 独占审批与执行，OpenHarness 不读取或持有 OAuth token。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-partial">partial</span>
+            <strong>defer-anthropic-from-gate-c</strong>
+            <span class="summary">将单节点 Gate C 真实 Provider 必选族从 OpenAI-compatible+Anthropic 降级为仅 OpenAI-compatible；Anthropic 真实矩阵后置为 deferred，缺失 Anthropic key 不再单独阻塞 Gate C。</span>
+          </div>
+        </div>
+      </div>
+
       <div class="timeline-group">
         <div class="timeline-date">2026-07-03</div>
         <div class="timeline-items">
@@ -486,6 +502,28 @@
       </thead>
       <tbody>
         <tr>
+      <td><strong>add-chatgpt-oauth-auth</strong></td>
+      <td><span class="badge badge-proposed">proposed</span></td>
+      <td>2026-07-09</td>
+      <td>provider-adapter, backend-gateway</td>
+      <td><a href="docs/superpowers/plans/2026-07-10-add-chatgpt-oauth-auth.md">2026-07-10-add-chatgpt-oauth-auth.md</a></td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>Task 4.1: RED shared-schema tests for exactly-one message/pendingTurn/error and typed result/cancel submissions<br>Task 4.2-4.5: implement the reviewed pending-turn registry/client/controller and TS-owned approval/execution continuation with TDD<br>Require strict Task 4 implementation Review PASS and secret-canary evidence before provider adapter wiring</td>
+    </tr>
+<tr>
+      <td><strong>defer-anthropic-from-gate-c</strong></td>
+      <td><span class="badge badge-partial">partial</span></td>
+      <td>2026-07-09</td>
+      <td>provider-adapter</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>—</td>
+      <td>Gate C still requires OpenAI-compatible real matrix required rows to PASS (timeout/retry/terminal_error/cancellation gaps remain on Zhipu evidence)<br>Keep Anthropic real matrix deferred; do not delete AnthropicAdapter or fake tests<br>Archive defer-anthropic-from-gate-c only after Stage 0 closeout / user archive decision (contract alignment already applied)</td>
+    </tr>
+<tr>
       <td><strong>harden-agent-runtime-single-node-production</strong></td>
       <td><span class="badge badge-proposed">proposed</span></td>
       <td>2026-07-03</td>
@@ -494,7 +532,7 @@
       <td>—</td>
       <td>—</td>
       <td>—</td>
-      <td>Continue local-only Tasks 9-12 with fake Provider servers and real local Java sandbox/MCP processes<br>Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review<br>Do not begin production cutover, real credential tests, formal soak, or production promotion without their required human gates</td>
+      <td>Gate C required: complete OpenAI-compatible real matrix (3.1) — Zhipu evidence still blocked on timeout/retry/terminal_error/cancellation/reasoning gaps<br>Task 3.2 Anthropic real matrix is deferred/post-Gate-C and no longer blocks Gate C<br>Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review<br>Do not archive or promote Stage 0 until remaining production gates pass</td>
     </tr>
 <tr>
       <td><strong>add-runtime-progress-panel</strong></td>
@@ -902,6 +940,13 @@
       </div>
 
       <div class="tag-group">
+        <h3>anthropic</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> defer-anthropic-from-gate-c</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>api</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> add-p5c-memory-management-api</li>
@@ -919,6 +964,20 @@
         <h3>ask-user</h3>
         <ul>
           <li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>async-tool-bridge</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> add-chatgpt-oauth-auth</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>auth</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> add-chatgpt-oauth-auth</li>
         </ul>
       </div>
 
@@ -959,6 +1018,13 @@
         <h3>cache-stability</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> add-runtime-cache-stability</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>chatgpt</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> add-chatgpt-oauth-auth</li>
         </ul>
       </div>
 
@@ -1051,6 +1117,13 @@
 <li><span class="badge badge-archived">archived</span> add-subagent-trace-tree</li>
 <li><span class="badge badge-partial">partial</span> add-p2b-session-list</li>
 <li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>gate-c</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> defer-anthropic-from-gate-c</li>
         </ul>
       </div>
 
@@ -1157,11 +1230,32 @@
       </div>
 
       <div class="tag-group">
+        <h3>oauth</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> add-chatgpt-oauth-auth</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>observability</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> add-runtime-progress-panel</li>
 <li><span class="badge badge-archived">archived</span> add-subagent-trace-tree</li>
 <li><span class="badge badge-archived">archived</span> add-agent-definition-observability</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>openai</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> add-chatgpt-oauth-auth</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>operator-control</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> add-chatgpt-oauth-auth</li>
         </ul>
       </div>
 
@@ -1236,7 +1330,8 @@
       <div class="tag-group">
         <h3>production-readiness</h3>
         <ul>
-          <li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
+          <li><span class="badge badge-partial">partial</span> defer-anthropic-from-gate-c</li>
+<li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
         </ul>
       </div>
 
@@ -1272,8 +1367,17 @@
       <div class="tag-group">
         <h3>provider-adapter</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
+          <li><span class="badge badge-proposed">proposed</span> add-chatgpt-oauth-auth</li>
+<li><span class="badge badge-partial">partial</span> defer-anthropic-from-gate-c</li>
+<li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
 <li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>qualification</h3>
+        <ul>
+          <li><span class="badge badge-partial">partial</span> defer-anthropic-from-gate-c</li>
         </ul>
       </div>
 
@@ -1329,7 +1433,8 @@
       <div class="tag-group">
         <h3>security</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
+          <li><span class="badge badge-proposed">proposed</span> add-chatgpt-oauth-auth</li>
+<li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
 <li><span class="badge badge-partial">partial</span> add-p3c-policy-mcp-aware</li>
 <li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
         </ul>
@@ -1490,9 +1595,16 @@
 
   <section id="next">
     <h2>Next Work Queue</h2>
-    <h3>推荐下一步</h3><ul><li>Continue local-only Tasks 9-12 with fake Provider servers and real local Java sandbox/MCP processes <em>(from harden-agent-runtime-single-node-production)</em></li>
+    <h3>推荐下一步</h3><ul><li>Task 4.1: RED shared-schema tests for exactly-one message/pendingTurn/error and typed result/cancel submissions <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Task 4.2-4.5: implement the reviewed pending-turn registry/client/controller and TS-owned approval/execution continuation with TDD <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Require strict Task 4 implementation Review PASS and secret-canary evidence before provider adapter wiring <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Gate C still requires OpenAI-compatible real matrix required rows to PASS (timeout/retry/terminal_error/cancellation gaps remain on Zhipu evidence) <em>(from defer-anthropic-from-gate-c)</em></li>
+<li>Keep Anthropic real matrix deferred; do not delete AnthropicAdapter or fake tests <em>(from defer-anthropic-from-gate-c)</em></li>
+<li>Archive defer-anthropic-from-gate-c only after Stage 0 closeout / user archive decision (contract alignment already applied) <em>(from defer-anthropic-from-gate-c)</em></li>
+<li>Gate C required: complete OpenAI-compatible real matrix (3.1) — Zhipu evidence still blocked on timeout/retry/terminal_error/cancellation/reasoning gaps <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>Task 3.2 Anthropic real matrix is deferred/post-Gate-C and no longer blocks Gate C <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review <em>(from harden-agent-runtime-single-node-production)</em></li>
-<li>Do not begin production cutover, real credential tests, formal soak, or production promotion without their required human gates <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>Do not archive or promote Stage 0 until remaining production gates pass <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>真实 Java Gateway 联调与 trace tree 视图优化 <em>(from add-subagent-dispatcher)</em></li>
 <li>按独立 OpenSpec 评估子智能体系统级隔离能力 <em>(from add-subagent-dispatcher)</em></li>
 <li>如需更细粒度成本归因，扩展 token usage 聚合契约 <em>(from add-subagent-dispatcher)</em></li>
@@ -1550,7 +1662,16 @@
 <li>Add dynamic MCP-tool permission configurations <em>(from add-p3d-injection-guard)</em></li>
 <li>Operator budgets and daily rate limits enforcement <em>(from add-p3b-cost-and-router)</em></li>
 <li>Logical intent based logical routing mappings <em>(from add-p3b-cost-and-router)</em></li></ul>
-    <h3>暂不建议</h3><ul><li>Multi-node high availability or PostgreSQL deployment <em>(from harden-agent-runtime-single-node-production)</em></li>
+    <h3>暂不建议</h3><ul><li>Full OpenClaw Codex app-server harness parity in v1 <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Anthropic Claude CLI / setup-token reuse <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Platform multi-tenant end-user login UI <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Silent default import of ~/.codex as the only auth path <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Using ChatGPT OAuth to satisfy Anthropic qualification rows <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Deleting AnthropicAdapter or local/fake Anthropic tests <em>(from defer-anthropic-from-gate-c)</em></li>
+<li>Treating Zhipu success as Anthropic qualification <em>(from defer-anthropic-from-gate-c)</em></li>
+<li>Auto-closing Gate C without OpenAI-compatible real matrix PASS <em>(from defer-anthropic-from-gate-c)</em></li>
+<li>ChatGPT OAuth implementation (sibling change add-chatgpt-oauth-auth) <em>(from defer-anthropic-from-gate-c)</em></li>
+<li>Multi-node high availability or PostgreSQL deployment <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>User login, tenant administration, browser sessions, or platform UI <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>Model configuration UI or provider credentials in TypeScript Runtime/Frontend <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>SDK or Agent Definition management UI <em>(from harden-agent-runtime-single-node-production)</em></li>
