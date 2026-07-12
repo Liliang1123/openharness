@@ -131,6 +131,10 @@ export function evaluateRuntimeBaselineSamples(
   }
 
   for (const metric of resourceGrowthMetrics()) {
+    const formalFailureCode = metric === "rssBytes"
+      ? "RSS_MEDIAN_GROWTH_LIMIT_EXCEEDED"
+      : "FD_MEDIAN_GROWTH_LIMIT_EXCEEDED";
+    if (failures.has(formalFailureCode)) continue;
     if (hasResourceGrowthBreach(samples, metric)) {
       failures.set(`RESOURCE_GROWTH_BREACH:${metric}`, {
         code: "RESOURCE_GROWTH_BREACH",
