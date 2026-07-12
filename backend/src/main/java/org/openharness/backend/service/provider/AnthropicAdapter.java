@@ -42,7 +42,11 @@ public class AnthropicAdapter implements ProviderAdapter {
       boolean stream = request.stream();
       Map<String, Object> body = new LinkedHashMap<>();
       body.put("model", request.model());
-      body.put("max_tokens", 4096);
+      long maxTokens = 4096;
+      if (request.meta() != null && request.meta().get("maxOutputTokens") instanceof Number configuredMax) {
+        maxTokens = configuredMax.longValue();
+      }
+      body.put("max_tokens", maxTokens);
       if (systemPrompt != null) body.put("system", systemPrompt);
       body.put("messages", messages);
       if (!tools.isEmpty()) body.put("tools", tools);
@@ -65,6 +69,16 @@ public class AnthropicAdapter implements ProviderAdapter {
       }
 
       AnthropicResponse response = objectMapper.readValue(httpResponse.body(), AnthropicResponse.class);
+      Map<String, Object> rawUsage = new LinkedHashMap<>();
+      AnthropicUsage providerUsage = response.usage();
+      rawUsage.put("promptTokens", (long) (providerUsage == null ? 0 : providerUsage.inputTokens()));
+      rawUsage.put("completionTokens", (long) (providerUsage == null ? 0 : providerUsage.outputTokens()));
+      rawUsage.put("cacheReadInputTokens", providerUsage == null || providerUsage.cacheReadInputTokens() == null
+          ? 0L : providerUsage.cacheReadInputTokens().longValue());
+      rawUsage.put("cacheCreationInputTokens", providerUsage == null || providerUsage.cacheCreationInputTokens() == null
+          ? 0L : providerUsage.cacheCreationInputTokens().longValue());
+      org.openharness.backend.qualification.QualificationExchangeCapture.merge(request.requestId(), Map.of(
+          "status", "http-200", "protocol", API_VERSION, "rawProviderUsage", rawUsage));
       return toModelChatResponse(request, response, config.name());
 
     } catch (ProviderUnavailableException e) {
@@ -249,7 +263,7 @@ public class AnthropicAdapter implements ProviderAdapter {
           HttpResponse<java.io.InputStream> httpResponse = http.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
           if (httpResponse.statusCode() != 503) {
             if (httpResponse.statusCode() == 200) {
-              String mergedBody = mergeAnthropicStream(httpResponse.body());
+              String mergedBody = mergeAnthropicStream(requestId, httpResponse.body());
               return new SimpleHttpResponse<>(200, mergedBody);
             } else {
               String errBody = new String(httpResponse.body().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
@@ -285,7 +299,7 @@ public class AnthropicAdapter implements ProviderAdapter {
     throw new ProviderUnavailableException("Anthropic returned 503 after 3 retries");
   }
 
-  private String mergeAnthropicStream(java.io.InputStream is) throws Exception {
+  private String mergeAnthropicStream(String requestId, java.io.InputStream is) throws Exception {
     java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8));
     StringBuilder textContent = new StringBuilder();
     Map<Integer, Map<String, Object>> contentBlocks = new java.util.TreeMap<>();
@@ -295,6 +309,7 @@ public class AnthropicAdapter implements ProviderAdapter {
     Integer cacheWriteTokens = null;
     String stopReason = null;
     boolean doneReceived = false;
+    int deltaCount = 0;
 
     String line;
     while ((line = reader.readLine()) != null) {
@@ -341,7 +356,7 @@ public class AnthropicAdapter implements ProviderAdapter {
               String deltaType = (String) delta.get("type");
               if ("text_delta".equals(deltaType)) {
                 StringBuilder sb = (StringBuilder) block.get("text");
-                if (sb != null) sb.append(delta.get("text"));
+                if (sb != null) { sb.append(delta.get("text")); deltaCount++; }
               } else if ("thinking_delta".equals(deltaType)) {
                 StringBuilder sb = (StringBuilder) block.get("thinking");
                 if (sb != null) sb.append(delta.get("thinking"));
@@ -371,6 +386,10 @@ public class AnthropicAdapter implements ProviderAdapter {
     if (!doneReceived) {
       throw new RuntimeException("Stream terminated unexpectedly without message_stop marker");
     }
+    org.openharness.backend.qualification.QualificationExchangeCapture.merge(requestId, Map.of(
+        "streamParser", "anthropic-sse", "parserRequestId", requestId,
+        "parserStreamEvents", List.of("stream-start", "delta", "stream-end"),
+        "streamDeltaCount", deltaCount, "streamMergeComplete", true));
 
     Map<String, Object> responseMap = new java.util.HashMap<>();
     responseMap.put("id", "msg-stream");

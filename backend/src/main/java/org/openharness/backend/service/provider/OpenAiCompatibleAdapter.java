@@ -45,6 +45,9 @@ public class OpenAiCompatibleAdapter implements ProviderAdapter {
       Map<String, Object> body = new java.util.HashMap<>();
       body.put("model", modelName);
       body.put("messages", messages);
+      if (request.meta() != null && request.meta().get("maxOutputTokens") instanceof Number maxOutputTokens) {
+        body.put("max_tokens", maxOutputTokens.longValue());
+      }
       if (stream) {
         body.put("stream", true);
       }
@@ -91,6 +94,11 @@ public class OpenAiCompatibleAdapter implements ProviderAdapter {
       }
 
       OaiUsage u = response.usage();
+      Map<String, Object> rawUsage = new LinkedHashMap<>();
+      rawUsage.put("promptTokens", (long) (u == null ? 0 : u.promptTokens()));
+      rawUsage.put("completionTokens", (long) (u == null ? 0 : u.completionTokens()));
+      org.openharness.backend.qualification.QualificationExchangeCapture.merge(request.requestId(), Map.of(
+          "status", "http-200", "protocol", "openai-chat-completions", "rawProviderUsage", rawUsage));
       Usage usage = u != null
           ? new Usage(u.promptTokens(), u.completionTokens(), u.totalTokens(), null, null, false, null)
           : new Usage(0, 0, 0, null, null, false, null);
@@ -151,7 +159,7 @@ public class OpenAiCompatibleAdapter implements ProviderAdapter {
           HttpResponse<java.io.InputStream> httpResponse = http.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
           if (httpResponse.statusCode() != 503) {
             if (httpResponse.statusCode() == 200) {
-              String mergedBody = mergeOpenAiStream(httpResponse.body());
+              String mergedBody = mergeOpenAiStream(requestId, httpResponse.body());
               return new SimpleHttpResponse<>(200, mergedBody);
             } else {
               String errBody = new String(httpResponse.body().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
@@ -187,13 +195,14 @@ public class OpenAiCompatibleAdapter implements ProviderAdapter {
     throw new ProviderUnavailableException("Provider returned 503 after 3 retries");
   }
 
-  private String mergeOpenAiStream(java.io.InputStream is) throws Exception {
+  private String mergeOpenAiStream(String requestId, java.io.InputStream is) throws Exception {
     java.io.BufferedReader reader = new java.io.BufferedReader(new java.io.InputStreamReader(is, java.nio.charset.StandardCharsets.UTF_8));
     StringBuilder contentBuilder = new StringBuilder();
     List<OaiStreamToolCall> toolCalls = new ArrayList<>();
     OaiUsage usage = null;
     String line;
     boolean doneReceived = false;
+    int deltaCount = 0;
     while ((line = reader.readLine()) != null) {
       line = line.trim();
       if (line.isEmpty() || !line.startsWith("data:")) continue;
@@ -213,6 +222,7 @@ public class OpenAiCompatibleAdapter implements ProviderAdapter {
           if (delta != null) {
             if (delta.content() != null) {
               contentBuilder.append(delta.content());
+              deltaCount++;
             }
             if (delta.toolCalls() != null) {
               for (OaiStreamToolCall tc : delta.toolCalls()) {
@@ -247,6 +257,10 @@ public class OpenAiCompatibleAdapter implements ProviderAdapter {
     if (!doneReceived) {
       throw new RuntimeException("Stream terminated unexpectedly without [DONE] marker");
     }
+    org.openharness.backend.qualification.QualificationExchangeCapture.merge(requestId, Map.of(
+        "streamParser", "openai-sse", "parserRequestId", requestId,
+        "parserStreamEvents", List.of("stream-start", "delta", "stream-end"),
+        "streamDeltaCount", deltaCount, "streamMergeComplete", true));
 
     Map<String, Object> responseMap = new java.util.HashMap<>();
     Map<String, Object> messageMap = new java.util.HashMap<>();

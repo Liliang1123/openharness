@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openharness.backend.model.Contracts.AgentMessage;
 import org.openharness.backend.model.Contracts.ModelChatRequest;
+import org.openharness.backend.model.Contracts.ModelChatResponse;
 import org.openharness.backend.service.provider.AnthropicAdapter;
 import org.openharness.backend.service.provider.ProviderConfig;
 
@@ -150,6 +151,46 @@ class AnthropicFakeProviderMatrixTest {
       });
     } finally {
       slowServer.stop(0);
+    }
+  }
+
+  @Test
+  void capturesRawProviderAndCacheUsageBeforeAdapterComparison() {
+    AnthropicAdapter adapter = new AnthropicAdapter();
+    ProviderConfig config = new ProviderConfig("fake-anthropic", "anthropic",
+        "http://127.0.0.1:" + server.getAddress().getPort(), "fake-key", List.of("matrix-sync"), Map.of());
+    ModelChatRequest request = new ModelChatRequest("req-raw-usage", "conv-local", "user-local", "tenant-local",
+        "matrix-sync", false, List.of(new AgentMessage("user", "hello", null, null, null, null, null, null,
+        null, null, null, null, null)), List.of(), Map.of());
+
+    try (QualificationExchangeCapture.Capture ignored = QualificationExchangeCapture.beginCapture()) {
+      ModelChatResponse response = adapter.chat(request, config);
+      Map<String, Object> capture = QualificationExchangeCapture.consume(request.requestId());
+      Map<?, ?> rawUsage = (Map<?, ?>) capture.get("rawProviderUsage");
+      assertThat(rawUsage.get("promptTokens")).isEqualTo(9L);
+      assertThat(rawUsage.get("completionTokens")).isEqualTo(4L);
+      assertThat(rawUsage.get("cacheReadInputTokens")).isEqualTo(2L);
+      assertThat(rawUsage.get("cacheCreationInputTokens")).isEqualTo(1L);
+      assertThat(response.usage().promptTokens()).isEqualTo(9);
+      assertThat(response.usage().cacheReadTokens()).isEqualTo(2);
+    }
+  }
+
+  @Test
+  void streamCaptureComesFromActualSseParserEvents() {
+    AnthropicAdapter adapter = new AnthropicAdapter();
+    ProviderConfig config = new ProviderConfig("fake-anthropic", "anthropic",
+        "http://127.0.0.1:" + server.getAddress().getPort(), "fake-key", List.of("matrix-stream"), Map.of());
+    ModelChatRequest request = new ModelChatRequest("req-stream-capture", "conv-local", "user-local", "tenant-local",
+        "matrix-stream", true, List.of(new AgentMessage("user", "hello", null, null, null, null, null, null,
+        null, null, null, null, null)), List.of(), Map.of());
+    try (QualificationExchangeCapture.Capture ignored = QualificationExchangeCapture.beginCapture()) {
+      adapter.chat(request, config);
+      Map<String, Object> capture = QualificationExchangeCapture.consume(request.requestId());
+      assertThat(capture.get("parserStreamEvents")).isEqualTo(List.of("stream-start", "delta", "stream-end"));
+      assertThat(capture.get("parserRequestId")).isEqualTo(request.requestId());
+      assertThat(((Number) capture.get("streamDeltaCount")).intValue()).isPositive();
+      assertThat(capture.get("streamMergeComplete")).isEqualTo(true);
     }
   }
 
