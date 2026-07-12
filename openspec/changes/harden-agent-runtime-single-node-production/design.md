@@ -2,7 +2,7 @@
 
 Agent Runtime 已具备完整 MVP 能力，但 durable lifecycle state 分散在 JSON 与进程内 store。平台能力继续扩展前，必须先形成可恢复、可审计、可压测的单机生产 v1。
 
-已批准产品边界：同时验收 OpenAI-compatible 与 Anthropic；同时验收 Java sandbox 与 MCP；SQLite 为唯一持久化权威；Runtime 仅作为私有服务；容量门禁为 20 concurrent executions、10,000 conversations、24-hour soak。
+已批准产品边界：Gate C 真实 Provider **必选** OpenAI-compatible；Anthropic 真实矩阵 **后置（deferred / post-Gate-C，2026-07-09 批准 `defer-anthropic-from-gate-c`）**，缺 Anthropic key 不得单独阻塞 Gate C；同时验收 Java sandbox 与 MCP；SQLite 为唯一持久化权威；Runtime 仅作为私有服务；容量门禁为 20 concurrent executions、10,000 conversations、24-hour soak。
 
 ## Goals / Non-Goals
 
@@ -86,7 +86,9 @@ Performance/resource gate：Runtime admission p95 ≤100ms、durable replay p95 
 
 ### Providers
 
-OpenAI-compatible 固定为 Chat Completions-compatible endpoint 与记录的 API/model version；Anthropic 固定为 Messages API 与记录的 `anthropic-version`。两者分别覆盖 sync、stream、single/multi-step tool calls、structured arguments、reasoning（能力支持时必须验证，否则该 model 不合格）、usage token 对账（provider response 精确相等）、cost 按配置公式精确复算、503 retry、timeout、cancel、terminal error 与 redaction。
+OpenAI-compatible 固定为 Chat Completions-compatible endpoint 与记录的 API/model version，是 **Gate C 必选** 真实 Provider family：覆盖 sync、stream、single/multi-step tool calls、structured arguments、reasoning（能力支持时必须验证，否则该 model 不合格）、usage token 对账（provider response 精确相等）、cost 按配置公式精确复算、503 retry、timeout、cancel、terminal error 与 redaction。缺 OpenAI-compatible 凭证或任一 required row FAIL/BLOCKED 时 Gate C 不得 PASS。
+
+Anthropic 固定为 Messages API 与记录的 `anthropic-version`，能力矩阵口径与上相同，但真实 credential matrix 为 **deferred / post-Gate-C**：可继续跑 local/fake Anthropic 证据；缺 Anthropic 凭证不得单独将 Gate C 判为 blocked。OpenAI-compatible 成功不得推断 Anthropic 已 production-qualified；Anthropic 仅在后续独立真实矩阵 PASS 后才可额外晋升。
 
 ### Tools
 

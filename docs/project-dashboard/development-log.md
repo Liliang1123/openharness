@@ -1,13 +1,13 @@
 # openharness — 开发导航台
 
 > 自动生成，请勿直接编辑。数据源：`development-log.json`  
-> 最后更新：2026-07-03
+> 最后更新：2026-07-11
 
 ## Timeline
 
 ### 2026-07-03
 
-- 📋 proposed **harden-agent-runtime-single-node-production** — 将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：以 SQLite 统一持久化和崩溃恢复；先完成 fake Provider、真实本地 Java 沙箱与 MCP 的 local_verified 全链路，再以独立生产证据完成真实 Provider、迁移和 24 小时 soak 门禁。
+- 📋 proposed **harden-agent-runtime-single-node-production** — 将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：SQLite 持久化与恢复、真实 Provider/工具及容量门禁仍按生产证据闭环；24 小时本地 database/sampler baseline 已达 local_verified，但不证明并发 Runtime workload/TS 进程重启，也不关闭 Gate D。
 
 ### 2026-06-29
 
@@ -500,9 +500,9 @@
 
 ### 推荐下一步
 
-- Continue local-only Tasks 9-12 with fake Provider servers and real local Java sandbox/MCP processes _(from harden-agent-runtime-single-node-production)_
 - Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review _(from harden-agent-runtime-single-node-production)_
-- Do not begin production cutover, real credential tests, formal soak, or production promotion without their required human gates _(from harden-agent-runtime-single-node-production)_
+- Complete Gate C required real OpenAI-compatible Provider rows and retain Anthropic as deferred / post-Gate-C _(from harden-agent-runtime-single-node-production)_
+- Keep Gate D pending until a production-track formal report with start approval/preflight evidence and explicit post-result human promotion approval passes review _(from harden-agent-runtime-single-node-production)_
 - 真实 Java Gateway 联调与 trace tree 视图优化 _(from add-subagent-dispatcher)_
 - 按独立 OpenSpec 评估子智能体系统级隔离能力 _(from add-subagent-dispatcher)_
 - 如需更细粒度成本归因，扩展 token usage 聚合契约 _(from add-subagent-dispatcher)_

@@ -23,9 +23,10 @@ The current durable state is split between JSON and in-memory stores, interrupte
 
 ### Real provider and tool qualification
 
-- Qualify OpenAI-compatible and Anthropic provider paths through the Java Gateway.
+- Qualify the **OpenAI-compatible** provider path through the Java Gateway as the **Gate C required** real-provider family.
+- Anthropic Messages real-provider qualification is **deferred / post-Gate-C** (approved 2026-07-09 via `defer-anthropic-from-gate-c`); missing Anthropic credentials MUST NOT block Gate C. Anthropic adapter and local/fake matrices remain in-tree supporting evidence.
 - Qualify both Java sandbox protocol tools and MCP external tools through real multi-step Runtime executions.
-- Verify usage/cost, reasoning preservation, retries, timeouts, cancellation, approval policy, provenance, and secret redaction.
+- Verify usage/cost, reasoning preservation, retries, timeouts, cancellation, approval policy, provenance, and secret redaction on required families.
 
 ### Single-node release gate
 
@@ -48,7 +49,7 @@ The current durable state is split between JSON and in-memory stores, interrupte
 - `shared-schema`: add `EXECUTION_INTERRUPTED` to eval/recovery terminal reason contracts while preserving existing values.
 - `message-history`: SQLite stable-message persistence and JSON import semantics.
 - `long-term-memory`: SQLite memory fact persistence and scope isolation.
-- `provider-adapter`: auditable real OpenAI-compatible/Anthropic qualification and credential redaction.
+- `provider-adapter`: auditable real OpenAI-compatible Gate C qualification, deferred Anthropic real matrix, and credential redaction.
 - `mcp-tools`: auditable real MCP lifecycle and tool-call qualification.
 - `backend-gateway`: real sandbox-tool qualification requirements.
 
