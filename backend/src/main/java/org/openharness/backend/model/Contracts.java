@@ -78,6 +78,10 @@ public final class Contracts {
       String rawProvider,
       StructuredError error) {}
 
+  public record ModelCancelRequest(String requestId) {}
+
+  public record ModelCancelResponse(String requestId, boolean cancelled) {}
+
   public record ToolCallRequest(
       String requestId,
       String conversationId,

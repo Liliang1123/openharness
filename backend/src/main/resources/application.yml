@@ -17,6 +17,7 @@ openharness:
     default: zhipu
     routes:
       default: zhipu
+      glm-4.7-flash: zhipu
       glm-4-flash: zhipu
       SenseChat-5: sensenova
       claude-sonnet-4-20250514: anthropic
@@ -27,9 +28,13 @@ openharness:
       base-url: https://open.bigmodel.cn/api/paas/v4
       api-key: ${ZHIPU_API_KEY:${SENSENOVA_API_KEY:REPLACE_ME}}
       models:
+        - glm-4.7-flash
         - glm-4-flash
         - default
       pricing:
+        glm-4.7-flash:
+          input-per-mtoken: 0
+          output-per-mtoken: 0
         glm-4-flash:
           input-per-mtoken: 100
           output-per-mtoken: 300

@@ -1,0 +1,221 @@
+{
+  "track" : "local",
+  "generatedAt" : "2026-07-09T15:07:43.994353Z",
+  "result" : "local_verified",
+  "rows" : [ {
+    "id" : "openai-sync",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server",
+      "providerFamily" : "openai-compatible",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "sync" ],
+    "requestHash" : "a5054b175c3155371b8985fd2dca679d089b42e692084b480fa6a43f3d6c1fc3",
+    "observed" : {
+      "content" : "ok"
+    },
+    "oracle" : {
+      "content" : "ok"
+    },
+    "durationMs" : 71,
+    "result" : "pass"
+  }, {
+    "id" : "openai-exact-usage",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server",
+      "providerFamily" : "openai-compatible",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "usage" ],
+    "requestHash" : "9d54615231af96369a9d2a9bafdf89ade2ff49b327f63d16891318c06e3631c5",
+    "observed" : {
+      "promptTokens" : 7,
+      "completionTokens" : 3,
+      "totalTokens" : 10
+    },
+    "oracle" : {
+      "completionTokens" : 3,
+      "totalTokens" : 10,
+      "promptTokens" : 7
+    },
+    "durationMs" : 2,
+    "result" : "pass"
+  }, {
+    "id" : "openai-structured-tool",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server",
+      "providerFamily" : "openai-compatible",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "tool_calls" ],
+    "requestHash" : "9057d041f79ea62722a955e0be17fab5fbe96fe56aa755b44f4d8cbe4aca82c7",
+    "observed" : {
+      "arguments" : {
+        "id" : 1
+      }
+    },
+    "oracle" : {
+      "arguments" : {
+        "id" : 1
+      }
+    },
+    "durationMs" : 7,
+    "result" : "pass"
+  }, {
+    "id" : "openai-503-retry",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server",
+      "providerFamily" : "openai-compatible",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "retry" ],
+    "requestHash" : "f3082001ec834caa8fb177d632203ef0c28cb6c2d36063c3938bcbff6263951f",
+    "observed" : {
+      "attempts" : 2,
+      "providerHitCount" : 2,
+      "firstStatus" : 503,
+      "terminalStatus" : 200
+    },
+    "oracle" : {
+      "attempts" : 2
+    },
+    "durationMs" : 209,
+    "result" : "pass"
+  }, {
+    "id" : "openai-terminal-error",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server",
+      "providerFamily" : "openai-compatible",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "terminal_error" ],
+    "requestHash" : "182a79ab0c4fe576ac49fa1ec1ef0c6f9468e66b6c24aa7e7b16148774af76bc",
+    "observed" : {
+      "status" : 400,
+      "terminalErrorClass" : "Provider error 400"
+    },
+    "oracle" : {
+      "status" : 400
+    },
+    "durationMs" : 2,
+    "result" : "pass"
+  }, {
+    "id" : "openai-stream",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server",
+      "providerFamily" : "openai-compatible",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "stream" ],
+    "requestHash" : "55b539c7d9ebb29b291a4c941bc3e07c1c90204aa74e2b531b20cd0119f82f6f",
+    "observed" : {
+      "content" : "ok"
+    },
+    "oracle" : {
+      "stream" : true
+    },
+    "durationMs" : 9,
+    "result" : "pass"
+  }, {
+    "id" : "openai-timeout",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server",
+      "providerFamily" : "openai-compatible",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "timeout" ],
+    "requestHash" : "d7a14f5d88323368ad2c363d502a632646862093103d2e2c4eb4948f781402a7",
+    "observed" : {
+      "timeoutMs" : 100
+    },
+    "oracle" : {
+      "bounded" : true
+    },
+    "durationMs" : 102,
+    "result" : "pass"
+  }, {
+    "id" : "openai-cancellation",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server",
+      "providerFamily" : "openai-compatible",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "cancellation" ],
+    "requestHash" : "8033958030d4a21aa7e6055f3b2e9ae374c1ad219ee6c1f75f447f1c75622c14",
+    "observed" : {
+      "cancelled" : true,
+      "interruptedCaught" : true,
+      "threadCompleted" : true
+    },
+    "oracle" : {
+      "cancel" : true
+    },
+    "durationMs" : 107,
+    "result" : "pass"
+  }, {
+    "id" : "openai-reasoning",
+    "required" : true,
+    "track" : "local",
+    "environment" : {
+      "transport" : "loopback-fake-server",
+      "providerFamily" : "openai-compatible",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "reasoning" ],
+    "requestHash" : "1bc7fa99c5062ee9f3dfe61dfa711eedda6abbcf151e8dd75cddc69fed0d44a3",
+    "observed" : {
+      "reasoningBlocks" : [ {
+        "text" : "thinking process",
+        "type" : "thinking"
+      } ]
+    },
+    "oracle" : {
+      "preserved" : true
+    },
+    "durationMs" : 1299,
+    "result" : "pass"
+  } ]
+}

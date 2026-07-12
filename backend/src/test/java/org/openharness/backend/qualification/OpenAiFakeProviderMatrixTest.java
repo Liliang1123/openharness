@@ -5,14 +5,22 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
+import java.net.URI;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.openharness.backend.model.Contracts.AgentMessage;
 import org.openharness.backend.model.Contracts.ModelChatRequest;
 import org.openharness.backend.service.provider.OpenAiCompatibleAdapter;
@@ -21,6 +29,8 @@ import org.openharness.backend.service.provider.ProviderConfig;
 class OpenAiFakeProviderMatrixTest {
   private HttpServer server;
   private final AtomicInteger retryAttempts = new AtomicInteger();
+  @TempDir
+  Path tempDir;
 
   @BeforeEach
   void startServer() throws IOException {
@@ -110,6 +120,283 @@ class OpenAiFakeProviderMatrixTest {
   }
 
   @Test
+  void formalLocalHarnessExposesAuditableFakeRetryTerminalAndCancellationEvidence() throws Exception {
+    OpenAiCompatibleFormalMatrix matrix = new OpenAiCompatibleFormalMatrix();
+
+    Map<String, Object> report = matrix.runLocalFixture("fake-key");
+
+    QualificationReportPromoter.promoteReport(
+        tempDir,
+        "formal-local.json",
+        report,
+        new QualificationReportPromoter.PromotionOptions(false, Map.of(), null));
+
+    assertThat(report.get("track")).isEqualTo("local");
+    assertThat(report.get("result")).isEqualTo("local_verified");
+    Map<String, Map<String, Object>> rows = rowsById(report);
+
+    Map<String, Object> retryObserved = observed(rows.get("openai-503-retry"));
+    assertThat(retryObserved)
+        .containsEntry("attempts", 2)
+        .containsEntry("providerHitCount", 2)
+        .containsEntry("firstStatus", 503)
+        .containsEntry("terminalStatus", 200);
+
+    Map<String, Object> terminalObserved = observed(rows.get("openai-terminal-error"));
+    assertThat(terminalObserved)
+        .containsEntry("status", 400)
+        .containsEntry("terminalErrorClass", "Provider error 400");
+
+    Map<String, Object> cancellationObserved = observed(rows.get("openai-cancellation"));
+    assertThat(cancellationObserved)
+        .containsEntry("cancelled", true)
+        .containsEntry("interruptedCaught", true)
+        .containsEntry("threadCompleted", true);
+
+    assertThat(report.toString()).doesNotContain("fake-key");
+  }
+
+  @Test
+  void formalProductionHarnessBlocksUnsafeRealInjectionRowsWithoutMockPass() throws Exception {
+    List<String> requestBodies = new ArrayList<>();
+    HttpServer backendServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    backendServer.createContext("/api/v1/model/chat", exchange -> {
+      String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+      requestBodies.add(body);
+
+      String authorization = exchange.getRequestHeaders().getFirst("Authorization");
+      int status = "Bearer service-token".equals(authorization) ? 200 : 401;
+      String response;
+      if (status == 401) {
+        response = "{\"error\":{\"errorClass\":\"AUTH_SERVICE_TOKEN_INVALID\",\"httpStatus\":401}}";
+      } else if (body.contains("req-production-timeout")) {
+        response = modelResponse(null, 0, 0, 0,
+            "\"error\":{\"errorClass\":\"PROVIDER_TIMEOUT\",\"errorMessage\":\"Provider timed out.\",\"retriable\":true,\"retryOwner\":\"java\",\"maxRetries\":1,\"fallbackAllowed\":true,\"httpStatus\":504,\"recoveryHint\":null}");
+      } else if (body.contains("lookup")) {
+        response = modelResponse(
+            "\"message\":{\"role\":\"assistant\",\"content\":\"\",\"toolCalls\":[{\"id\":\"call-1\",\"name\":\"lookup\",\"argumentsRaw\":\"{\\\"id\\\":1}\"}]}",
+            7, 3, 10,
+            "\"error\":null");
+      } else {
+        response = modelResponse(
+            "\"message\":{\"role\":\"assistant\",\"content\":\"ok\"}",
+            7, 3, 10,
+            "\"error\":null");
+      }
+
+      byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(status, bytes.length);
+      exchange.getResponseBody().write(bytes);
+      exchange.close();
+    });
+    backendServer.start();
+
+    try {
+      OpenAiCompatibleFormalMatrix matrix = new OpenAiCompatibleFormalMatrix();
+      Map<String, Object> report = matrix.runProduction(new OpenAiCompatibleFormalMatrix.ProductionOptions(
+          URI.create("http://127.0.0.1:" + backendServer.getAddress().getPort()),
+          "service-token",
+          "glm-4-flash",
+          "zhipu",
+          false,
+          Map.of("providerType", "openai-compatible", "rawProvider", "zhipu"),
+          null,
+          null,
+          null));
+
+      QualificationReportPromoter.promoteReport(
+          tempDir,
+          "formal-production.json",
+          report,
+          new QualificationReportPromoter.PromotionOptions(false, Map.of(), null));
+
+      assertThat(report.get("track")).isEqualTo("production");
+      assertThat(report.get("result")).isEqualTo("blocked");
+      assertThat(requestBodies).hasSize(6);
+
+      Map<String, Map<String, Object>> rows = rowsById(report);
+      assertThat(rows.get("openai-zhipu-timeout").get("result")).isEqualTo("pass");
+      assertThat(observed(rows.get("openai-zhipu-timeout")))
+          .containsEntry("errorClass", "PROVIDER_TIMEOUT")
+          .containsEntry("structuredStatus", 504)
+          .containsEntry("timeoutSeen", true);
+
+      assertBlockedWithoutSending(rows.get("openai-zhipu-retry"));
+      assertBlockedWithoutSending(rows.get("openai-zhipu-terminal-error"));
+      assertThat(observed(rows.get("openai-zhipu-cancellation")).get("requestSent")).isEqualTo(true);
+      assertThat(observed(rows.get("openai-zhipu-cancellation"))).containsKey("blockedReason");
+      assertThat(observed(rows.get("openai-zhipu-cancellation")).get("cancelRequestSent")).isIn(false, true);
+
+      assertThat(report.toString()).doesNotContain("service-token");
+    } finally {
+      backendServer.stop(0);
+    }
+  }
+
+  @Test
+  void formalProductionHarnessPassesCancellationRowWhenBackendProvidesPublicCancelEndpoint() throws Exception {
+    AtomicBoolean cancelRequested = new AtomicBoolean(false);
+    HttpServer backendServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    backendServer.createContext("/api/v1/model/chat", exchange -> {
+      String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+      String response;
+      if (body.contains("req-production-cancellation")) {
+        int waits = 0;
+        while (!cancelRequested.get() && waits < 40) {
+          try {
+            Thread.sleep(30);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            break;
+          }
+          waits++;
+        }
+        if (cancelRequested.get()) {
+          response = modelResponse(
+              "\"message\":{\"role\":\"assistant\",\"content\":\"ok\"}",
+              0,
+              0,
+              0,
+              "\"error\":{\"errorClass\":\"PROVIDER_CANCELLED\",\"errorMessage\":\"Model request cancelled.\",\"retriable\":false,\"retryOwner\":\"none\",\"maxRetries\":0,\"fallbackAllowed\":false,\"httpStatus\":409}");
+        } else {
+          response = modelResponse(
+              "\"message\":{\"role\":\"assistant\",\"content\":\"ok\"}",
+              0,
+              0,
+              0,
+              "\"error\":null");
+        }
+      } else if (body.contains("lookup")) {
+        response = modelResponse(
+            "\"message\":{\"role\":\"assistant\",\"content\":\"\",\"toolCalls\":[{\"id\":\"call-1\",\"name\":\"lookup\",\"argumentsRaw\":\"{\\\"id\\\":1}\"}]}",
+            7, 3, 10,
+            "\"error\":null");
+      } else {
+        response = modelResponse(
+            "\"message\":{\"role\":\"assistant\",\"content\":\"ok\"}",
+            7, 3, 10,
+            "\"error\":null");
+      }
+      byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(200, bytes.length);
+      exchange.getResponseBody().write(bytes);
+      exchange.close();
+    });
+    backendServer.createContext("/api/v1/model/cancel", exchange -> {
+      String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+      if (!body.contains("req-production-cancellation")) {
+        exchange.sendResponseHeaders(400, 0);
+        exchange.close();
+        return;
+      }
+      cancelRequested.set(true);
+      String response = "{\"requestId\":\"req-production-cancellation\",\"cancelled\":true}";
+      byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(200, bytes.length);
+      exchange.getResponseBody().write(bytes);
+      exchange.close();
+    });
+    backendServer.setExecutor(Executors.newCachedThreadPool());
+    backendServer.start();
+
+    try {
+      OpenAiCompatibleFormalMatrix matrix = new OpenAiCompatibleFormalMatrix();
+      Map<String, Object> report = matrix.runProduction(new OpenAiCompatibleFormalMatrix.ProductionOptions(
+          URI.create("http://127.0.0.1:" + backendServer.getAddress().getPort()),
+          "service-token",
+          "glm-4-flash",
+          "zhipu",
+          false,
+          Map.of("providerType", "openai-compatible", "rawProvider", "zhipu"),
+          null,
+          null,
+          null));
+
+      Map<String, Map<String, Object>> rows = rowsById(report);
+      Map<String, Object> cancellationRow = rows.get("openai-zhipu-cancellation");
+      assertThat(cancellationRow.get("result")).isEqualTo("pass");
+      assertThat(observed(cancellationRow))
+          .containsEntry("cancelRequestSent", true)
+          .containsEntry("cancelled", true)
+          .containsEntry("chatCompleted", true)
+          .containsEntry("errorClass", "PROVIDER_CANCELLED")
+          .containsEntry("structuredStatus", 409);
+      assertThat(cancelRequested.get()).isTrue();
+      assertThat(report.toString()).doesNotContain("service-token");
+    } finally {
+      backendServer.stop(0);
+    }
+  }
+
+  @Test
+  void formalProductionHarnessPassesReasoningRowOnlyWhenBackendPreservesReasoningBlocks() throws Exception {
+    HttpServer backendServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    backendServer.createContext("/api/v1/model/chat", exchange -> {
+      String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+      String response;
+      if (body.contains("req-production-reasoning")) {
+        response = modelResponse(
+            "\"message\":{\"role\":\"assistant\",\"content\":\"ok\",\"reasoningBlocks\":[{\"type\":\"text\",\"text\":\"thinking process\"}]}",
+            7, 3, 10,
+            "\"error\":null");
+      } else if (body.contains("req-production-timeout")) {
+        response = modelResponse(null, 0, 0, 0,
+            "\"error\":{\"errorClass\":\"PROVIDER_TIMEOUT\",\"errorMessage\":\"Provider timed out.\",\"retriable\":true,\"retryOwner\":\"java\",\"maxRetries\":1,\"fallbackAllowed\":true,\"httpStatus\":504,\"recoveryHint\":null}");
+      } else if (body.contains("lookup")) {
+        response = modelResponse(
+            "\"message\":{\"role\":\"assistant\",\"content\":\"\",\"toolCalls\":[{\"id\":\"call-1\",\"name\":\"lookup\",\"argumentsRaw\":\"{\\\"id\\\":1}\"}]}",
+            7, 3, 10,
+            "\"error\":null");
+      } else {
+        response = modelResponse(
+            "\"message\":{\"role\":\"assistant\",\"content\":\"ok\"}",
+            7, 3, 10,
+            "\"error\":null");
+      }
+
+      byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(200, bytes.length);
+      exchange.getResponseBody().write(bytes);
+      exchange.close();
+    });
+    backendServer.start();
+
+    try {
+      OpenAiCompatibleFormalMatrix matrix = new OpenAiCompatibleFormalMatrix();
+      Map<String, Object> report = matrix.runProduction(new OpenAiCompatibleFormalMatrix.ProductionOptions(
+          URI.create("http://127.0.0.1:" + backendServer.getAddress().getPort()),
+          "service-token",
+          "glm-4-flash",
+          "zhipu",
+          false,
+          Map.of("providerType", "openai-compatible", "rawProvider", "zhipu"),
+          null,
+          null,
+          "glm-4.7-flash"));
+
+      Map<String, Map<String, Object>> rows = rowsById(report);
+      Map<String, Object> reasoningRow = rows.get("openai-zhipu-reasoning");
+
+      assertThat(reasoningRow).isNotNull();
+      assertThat(reasoningRow.get("result")).isEqualTo("pass");
+      Map<String, Object> observed = observed(reasoningRow);
+      assertThat(observed).containsEntry("requestSent", true);
+      assertThat(observed).containsKey("reasoningBlocks");
+
+      @SuppressWarnings("unchecked")
+      List<Map<String, Object>> blocks = (List<Map<String, Object>>) observed.get("reasoningBlocks");
+      assertThat(blocks).isNotEmpty();
+      assertThat(blocks.get(0)).containsEntry("type", "text").containsEntry("text", "thinking process");
+    } finally {
+      backendServer.stop(0);
+    }
+  }
+
+  @Test
   void throwsExceptionOnMalformedStreamJson() {
     OpenAiCompatibleAdapter adapter = new OpenAiCompatibleAdapter();
     ProviderConfig config = new ProviderConfig(
@@ -184,5 +471,149 @@ class OpenAiFakeProviderMatrixTest {
     org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () -> {
       OpenAiCompatibleAdapter.calculateCanonicalRequestHash(url, key, "{invalid-json");
     });
+  }
+
+  @Test
+  void formalProductionHarnessPassesSafeTerminalErrorViaAdapterWhenProviderReturns400() throws Exception {
+    HttpServer providerServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    AtomicInteger providerHits = new AtomicInteger();
+    providerServer.createContext("/chat/completions", exchange -> {
+      providerHits.incrementAndGet();
+      byte[] bytes = "{\"error\":{\"message\":\"model not found\",\"code\":\"invalid_request_error\"}}"
+          .getBytes(StandardCharsets.UTF_8);
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(400, bytes.length);
+      exchange.getResponseBody().write(bytes);
+      exchange.close();
+    });
+    providerServer.start();
+
+    HttpServer backendServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    backendServer.createContext("/api/v1/model/chat", exchange -> {
+      String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+      String response;
+      if (body.contains("req-production-timeout")) {
+        response = modelResponse(null, 0, 0, 0,
+            "\"error\":{\"errorClass\":\"PROVIDER_TIMEOUT\",\"errorMessage\":\"Provider timed out.\",\"retriable\":true,\"retryOwner\":\"java\",\"maxRetries\":1,\"fallbackAllowed\":true,\"httpStatus\":504,\"recoveryHint\":null}");
+      } else if (body.contains("lookup")) {
+        response = modelResponse(
+            "\"message\":{\"role\":\"assistant\",\"content\":\"\",\"toolCalls\":[{\"id\":\"call-1\",\"name\":\"lookup\",\"argumentsRaw\":\"{\\\"id\\\":1}\"}]}",
+            7, 3, 10,
+            "\"error\":null");
+      } else {
+        response = modelResponse(
+            "\"message\":{\"role\":\"assistant\",\"content\":\"ok\"}",
+            7, 3, 10,
+            "\"error\":null");
+      }
+      byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(200, bytes.length);
+      exchange.getResponseBody().write(bytes);
+      exchange.close();
+    });
+    backendServer.start();
+
+    try {
+      OpenAiCompatibleFormalMatrix matrix = new OpenAiCompatibleFormalMatrix();
+      Map<String, Object> report = matrix.runProduction(new OpenAiCompatibleFormalMatrix.ProductionOptions(
+          URI.create("http://127.0.0.1:" + backendServer.getAddress().getPort()),
+          "service-token",
+          "glm-4-flash",
+          "zhipu",
+          false,
+          Map.of("providerType", "openai-compatible"),
+          "adapter-probe-key",
+          "http://127.0.0.1:" + providerServer.getAddress().getPort(),
+          null));
+
+      Map<String, Map<String, Object>> rows = rowsById(report);
+      assertThat(rows.get("openai-zhipu-terminal-error").get("result")).isEqualTo("pass");
+      assertThat(observed(rows.get("openai-zhipu-terminal-error")))
+          .containsEntry("requestSent", true)
+          .containsEntry("providerHttpStatus", 400)
+          .containsEntry("transport", "adapter-real-provider");
+      assertThat(providerHits.get()).isEqualTo(1);
+      assertThat(report.toString()).doesNotContain("adapter-probe-key");
+      assertBlockedWithoutSending(rows.get("openai-zhipu-retry"));
+    } finally {
+      providerServer.stop(0);
+      backendServer.stop(0);
+    }
+  }
+
+  @Test
+  void formalProductionHarnessBlocksTerminalErrorWhenAdapterProbeKeyMissing() throws Exception {
+    HttpServer backendServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+    backendServer.createContext("/api/v1/model/chat", exchange -> {
+      String body = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+      String response = body.contains("req-production-timeout")
+          ? modelResponse(null, 0, 0, 0,
+              "\"error\":{\"errorClass\":\"PROVIDER_TIMEOUT\",\"errorMessage\":\"Provider timed out.\",\"retriable\":true,\"retryOwner\":\"java\",\"maxRetries\":1,\"fallbackAllowed\":true,\"httpStatus\":504,\"recoveryHint\":null}")
+          : modelResponse(
+              "\"message\":{\"role\":\"assistant\",\"content\":\"ok\"}",
+              7, 3, 10,
+              "\"error\":null");
+      byte[] bytes = response.getBytes(StandardCharsets.UTF_8);
+      exchange.getResponseHeaders().set("Content-Type", "application/json");
+      exchange.sendResponseHeaders(200, bytes.length);
+      exchange.getResponseBody().write(bytes);
+      exchange.close();
+    });
+    backendServer.start();
+    try {
+      OpenAiCompatibleFormalMatrix matrix = new OpenAiCompatibleFormalMatrix();
+      Map<String, Object> report = matrix.runProduction(new OpenAiCompatibleFormalMatrix.ProductionOptions(
+          URI.create("http://127.0.0.1:" + backendServer.getAddress().getPort()),
+          "service-token",
+          "glm-4-flash",
+          "zhipu",
+          false,
+          Map.of("providerType", "openai-compatible"),
+          null,
+          null,
+          null));
+      assertBlockedWithoutSending(rowsById(report).get("openai-zhipu-terminal-error"));
+    } finally {
+      backendServer.stop(0);
+    }
+  }
+
+  private static void assertBlockedWithoutSending(Map<String, Object> row) {
+    assertThat(row.get("result")).isEqualTo("blocked");
+    assertThat(observed(row))
+        .containsEntry("requestSent", false)
+        .containsKey("blockedReason");
+  }
+
+  private static Map<String, Map<String, Object>> rowsById(Map<String, Object> report) {
+    @SuppressWarnings("unchecked")
+    List<Map<String, Object>> rows = (List<Map<String, Object>>) report.get("rows");
+    Map<String, Map<String, Object>> byId = new HashMap<>();
+    for (Map<String, Object> row : rows) {
+      byId.put((String) row.get("id"), row);
+    }
+    return byId;
+  }
+
+  private static Map<String, Object> observed(Map<String, Object> row) {
+    @SuppressWarnings("unchecked")
+    Map<String, Object> observed = (Map<String, Object>) row.get("observed");
+    return observed;
+  }
+
+  private static String modelResponse(String messageJson, int promptTokens, int completionTokens, int totalTokens, String errorJson) {
+    String messagePart = messageJson != null ? messageJson + "," : "\"message\":null,";
+    return "{"
+        + "\"requestId\":\"response-id\","
+        + "\"conversationId\":\"conv-production\","
+        + messagePart
+        + "\"usage\":{\"promptTokens\":" + promptTokens
+        + ",\"completionTokens\":" + completionTokens
+        + ",\"totalTokens\":" + totalTokens
+        + ",\"cacheReadTokens\":null,\"cacheWriteTokens\":null,\"totalIsPerTurn\":false,\"costUsdMicros\":123},"
+        + "\"rawProvider\":\"zhipu\","
+        + errorJson
+        + "}";
   }
 }

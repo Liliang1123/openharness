@@ -1,0 +1,268 @@
+{
+  "track" : "production",
+  "generatedAt" : "2026-07-09T15:35:39.635802Z",
+  "result" : "fail",
+  "rows" : [ {
+    "id" : "openai-zhipu-sync",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "sync" ],
+    "requestHash" : "5e6b408cbce67239d85bc47c2b85f7017685f4e3a70c6ac688490e0e5add9c88",
+    "observed" : {
+      "errorClass" : "ConnectException",
+      "errorMessage" : "Operation not permitted"
+    },
+    "oracle" : {
+      "contentPresent" : true
+    },
+    "durationMs" : 45,
+    "result" : "fail"
+  }, {
+    "id" : "openai-zhipu-usage-cost",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "usage" ],
+    "requestHash" : "e8e957c7621b7c1c74c5c1d045895943c544e787296e5c2f9349ea8c692ef747",
+    "observed" : {
+      "errorClass" : "ConnectException",
+      "errorMessage" : "Operation not permitted"
+    },
+    "oracle" : {
+      "usageNonNegative" : true
+    },
+    "durationMs" : 1,
+    "result" : "fail"
+  }, {
+    "id" : "openai-zhipu-stream",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "stream" ],
+    "requestHash" : "f3f878f1ea692aa227bee771be817817c8b1f590a8e70e85018749eb002f0a2a",
+    "observed" : {
+      "errorClass" : "ConnectException",
+      "errorMessage" : "Operation not permitted"
+    },
+    "oracle" : {
+      "contentPresent" : true,
+      "stream" : true
+    },
+    "durationMs" : 2,
+    "result" : "fail"
+  }, {
+    "id" : "openai-zhipu-structured-tool",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "tool_calls" ],
+    "requestHash" : "e02bf74fec44e369a0a21852fb7e146bb863c72a0d6816e578c1ea154b086d50",
+    "observed" : {
+      "errorClass" : "ConnectException",
+      "errorMessage" : "Operation not permitted"
+    },
+    "oracle" : {
+      "toolCallCountAtLeast" : 1
+    },
+    "durationMs" : 2,
+    "result" : "fail"
+  }, {
+    "id" : "openai-zhipu-timeout",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "timeout" ],
+    "requestHash" : "31c215c3e661fd9374478e90ebf4e5379f7e2f3f97db53862506649734f61908",
+    "observed" : {
+      "errorClass" : "ConnectException",
+      "errorMessage" : "Operation not permitted"
+    },
+    "oracle" : {
+      "httpStatus" : 504,
+      "errorClass" : "PROVIDER_TIMEOUT"
+    },
+    "durationMs" : 2,
+    "result" : "fail"
+  }, {
+    "id" : "openai-zhipu-retry",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "retry" ],
+    "requestHash" : "471cc09f61d48ca0251c0eb5fd09016c2ef4c4a61d8a2024556c17a390ac4201",
+    "observed" : {
+      "requestSent" : false,
+      "blockedReason" : "No safe production 503 injection path is available for the real provider; mock PASS is forbidden.",
+      "unsafeRealErrorInjectionAllowed" : false
+    },
+    "oracle" : {
+      "realEvidenceRequired" : true,
+      "mustNotMockPass" : true
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-zhipu-terminal-error",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "terminal_error" ],
+    "requestHash" : "4ec14bfd9ef73f8b9e263f0a1336318e185f776755a4eb102f863d08bcd2734e",
+    "observed" : {
+      "requestSent" : false,
+      "blockedReason" : "No safe production invalid-request/auth mutation path was executed against the real provider; mock PASS is forbidden.",
+      "unsafeRealErrorInjectionAllowed" : false
+    },
+    "oracle" : {
+      "realEvidenceRequired" : true,
+      "mustNotMockPass" : true
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-zhipu-cancellation",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "cancellation" ],
+    "requestHash" : "349e968ceb27007dcd53255e1c48561617132026cdb82834fb8477c26c5e06e2",
+    "observed" : {
+      "requestSent" : false,
+      "blockedReason" : "The backend exposes no public production chat cancellation endpoint; adapter-level cancellation requires an in-process real-provider harness.",
+      "unsafeRealErrorInjectionAllowed" : false
+    },
+    "oracle" : {
+      "realEvidenceRequired" : true,
+      "mustNotMockPass" : true
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-zhipu-reasoning",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "reasoning" ],
+    "requestHash" : "f808384bce8e4258743066086427e0b473f597ed3437d6e00d868b9840e112dc",
+    "observed" : {
+      "requestSent" : false,
+      "blockedReason" : "The configured model was not proven reasoning-capable in this batch; reasoning remains blocked until a qualified model is supplied.",
+      "unsafeRealErrorInjectionAllowed" : false
+    },
+    "oracle" : {
+      "realEvidenceRequired" : true,
+      "mustNotMockPass" : true
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  } ]
+}
