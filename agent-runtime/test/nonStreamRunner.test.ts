@@ -30,7 +30,7 @@ describe("non-stream chat runner convergence", () => {
       answer: "ok",
       stopReason: "FINAL_ANSWER"
     });
-    const events = runtimeEventStore.since("t1", "conv-sync-runner", null);
+    const events = runtimeEventStore.since("t1", "u1", "conv-sync-runner", null);
     expect(events.some((event) => event.kind === "trace")).toBe(true);
     expect(events.filter((event) => event.kind !== "trace").map((event) => event.kind)).toEqual([
       "agent_start",
@@ -40,7 +40,7 @@ describe("non-stream chat runner convergence", () => {
       "agent_end",
       "stream_done"
     ]);
-    expect(executionStateStore.getActive("t1", "conv-sync-runner")).toBeNull();
+    expect(executionStateStore.getActive("t1", "u1", "conv-sync-runner")).toBeNull();
 
     await app.close();
     delete process.env.COMPRESSION_AUTO;

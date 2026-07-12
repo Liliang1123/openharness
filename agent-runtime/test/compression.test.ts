@@ -75,16 +75,16 @@ describe("compress", () => {
 
     // Add 10 messages
     for (let i = 0; i < 10; i++) {
-      history.append(tenantId, convId, { role: "user", content: `msg-${i}` });
+      history.append(tenantId, "u1", convId, { role: "user", content: `msg-${i}` });
     }
 
     const mockJavaClient = {
       request: vi.fn().mockResolvedValue({ summary: "compressed summary" })
     };
 
-    await compress(tenantId, convId, history, mockJavaClient as any, {});
+    await compress(tenantId, "u1", convId, history, mockJavaClient as any, {});
 
-    const msgs = history.get(tenantId, convId);
+    const msgs = history.get(tenantId, "u1", convId);
     // KEEP_RECENT defaults to 6, so 10 - 6 = 4 compressed, result = 1 summary + 6 kept = 7
     expect(msgs).toHaveLength(7);
     expect((msgs[0] as any).compressedSummary).toBe(true);
@@ -93,12 +93,12 @@ describe("compress", () => {
 
   it("does nothing when messages <= KEEP_RECENT", async () => {
     const history = new InMemoryHistoryStore();
-    history.append("t1", "c1", { role: "user", content: "only one" });
+    history.append("t1", "u1", "c1", { role: "user", content: "only one" });
 
     const mockJavaClient = { request: vi.fn() };
-    await compress("t1", "c1", history, mockJavaClient as any, {});
+    await compress("t1", "u1", "c1", history, mockJavaClient as any, {});
 
     expect(mockJavaClient.request).not.toHaveBeenCalled();
-    expect(history.get("t1", "c1")).toHaveLength(1);
+    expect(history.get("t1", "u1", "c1")).toHaveLength(1);
   });
 });

@@ -78,8 +78,8 @@ export class AgentLoop {
 
     await emit(this.event(input, TRACE_AGENT_START, "agent start"));
 
-    injectSessionContextIfNeeded(this.history, input.tenantId, input.conversationId);
-    this.history.append(input.tenantId, input.conversationId, { role: "user", content: input.message });
+    injectSessionContextIfNeeded(this.history, input.tenantId, input.userId, input.conversationId);
+    this.history.append(input.tenantId, input.userId, input.conversationId, { role: "user", content: input.message });
 
 
     const catalog = await this.toolRegistry.getFrozenCatalog(input.tenantId, input.conversationId, input.headers);
@@ -105,7 +105,7 @@ export class AgentLoop {
         stopReason = "EMPTY_MODEL_RESPONSE";
         break;
       }
-      this.history.append(input.tenantId, input.conversationId, resp.message);
+      this.history.append(input.tenantId, input.userId, input.conversationId, resp.message);
 
       const toolCalls = resp.message.toolCalls ?? [];
       if (toolCalls.length === 0) {
@@ -124,7 +124,7 @@ export class AgentLoop {
     await emit(this.event(input, TRACE_FINAL_ANSWER, "final answer", { stopReason }));
     await emit(this.event(input, TRACE_AGENT_END, "agent end", { stopReason }));
     await this.autoCompress(input);
-    await this.history.save(input.tenantId, input.conversationId);
+    await this.history.save(input.tenantId, input.userId, input.conversationId);
     return this.response(input, answer, emitted, stopReason, usage);
   }
 
@@ -137,7 +137,7 @@ export class AgentLoop {
     emit: (event: TraceEvent) => Promise<void>
   ): Promise<ModelChatResponse> {
     await emit(this.event(input, TRACE_MODEL_NODE_START, "model call start", { stepIndex }));
-    const context = buildModelContext(this.history.get(input.tenantId, input.conversationId));
+    const context = buildModelContext(this.history.get(input.tenantId, input.userId, input.conversationId));
     const prompted = promptedMessages(context.messages);
     const messages = prompted.messages;
     const cacheHints = computeCacheHints(messages);
@@ -190,7 +190,7 @@ export class AgentLoop {
       const decision = decisionMap.get(toolCall.id);
       if (!decision || decision.decision !== "ALLOW") {
         const errorClass = decision?.decision === "REQUIRE_APPROVAL" ? "APPROVAL_REQUIRED" : "POLICY_DENY";
-        this.history.append(input.tenantId, input.conversationId, {
+        this.history.append(input.tenantId, input.userId, input.conversationId, {
           role: "tool",
           toolCallId: toolCall.id,
           content: JSON.stringify({
@@ -202,7 +202,7 @@ export class AgentLoop {
         continue;
       }
       const toolResult = await this.executeTool(input, catalog, toolCall, stepIndex, emit);
-      this.history.append(input.tenantId, input.conversationId, toolResult);
+      this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
     }
   }
 
@@ -232,7 +232,7 @@ export class AgentLoop {
         const skillPath = resolveSkillPath(skillName);
         const skill = parseSkillMarkdown(skillPath);
 
-        const sessionKey = `${input.tenantId}:${input.conversationId}`;
+        const sessionKey = `${input.tenantId}:${input.userId}:${input.conversationId}`;
         let pending = this.pendingInjections.get(sessionKey);
         if (!pending) {
           pending = [];
@@ -323,9 +323,9 @@ export class AgentLoop {
   private async autoCompress(input: AgentLoopInput): Promise<void> {
     if (process.env.COMPRESSION_AUTO === "false") return;
     try {
-      const messages = this.history.get(input.tenantId, input.conversationId);
+      const messages = this.history.get(input.tenantId, input.userId, input.conversationId);
       if (shouldCompress(messages)) {
-        await compress(input.tenantId, input.conversationId, this.history, this.javaClient, input.headers);
+        await compress(input.tenantId, input.userId, input.conversationId, this.history, this.javaClient, input.headers);
       }
     } catch (e) {
       console.warn("[auto-compress] failed, skipping:", e);
@@ -333,7 +333,7 @@ export class AgentLoop {
   }
 
   private async flushPendingInjections(input: AgentLoopInput): Promise<void> {
-    const sessionKey = `${input.tenantId}:${input.conversationId}`;
+    const sessionKey = `${input.tenantId}:${input.userId}:${input.conversationId}`;
     const pending = this.pendingInjections.get(sessionKey);
     if (!pending || pending.length === 0) return;
 
@@ -343,19 +343,19 @@ export class AgentLoop {
 
     for (const inj of pending) {
       if (capabilities.supportsSyntheticAssistantInjection) {
-        this.history.append(input.tenantId, input.conversationId, {
+        this.history.append(input.tenantId, input.userId, input.conversationId, {
           role: "assistant",
           content: `[SYSTEM] Skill loaded:\n${inj.expandedContent}`,
           systemInjected: true
         } as AgentMessage);
 
-        this.history.append(input.tenantId, input.conversationId, {
+        this.history.append(input.tenantId, input.userId, input.conversationId, {
           role: "user",
           content: `[SYSTEM] The skill instructions above have been loaded. Please proceed to execute the task now.`,
           systemInjected: true
         } as AgentMessage);
       } else {
-        this.history.append(input.tenantId, input.conversationId, {
+        this.history.append(input.tenantId, input.userId, input.conversationId, {
           role: "user",
           content: `[SYSTEM] Skill instructions for ${inj.skillName} loaded:\n${inj.expandedContent}\nPlease proceed.`,
           systemInjected: true

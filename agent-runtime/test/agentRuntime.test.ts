@@ -254,6 +254,7 @@ describe("agent runtime", () => {
       const response = await app.inject({
         method: "POST",
         url: "/api/v1/agent/chat",
+        headers: { "x-user-id": "user-001" },
         payload: { conversationId: "conv-agent-definition-default", message: "hello" }
       });
 

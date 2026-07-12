@@ -64,7 +64,7 @@ export async function runEvalCase(
   });
 
   const finalState = await handle.done;
-  const events = runtimeEvents.since(evalCase.tenantId, evalCase.conversationId, null);
+  const events = runtimeEvents.since(evalCase.tenantId, evalCase.userId, evalCase.conversationId, null);
   const finalAnswerEvent = [...events].reverse().find((event) => event.kind === "final_answer");
   const answer = typeof finalAnswerEvent?.data.answer === "string" ? finalAnswerEvent.data.answer : "";
   const stopReason = finalState.endReason as StopReason | undefined;

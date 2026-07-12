@@ -183,7 +183,7 @@ describe("Memory Management API", () => {
     });
 
     expect(res.statusCode).toBe(400);
-    expect(history.get("tenant-a", "conv-any")).toEqual([]);
+    expect(history.get("tenant-a", "user-a", "conv-any")).toEqual([]);
     expect(javaClient.calls).toEqual({ catalog: 0, chat: 0, executeTool: 0, postTrace: 0, evaluatePolicy: 0 });
   });
 });

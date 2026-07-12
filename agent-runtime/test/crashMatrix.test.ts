@@ -190,7 +190,7 @@ function snapshotBefore(boundary: LifecycleBoundary) {
   }
   if (boundary === "terminal_closure") {
     return {
-      messages: [{ role: "user", content: "hello" }, assistantToolPlan(), toolResult()],
+      messages: [{ role: "user", content: "hello" }, stableAssistantToolPlan(), toolResult()],
       execution: expect.objectContaining({ status: "running" }),
       approvals: [],
       events: ["agent_start", "model_call_end", "tool_result"]
@@ -234,7 +234,7 @@ function snapshotAfter(boundary: LifecycleBoundary) {
       messages: [{ role: "user", content: "hello" }],
       execution: expect.objectContaining({ status: "running" }),
       approvals: [],
-      events: ["agent_start", "approval_requested", "tool_result"]
+      events: ["agent_start", "approval_requested"]
     };
   }
   if (boundary === "model_tool_plan") {
@@ -247,14 +247,14 @@ function snapshotAfter(boundary: LifecycleBoundary) {
   }
   if (boundary === "tool_result") {
     return {
-      messages: [{ role: "user", content: "hello" }, assistantToolPlan(), toolResult()],
+      messages: [{ role: "user", content: "hello" }, stableAssistantToolPlan(), toolResult()],
       execution: expect.objectContaining({ status: "running" }),
       approvals: [],
       events: ["agent_start", "model_call_end", "tool_result"]
     };
   }
   return {
-    messages: [{ role: "user", content: "hello" }, assistantToolPlan(), toolResult(), { role: "assistant", content: "done" }],
+    messages: [{ role: "user", content: "hello" }, stableAssistantToolPlan(), toolResult(), { role: "assistant", content: "done" }],
     execution: expect.objectContaining({ status: "completed", stopReason: "FINAL_ANSWER" }),
     approvals: [],
     events: ["agent_start", "model_call_end", "tool_result", "final_answer", "agent_end", "stream_done"]
@@ -269,6 +269,14 @@ function assistantToolPlan(): AgentMessage {
     transient: true,
     provisionalExecutionId: scope.executionId
   } as AgentMessage;
+}
+
+function stableAssistantToolPlan(): AgentMessage {
+  const { transient: _transient, provisionalExecutionId: _provisionalExecutionId, ...stable } = assistantToolPlan() as AgentMessage & {
+    transient?: boolean;
+    provisionalExecutionId?: string;
+  };
+  return stable;
 }
 
 function toolResult(): AgentMessage {

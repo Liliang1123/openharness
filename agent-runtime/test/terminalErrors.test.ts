@@ -48,7 +48,7 @@ describe("runtime terminal error mapping", () => {
     expect(result.terminalEvent.data.errorClass).toBe("POLICY_DENY");
     expect(result.finalState.status).toBe("errored");
     expect(result.finalState.endReason).toBe("POLICY_DENY");
-    expect(result.history.get("t1", "conv-terminal").some((m) => m.content === "POLICY_DENY")).toBe(false);
+    expect(result.history.get("t1", "u1", "conv-terminal").some((m) => m.content === "POLICY_DENY")).toBe(false);
   });
 
   it("maps missing model messages to EMPTY_MODEL_RESPONSE", async () => {
@@ -88,10 +88,10 @@ async function runTerminalCase(
     const { executionId, done } = runner.start({ ...baseInput, ...inputOptions });
     const finalState = await done;
     const terminalEvent = runtimeEventStore
-      .since("t1", "conv-terminal", null)
+      .since("t1", "u1", "conv-terminal", null)
       .find((event) => event.kind === "stream_error");
     if (!terminalEvent) throw new Error("missing stream_error");
-    expect(executionStateStore.get(executionId)).toEqual(finalState);
+    expect(executionStateStore.get("t1", "u1", "conv-terminal", executionId)).toEqual(finalState);
     return { finalState, terminalEvent, history };
   } finally {
     delete process.env.COMPRESSION_AUTO;

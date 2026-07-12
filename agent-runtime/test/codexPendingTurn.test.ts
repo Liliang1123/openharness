@@ -176,13 +176,13 @@ describe("Codex pending turn", () => {
     expect(client.executions.map((request) => request.toolCallId)).toEqual(["call-1", "call-2"]);
     expect(client.completions).toHaveLength(2);
     expect(client.completions.map(({ request }) => request.status)).toEqual(["ok", "ok"]);
-    const stored = JSON.stringify(history.get("tenant-1", "conv-codex"));
-    expect(history.get("tenant-1", "conv-codex").map((message) => message.role)).toEqual(["user", "assistant"]);
+    const stored = JSON.stringify(history.get("tenant-1", "user-1", "conv-codex"));
+    expect(history.get("tenant-1", "user-1", "conv-codex").map((message) => message.role)).toEqual(["user", "assistant"]);
     expect(stored).toContain("final answer");
     expect(stored).not.toMatch(/bridge-1|ARG-CANARY|RESULT-CANARY/);
-    const emitted = JSON.stringify(events.since("tenant-1", "conv-codex", null));
+    const emitted = JSON.stringify(events.since("tenant-1", "user-1", "conv-codex", null));
     expect(emitted).not.toMatch(/bridge-1|ARG-CANARY|RESULT-CANARY|AUTH-CANARY/);
-    expect(events.since("tenant-1", "conv-codex", null).filter((event) => event.kind === "trace" && event.data.eventType === "STEP_START")).toHaveLength(1);
+    expect(events.since("tenant-1", "user-1", "conv-codex", null).filter((event) => event.kind === "trace" && event.data.eventType === "STEP_START")).toHaveLength(1);
   });
 
   it.each([
@@ -220,14 +220,14 @@ describe("Codex pending turn", () => {
     const store = new JsonFileApprovalStore("/tmp/openharness-codex-pending-approval");
     const runner = new AgentExecutionRunner(client, history, undefined, events, states, store);
     const { executionId, done } = runner.start(input);
-    await waitFor(() => events.since("tenant-1", "conv-codex", null).some((event) => event.kind === "approval_requested"));
+    await waitFor(() => events.since("tenant-1", "user-1", "conv-codex", null).some((event) => event.kind === "approval_requested"));
 
-    expect(store.decide(executionId, "call-1", { action: "reject", respondedAt: new Date().toISOString() })).toBe(true);
+    expect(store.decide("tenant-1", "user-1", "conv-codex", executionId, "call-1", { action: "reject", respondedAt: new Date().toISOString() })).toBe(true);
     const final = await done;
 
     expect(final.status).toBe("completed");
     expect(client.completions[0].request.status).toBe("rejected");
-    expect(JSON.stringify(events.since("tenant-1", "conv-codex", null))).not.toMatch(/ARG-CANARY|APPROVAL-CANARY|bridge-1/);
+    expect(JSON.stringify(events.since("tenant-1", "user-1", "conv-codex", null))).not.toMatch(/ARG-CANARY|APPROVAL-CANARY|bridge-1/);
   });
 
   it("maps malformed pending arguments to error without executing a tool", async () => {
@@ -263,7 +263,7 @@ describe("Codex pending turn", () => {
     );
     const { executionId, done } = runner.start(input);
     await waitFor(() => client.executions.length === 1);
-    states.abort(executionId);
+    states.abort("tenant-1", "user-1", "conv-codex", executionId);
 
     const final = await done;
 
@@ -296,7 +296,7 @@ describe("Codex pending turn", () => {
     expect(final.status).toBe("completed");
     expect(client.completions).toHaveLength(1);
     expect(client.completions[0].request).toMatchObject({ status: "timeout", content: "APPROVAL_TIMEOUT" });
-    expect(JSON.stringify(events.since("tenant-1", "conv-codex", null))).not.toMatch(/ARG-CANARY|AUTH-CANARY|bridge-1/);
+    expect(JSON.stringify(events.since("tenant-1", "user-1", "conv-codex", null))).not.toMatch(/ARG-CANARY|AUTH-CANARY|bridge-1/);
   });
 
   it("retries one ambiguous completion with the identical idempotency payload", async () => {
@@ -352,7 +352,7 @@ describe("Codex pending turn", () => {
     expect(client.attempts).toBe(1);
     expect(client.executions).toHaveLength(1);
     expect(client.cancellations).toHaveLength(1);
-    expect(JSON.stringify(events.since("tenant-1", "conv-codex", null))).not.toMatch(/OAUTH-CANARY|RESULT-CANARY/);
+    expect(JSON.stringify(events.since("tenant-1", "user-1", "conv-codex", null))).not.toMatch(/OAUTH-CANARY|RESULT-CANARY/);
   });
 });
 

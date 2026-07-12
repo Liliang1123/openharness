@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { hasUntrustedToolOutputSinceLastUser, MessageHistoryStore, toModelMessages } from "../src/history";
 
 describe("MessageHistoryStore", () => {
-  it("isolates messages by tenant and conversation", () => {
+  it("isolates messages by tenant, user, and conversation", () => {
     const store = new MessageHistoryStore();
-    store.append("tenant-a", "conv-1", { role: "user", content: "a" });
-    store.append("tenant-b", "conv-1", { role: "user", content: "b" });
+    store.append("tenant-a", "user-a", "conv-1", { role: "user", content: "a" });
+    store.append("tenant-a", "user-b", "conv-1", { role: "user", content: "b" });
+    store.append("tenant-b", "user-a", "conv-1", { role: "user", content: "c" });
 
-    expect(store.get("tenant-a", "conv-1")[0]?.content).toBe("a");
-    expect(store.get("tenant-b", "conv-1")[0]?.content).toBe("b");
+    expect(store.get("tenant-a", "user-a", "conv-1")[0]?.content).toBe("a");
+    expect(store.get("tenant-a", "user-b", "conv-1")[0]?.content).toBe("b");
+    expect(store.get("tenant-b", "user-a", "conv-1")[0]?.content).toBe("c");
   });
 
   it("strips internal fields before Java model calls", () => {

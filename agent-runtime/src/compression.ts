@@ -56,12 +56,13 @@ export function shouldCompress(messages: AgentMessage[], threshold?: number): bo
 
 export async function compress(
   tenantId: string,
+  userId: string,
   conversationId: string,
   history: HistoryStore,
   javaClient: JavaClient,
   headers: Record<string, string>
 ): Promise<void> {
-  const messages = stableHistory(history.get(tenantId, conversationId));
+  const messages = stableHistory(history.get(tenantId, userId, conversationId));
   if (messages.length <= KEEP_RECENT) return;
 
   const toCompress = messages.slice(0, messages.length - KEEP_RECENT);
@@ -83,8 +84,8 @@ export async function compress(
   } as AgentMessage & { compressedSummary: boolean; chunkPath: string };
 
   const newMessages = [summaryMessage, ...toKeep];
-  history.replace(tenantId, conversationId, newMessages);
-  await history.save(tenantId, conversationId);
+  history.replace(tenantId, userId, conversationId, newMessages);
+  await history.save(tenantId, userId, conversationId);
 }
 
 async function callCompress(

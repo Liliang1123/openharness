@@ -8,7 +8,7 @@ import { AmbiguousHttpResultError, type JavaClient } from "./javaClient";
 import { hasUntrustedToolOutputSinceLastUser, type HistoryStore } from "./history";
 import { ToolRegistry } from "./toolRegistry";
 import type { McpRegistry } from "./mcpRegistry";
-import type { RuntimeEventStore } from "./runtimeEventStore";
+import type { RuntimeEventPublisher, RuntimeEventStore } from "./runtimeEventStore";
 import type { ExecutionStateStore, ExecutionState } from "./executionStateStore";
 import type { ApprovalStore, ApprovalDecision } from "./approvalStore";
 import { beforeToolUse } from "./beforeToolUse";
@@ -17,10 +17,15 @@ import { shouldCompress, compress } from "./compression";
 import { buildModelContext } from "./contextBuilder";
 import type { MemoryFact, MemoryStore } from "./memoryStore";
 import { promptedMessages, injectSessionContextIfNeeded } from "./prompts/registry";
-import type { PendingInjection } from "./skills/types";
+import type { PendingInjection, Skill } from "./skills/types";
 import { resolveSkillPath, parseSkillMarkdown } from "./skills/loader";
 import { resolveProviderCapabilities } from "./skills/capabilities";
 import { SubagentDispatcher } from "./subagent/dispatcher";
+import {
+  publishCommittedLifecycleEvents,
+  type LifecycleCommit,
+  type RuntimeLifecycleWriter
+} from "./storage/lifecycleCommands";
 import {
   TRACE_AGENT_START,
   TRACE_AGENT_END,
@@ -107,6 +112,11 @@ export interface AgentExecutionHandle {
   done: Promise<ExecutionState>;
 }
 
+export interface AgentExecutionPersistence {
+  lifecycle: RuntimeLifecycleWriter;
+  liveEvents: RuntimeEventPublisher;
+}
+
 /**
  * Detached runner that executes an agent turn and writes events to RuntimeEventStore.
  * It does NOT hold any HTTP reply. HTTP adapters subscribe to RuntimeEventStore to forward events.
@@ -126,7 +136,9 @@ export class AgentExecutionRunner {
     private readonly runtimeEventStore: RuntimeEventStore,
     private readonly executionStateStore: ExecutionStateStore,
     private readonly approvalStore?: ApprovalStore,
-    private readonly memoryStore?: MemoryStore
+    private readonly memoryStore?: MemoryStore,
+    private readonly persistence?: AgentExecutionPersistence,
+    private readonly loadSkill: (skillName: string) => Skill = loadSkillFromDisk
   ) {
     this.toolRegistry = new ToolRegistry(javaClient, mcpRegistry);
     this.subagentDispatcher = new SubagentDispatcher(javaClient);
@@ -140,6 +152,12 @@ export class AgentExecutionRunner {
       tenantId: input.tenantId,
       userId: input.userId
     });
+    if (this.persistence) {
+      this.publishCommit(this.persistence.lifecycle.startExecution({
+        ...this.lifecycleScope(executionId, input),
+        message: input.message
+      }));
+    }
     const done = this.runLoop(executionId, input);
     return { executionId, done };
   }
@@ -150,7 +168,15 @@ export class AgentExecutionRunner {
     const executionDeadline = Date.now() + resolveTimeoutMs("EXECUTION_TIMEOUT_MS", DEFAULT_EXECUTION_TIMEOUT_MS);
 
     const send = (kind: RuntimeEventKind, payload: Record<string, unknown> = {}) => {
-      this.runtimeEventStore.append(input.tenantId, input.conversationId, {
+      if (this.persistence) {
+        this.publishCommit(this.persistence.lifecycle.recordEvent({
+          ...this.lifecycleScope(executionId, input),
+          kind,
+          data: payload
+        }));
+        return;
+      }
+      this.runtimeEventStore.append(input.tenantId, input.userId, input.conversationId, {
         executionId,
         conversationId: input.conversationId,
         tenantId: input.tenantId,
@@ -169,19 +195,22 @@ export class AgentExecutionRunner {
     };
 
     const isAborted = (): boolean => {
-      const state = this.executionStateStore.get(executionId);
+      const state = this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId);
       return state?.abortController.signal.aborted ?? false;
     };
 
     try {
-      send("agent_start", { traceId: input.traceId, conversationId: input.conversationId });
+      if (!this.persistence) send("agent_start", { traceId: input.traceId, conversationId: input.conversationId });
       await emit(this.ev(input, TRACE_AGENT_START, "agent start"));
 
-      injectSessionContextIfNeeded(this.history, input.tenantId, input.conversationId, this.selectedModel(input));
-      this.history.append(input.tenantId, input.conversationId, { role: "user", content: input.message });
+      if (!this.persistence) {
+        injectSessionContextIfNeeded(this.history, input.tenantId, input.userId, input.conversationId, this.selectedModel(input));
+        this.history.append(input.tenantId, input.userId, input.conversationId, { role: "user", content: input.message });
+      }
       const catalog = await this.withExecutionDeadline(
         executionId,
         executionDeadline,
+        input,
         this.toolRegistry.getFrozenCatalog(input.tenantId, input.conversationId, input.headers)
       );
 
@@ -189,6 +218,7 @@ export class AgentExecutionRunner {
       let stepIndex = 0;
       let stopReason: StopReason = "STEP_BUDGET_EXHAUSTED";
       let answer = "";
+      let finalAssistantMessage: AgentMessage | undefined;
       let usage: { costUsdMicros?: number } | undefined;
 
       while (stepIndex < stepBudget) {
@@ -206,6 +236,7 @@ export class AgentExecutionRunner {
         let resp = await this.withExecutionDeadline(
           executionId,
           executionDeadline,
+          input,
           this.callModel(input, catalog)
         );
         if (resp.pendingTurn) {
@@ -225,13 +256,13 @@ export class AgentExecutionRunner {
           usage = { costUsdMicros: resp.usage.costUsdMicros };
         }
         await emit(this.ev(input, TRACE_MODEL_NODE_END, "model call end", { stepIndex }));
-        send("model_call_end", { stepIndex, hasToolCalls: !!(resp.message?.toolCalls?.length) });
 
         if (isAborted()) {
           return this.finalizeAborted(executionId, send, emit, input);
         }
 
         if (resp.error) {
+          send("model_call_end", { stepIndex, hasToolCalls: false });
           throw new RuntimeTerminalFailure("MODEL_ERROR", resp.error.errorMessage, {
             upstreamErrorClass: resp.error.errorClass,
             stepIndex
@@ -239,21 +270,37 @@ export class AgentExecutionRunner {
         }
 
         if (!resp.message) {
+          send("model_call_end", { stepIndex, hasToolCalls: false });
           throw new RuntimeTerminalFailure("EMPTY_MODEL_RESPONSE", "Model response did not include a message", { stepIndex });
         }
-        this.history.append(input.tenantId, input.conversationId, resp.message);
-
         const toolCalls = resp.message.toolCalls ?? [];
         this.assertToolCallsAllowed(input, toolCalls, stepIndex);
         if (toolCalls.length === 0) {
+          send("model_call_end", { stepIndex, hasToolCalls: false });
           stopReason = "FINAL_ANSWER";
           answer = String(resp.message.content ?? "");
+          finalAssistantMessage = resp.message;
+          if (!this.persistence) {
+            this.history.append(input.tenantId, input.userId, input.conversationId, resp.message);
+          }
           break;
+        }
+
+        if (this.persistence) {
+          this.publishCommit(this.persistence.lifecycle.recordToolPlan({
+            ...this.lifecycleScope(executionId, input),
+            assistantMessage: resp.message,
+            stepIndex
+          }));
+        } else {
+          send("model_call_end", { stepIndex, hasToolCalls: true });
+          this.history.append(input.tenantId, input.userId, input.conversationId, resp.message);
         }
 
         await this.withExecutionDeadline(
           executionId,
           executionDeadline,
+          input,
           this.runToolBatch(input, catalog, toolCalls, stepIndex, send, emit, isAborted)
         );
 
@@ -270,19 +317,31 @@ export class AgentExecutionRunner {
         throw new RuntimeTerminalFailure("STEP_BUDGET_EXHAUSTED", `Step budget exhausted: ${stepBudget}`, { stepBudget });
       }
 
-      send("final_answer", usage ? { answer, usage } : { answer });
+      if (!this.persistence) send("final_answer", usage ? { answer, usage } : { answer });
       await emit(this.ev(input, TRACE_FINAL_ANSWER, "final answer", { stopReason }));
-      send("agent_end", { stopReason });
+      if (!this.persistence) send("agent_end", { stopReason });
       await emit(this.ev(input, TRACE_AGENT_END, "agent end", { stopReason }));
 
-      await this.withExecutionDeadline(executionId, executionDeadline, this.autoCompress(input));
-      await this.withExecutionDeadline(executionId, executionDeadline, this.history.save(input.tenantId, input.conversationId));
+      if (this.persistence) {
+        if (!finalAssistantMessage) {
+          throw new RuntimeTerminalFailure("EMPTY_MODEL_RESPONSE", "Final assistant message is missing");
+        }
+        this.publishCommit(this.persistence.lifecycle.completeExecution({
+          ...this.lifecycleScope(executionId, input),
+          assistantMessage: finalAssistantMessage,
+          stopReason,
+          usage
+        }));
+      } else {
+        await this.withExecutionDeadline(executionId, executionDeadline, input, this.autoCompress(input));
+        await this.withExecutionDeadline(executionId, executionDeadline, input, this.history.save(input.tenantId, input.userId, input.conversationId));
+      }
 
       // Transition state to terminal BEFORE the terminal SSE event so that any client
       // reading `stream_done` can immediately observe a consistent terminal state.
-      const final = this.executionStateStore.transitionToTerminal(executionId, "completed", stopReason);
-      send("stream_done", { stopReason });
-      return final ?? this.executionStateStore.get(executionId)!;
+      const final = this.executionStateStore.transitionToTerminal(input.tenantId, input.userId, input.conversationId, executionId, "completed", stopReason);
+      if (!this.persistence) send("stream_done", { stopReason });
+      return final ?? this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId)!;
     } catch (e) {
       if (e instanceof RuntimeTerminalFailure && e.errorClass === "EXECUTION_ABORTED") {
         return this.finalizeAborted(executionId, send, emit, input);
@@ -291,10 +350,19 @@ export class AgentExecutionRunner {
         ? e.errorClass
         : "MODEL_ERROR";
       const errorMessage = e instanceof Error ? e.message : String(e);
-      const final = this.executionStateStore.transitionToTerminal(executionId, "errored", errorClass);
       const details = e instanceof RuntimeTerminalFailure ? e.details : {};
-      send("stream_error", { errorClass, errorMessage, ...details });
-      return final ?? this.executionStateStore.get(executionId)!;
+      if (this.persistence) {
+        this.publishCommit(this.persistence.lifecycle.failExecution({
+          ...this.lifecycleScope(executionId, input),
+          errorClass,
+          errorMessage,
+          details
+        }));
+      } else {
+        send("stream_error", { errorClass, errorMessage, ...details });
+      }
+      const final = this.executionStateStore.transitionToTerminal(input.tenantId, input.userId, input.conversationId, executionId, "errored", errorClass);
+      return final ?? this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId)!;
     }
   }
 
@@ -302,22 +370,29 @@ export class AgentExecutionRunner {
     executionId: ExecutionId,
     send: (kind: RuntimeEventKind, payload?: Record<string, unknown>) => void,
     _emit: (ev: TraceEvent) => Promise<void>,
-    _input: AgentExecutionInput
+    input: AgentExecutionInput
   ): ExecutionState {
     // Ensure terminal state BEFORE emitting the SSE terminal event so subscribers
     // observing stream_error see a consistent ExecutionState.
-    const current = this.executionStateStore.get(executionId);
+    const current = this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId);
     if (current && (current.status === "completed" || current.status === "errored")) {
       return current;
     }
     if (current && current.status === "running") {
-      this.executionStateStore.transitionToTerminal(executionId, "aborted", "EXECUTION_ABORTED");
+      this.executionStateStore.transitionToTerminal(input.tenantId, input.userId, input.conversationId, executionId, "aborted", "EXECUTION_ABORTED");
     }
-    send("stream_error", {
-      errorClass: "EXECUTION_ABORTED",
-      errorMessage: "Execution was aborted by client"
-    });
-    return this.executionStateStore.get(executionId)!;
+    if (this.persistence) {
+      this.publishCommit(this.persistence.lifecycle.abortExecution({
+        ...this.lifecycleScope(executionId, input),
+        errorMessage: "Execution was aborted by client"
+      }));
+    } else {
+      send("stream_error", {
+        errorClass: "EXECUTION_ABORTED",
+        errorMessage: "Execution was aborted by client"
+      });
+    }
+    return this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId)!;
   }
 
   // ── Helpers (mostly copied from former AgentStreamLoop, minus reply.raw writes) ──
@@ -389,7 +464,7 @@ export class AgentExecutionRunner {
     catalog: { catalogVersion: string; catalogHash: string; tools: unknown[] }
   ): Promise<ModelChatResponse> {
     const memoryFacts = await this.retrieveMemoryFacts(input);
-    const context = buildModelContext(this.history.get(input.tenantId, input.conversationId), { memoryFacts });
+    const context = buildModelContext(this.history.get(input.tenantId, input.userId, input.conversationId), { memoryFacts });
     const prompted = promptedMessages(context.messages, input.agentDefinition.promptRef);
     const messages = prompted.messages;
     const cacheHints = computeCacheHints(messages);
@@ -446,7 +521,7 @@ export class AgentExecutionRunner {
       catalogVersion: catalog.catalogVersion,
       catalogHash: catalog.catalogHash,
       sources: this.toolRegistry.getSources(input.tenantId, input.conversationId),
-      untrustedToolOutputSinceLastUser: hasUntrustedToolOutputSinceLastUser(this.history.get(input.tenantId, input.conversationId)),
+      untrustedToolOutputSinceLastUser: hasUntrustedToolOutputSinceLastUser(this.history.get(input.tenantId, input.userId, input.conversationId)),
       toolPermissions: this.toolRegistry.getPermissions(input.tenantId, input.conversationId)
     }, this.javaClient, input.headers);
 
@@ -462,15 +537,24 @@ export class AgentExecutionRunner {
             tenantId: input.tenantId,
             userId: input.userId,
             conversationId: input.conversationId,
-            executionId: this.currentExecutionId(input.tenantId, input.conversationId),
+            executionId: this.currentExecutionId(input.tenantId, input.userId, input.conversationId),
             toolCallId: toolCall.id,
             toolName: toolCall.name,
             argumentsRaw: toolCall.argumentsRaw,
             reason: decision.reason,
             approvalToken: decision.approvalToken
-          }, options.transientApproval ? { persist: false } : undefined);
-          this.executionStateStore.transition(pending.executionId, "waiting_approval");
-          send("approval_requested", options.transientApproval ? {
+          }, options.transientApproval || this.persistence ? { persist: false } : undefined);
+          this.executionStateStore.transition(input.tenantId, input.userId, input.conversationId, pending.executionId, "waiting_approval");
+          if (this.persistence) {
+            this.publishCommit(this.persistence.lifecycle.enterApproval({
+              ...this.lifecycleScope(pending.executionId, input),
+              approvalId: pending.askUserId,
+              toolCallId: toolCall.id,
+              toolName: toolCall.name,
+              argumentsRaw: toolCall.argumentsRaw,
+              reason: decision.reason
+            }));
+          } else send("approval_requested", options.transientApproval ? {
             askUserId: pending.askUserId,
             toolCallId: toolCall.id,
             toolName: toolCall.name,
@@ -486,11 +570,18 @@ export class AgentExecutionRunner {
             stepIndex
           });
           const approval = await this.withApprovalTimeout(
-            this.approvalStore.waitForDecision(pending.executionId, toolCall.id),
+            this.approvalStore.waitForDecision(input.tenantId, input.userId, input.conversationId, pending.executionId, toolCall.id),
             toolCall.id,
             toolCall.name
           );
-          this.executionStateStore.transition(pending.executionId, "running");
+          if (this.persistence) {
+            this.publishCommit(this.persistence.lifecycle.decideApproval({
+              ...this.lifecycleScope(pending.executionId, input),
+              approvalId: pending.askUserId,
+              nextStatus: approval.action === "approve" ? "approved" : approval.action === "revise" ? "revised" : "rejected"
+            }));
+          }
+          this.executionStateStore.transition(input.tenantId, input.userId, input.conversationId, pending.executionId, "running");
           if (isAborted()) return outcomes;
           if (approval.action === "reject") {
             const rejected = {
@@ -501,9 +592,18 @@ export class AgentExecutionRunner {
               content: JSON.stringify({ rejected: true, message: approval.message ?? "USER_REJECTED" })
             } as AgentMessage;
             if (options.persistHistory !== false) {
-              this.history.append(input.tenantId, input.conversationId, rejected);
+              if (this.persistence) {
+                this.publishCommit(this.persistence.lifecycle.completeTool({
+                  ...this.lifecycleScope(pending.executionId, input),
+                  toolResult: rejected,
+                  stepIndex,
+                  status: "rejected"
+                }));
+              } else {
+                this.history.append(input.tenantId, input.userId, input.conversationId, rejected);
+              }
             }
-            send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "rejected", stepIndex });
+            if (!this.persistence) send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "rejected", stepIndex });
             outcomes.push({
               toolCallId: toolCall.id,
               toolName: toolCall.name,
@@ -516,9 +616,17 @@ export class AgentExecutionRunner {
           send("tool_call", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, stepIndex });
           const toolResult = await this.executeTool(input, catalog, approvedToolCall, stepIndex, emit, pending.approvalToken);
           if (options.persistHistory !== false) {
-            this.history.append(input.tenantId, input.conversationId, toolResult);
+            if (this.persistence) {
+              this.publishCommit(this.persistence.lifecycle.completeTool({
+                ...this.lifecycleScope(pending.executionId, input),
+                toolResult,
+                stepIndex
+              }));
+            } else {
+              this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
+            }
           }
-          send("tool_result", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, status: "ok", stepIndex });
+          if (!this.persistence) send("tool_result", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, status: "ok", stepIndex });
           outcomes.push(this.toolOutcome(approvedToolCall, toolResult));
           continue;
         }
@@ -533,9 +641,17 @@ export class AgentExecutionRunner {
       send("tool_call", { toolCallId: toolCall.id, toolName: toolCall.name, stepIndex });
       const toolResult = await this.executeTool(input, catalog, toolCall, stepIndex, emit);
       if (options.persistHistory !== false) {
-        this.history.append(input.tenantId, input.conversationId, toolResult);
+        if (this.persistence) {
+          this.publishCommit(this.persistence.lifecycle.completeTool({
+            ...this.lifecycleScope(this.currentExecutionId(input.tenantId, input.userId, input.conversationId), input),
+            toolResult,
+            stepIndex
+          }));
+        } else {
+          this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
+        }
       }
-      send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "ok", stepIndex });
+      if (!this.persistence) send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "ok", stepIndex });
       outcomes.push(this.toolOutcome(toolCall, toolResult));
     }
     return outcomes;
@@ -586,6 +702,7 @@ export class AgentExecutionRunner {
           const outcomes = await this.withExecutionDeadline(
             executionId,
             executionDeadline,
+            input,
             this.runToolBatch(input, catalog, [toolCall], stepIndex, send, emit, isAborted, {
               persistHistory: false,
               transientApproval: true
@@ -629,6 +746,7 @@ export class AgentExecutionRunner {
         response = await this.withExecutionDeadline(
           executionId,
           executionDeadline,
+          input,
           this.completeCodexWithSingleRetry(active.bridgeId, submission, input.headers)
         );
       }
@@ -675,8 +793,8 @@ export class AgentExecutionRunner {
     return content.length <= 65_536 ? content : content.slice(0, 65_536);
   }
 
-  private currentExecutionId(tenantId: string, conversationId: string): ExecutionId {
-    const active = this.executionStateStore.getActive(tenantId, conversationId);
+  private currentExecutionId(tenantId: string, userId: string, conversationId: string): ExecutionId {
+    const active = this.executionStateStore.getActive(tenantId, userId, conversationId);
     if (!active) throw new Error("No active execution");
     return active.executionId;
   }
@@ -703,12 +821,11 @@ export class AgentExecutionRunner {
       const skillName = String(args.skill_name || "");
       const task = String(args.task || "");
       try {
-        const skillPath = resolveSkillPath(skillName);
-        const skill = parseSkillMarkdown(skillPath);
+        const skill = this.loadSkill(skillName);
 
         if (skill.metadata.fork_agent === true) {
-          const executionId = this.currentExecutionId(input.tenantId, input.conversationId);
-          const parentState = this.executionStateStore.get(executionId);
+          const executionId = this.currentExecutionId(input.tenantId, input.userId, input.conversationId);
+          const parentState = this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId);
           const subagentResult = await this.subagentDispatcher.run({
             parent: {
               executionId,
@@ -761,7 +878,7 @@ export class AgentExecutionRunner {
           return toolMessage(toolCall.id, toolCall.name, subagentResult.summary, "trusted");
         }
 
-        const sessionKey = `${input.tenantId}:${input.conversationId}`;
+        const sessionKey = `${input.tenantId}:${input.userId}:${input.conversationId}`;
         let pending = this.pendingInjections.get(sessionKey);
         if (!pending) {
           pending = [];
@@ -856,9 +973,9 @@ export class AgentExecutionRunner {
   private async autoCompress(input: AgentExecutionInput): Promise<void> {
     if (process.env.COMPRESSION_AUTO === "false") return;
     try {
-      const messages = this.history.get(input.tenantId, input.conversationId);
+      const messages = this.history.get(input.tenantId, input.userId, input.conversationId);
       if (shouldCompress(messages)) {
-        await compress(input.tenantId, input.conversationId, this.history, this.javaClient, input.headers);
+        await compress(input.tenantId, input.userId, input.conversationId, this.history, this.javaClient, input.headers);
       }
     } catch (e) {
       console.warn("[auto-compress] failed, skipping:", e);
@@ -874,14 +991,14 @@ export class AgentExecutionRunner {
     ));
   }
 
-  private async withExecutionDeadline<T>(executionId: ExecutionId, deadline: number, promise: Promise<T>): Promise<T> {
+  private async withExecutionDeadline<T>(executionId: ExecutionId, deadline: number, input: AgentExecutionInput, promise: Promise<T>): Promise<T> {
     const timeoutMs = deadline - Date.now();
     if (timeoutMs <= 0) {
-      this.executionStateStore.get(executionId)?.abortController.abort();
+      this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId)?.abortController.abort();
       throw new RuntimeTerminalFailure("EXECUTION_TIMEOUT", "Execution timed out", { timeoutMs: 0 });
     }
     return this.withTimeout(promise, timeoutMs, () => {
-      this.executionStateStore.get(executionId)?.abortController.abort();
+      this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId)?.abortController.abort();
       return new RuntimeTerminalFailure("EXECUTION_TIMEOUT", `Execution timed out after ${timeoutMs}ms`, { timeoutMs });
     });
   }
@@ -905,7 +1022,7 @@ export class AgentExecutionRunner {
   }
 
   private async flushPendingInjections(input: AgentExecutionInput): Promise<void> {
-    const sessionKey = `${input.tenantId}:${input.conversationId}`;
+    const sessionKey = `${input.tenantId}:${input.userId}:${input.conversationId}`;
     const pending = this.pendingInjections.get(sessionKey);
     if (!pending || pending.length === 0) return;
 
@@ -914,32 +1031,67 @@ export class AgentExecutionRunner {
     const modelName = this.selectedModel(input);
     const capabilities = resolveProviderCapabilities(modelName, (input.agentDefinition as any).metadata);
 
+    const injectedMessages: AgentMessage[] = [];
     for (const inj of pending) {
       if (capabilities.supportsSyntheticAssistantInjection) {
-        this.history.append(input.tenantId, input.conversationId, {
+        injectedMessages.push({
           role: "assistant",
           content: `[SYSTEM] Skill loaded:\n${inj.expandedContent}`,
           systemInjected: true
         } as AgentMessage);
 
-        this.history.append(input.tenantId, input.conversationId, {
+        injectedMessages.push({
           role: "user",
           content: `[SYSTEM] The skill instructions above have been loaded. Please proceed to execute the task now.`,
           systemInjected: true
         } as AgentMessage);
       } else {
-        this.history.append(input.tenantId, input.conversationId, {
+        injectedMessages.push({
           role: "user",
           content: `[SYSTEM] Skill instructions for ${inj.skillName} loaded:\n${inj.expandedContent}\nPlease proceed.`,
           systemInjected: true
         } as AgentMessage);
       }
     }
+    if (this.persistence) {
+      this.publishCommit(this.persistence.lifecycle.recordInjectedMessages({
+        ...this.lifecycleScope(this.currentExecutionId(input.tenantId, input.userId, input.conversationId), input),
+        messages: injectedMessages
+      }));
+    } else {
+      for (const message of injectedMessages) {
+        this.history.append(input.tenantId, input.userId, input.conversationId, message);
+      }
+    }
+  }
+
+  private lifecycleScope(executionId: ExecutionId, input: AgentExecutionInput) {
+    return {
+      tenantId: input.tenantId,
+      userId: input.userId,
+      conversationId: input.conversationId,
+      executionId,
+      traceId: input.traceId,
+      requestId: input.requestId
+    };
+  }
+
+  private publishCommit(commit: LifecycleCommit): void {
+    if (!this.persistence) return;
+    try {
+      publishCommittedLifecycleEvents(this.persistence.liveEvents, commit);
+    } catch {
+      // Durable state is already committed; replay remains authoritative.
+    }
   }
 }
 
 function wrapUntrustedToolOutput(toolName: string, content: string): string {
   return `<tool_output trust="untrusted" tool="${toolName}">\n${content}\n</tool_output>`;
+}
+
+function loadSkillFromDisk(skillName: string): Skill {
+  return parseSkillMarkdown(resolveSkillPath(skillName));
 }
 
 function toolMessage(

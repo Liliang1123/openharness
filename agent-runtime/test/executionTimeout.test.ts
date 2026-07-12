@@ -47,13 +47,13 @@ describe("execution timeout", () => {
     if (final === "test-timeout") return;
 
     const terminal = runtimeEventStore
-      .since("t1", "conv-execution-timeout", null)
+      .since("t1", "u1", "conv-execution-timeout", null)
       .find((event) => event.kind === "stream_error");
 
     expect(terminal?.data.errorClass).toBe("EXECUTION_TIMEOUT");
     expect(final.status).toBe("errored");
     expect(final.endReason).toBe("EXECUTION_TIMEOUT");
-    expect(executionStateStore.get(executionId)?.endReason).toBe("EXECUTION_TIMEOUT");
+    expect(executionStateStore.get("t1", "u1", "conv-execution-timeout", executionId)?.endReason).toBe("EXECUTION_TIMEOUT");
   });
 });
 

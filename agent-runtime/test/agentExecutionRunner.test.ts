@@ -242,7 +242,7 @@ describe("AgentExecutionRunner", () => {
     const { executionId } = runner.start(baseInput);
     expect(typeof executionId).toBe("string");
     expect(executionId.length).toBeGreaterThan(0);
-    const state = executionStateStore.get(executionId);
+    const state = executionStateStore.get("t1", "u1", "conv-runner", executionId);
     expect(state?.status).toBe("running");
   });
 
@@ -251,7 +251,7 @@ describe("AgentExecutionRunner", () => {
     const { done } = runner.start(baseInput);
     await done;
 
-    const events = runtimeEventStore.since("t1", "conv-runner", null);
+    const events = runtimeEventStore.since("t1", "u1", "conv-runner", null);
     const kinds = events.map(e => e.kind);
     expect(kinds[0]).toBe("agent_start");
     expect(kinds).toContain("model_call_start");
@@ -268,7 +268,7 @@ describe("AgentExecutionRunner", () => {
     const { executionId, done } = runner.start(baseInput);
     await done;
 
-    const state = executionStateStore.get(executionId);
+    const state = executionStateStore.get("t1", "u1", "conv-runner", executionId);
     expect(state?.status).toBe("completed");
     expect(state?.endReason).toBe("FINAL_ANSWER");
     expect(state?.endedAt).toBeGreaterThan(0);
@@ -279,7 +279,7 @@ describe("AgentExecutionRunner", () => {
     const { done } = runner.start(baseInput);
     await done;
 
-    const messages = history.get("t1", "conv-runner");
+    const messages = history.get("t1", "u1", "conv-runner");
     expect(messages.some(m => m.role === "assistant" && m.content === "done")).toBe(true);
   });
 
@@ -292,16 +292,16 @@ describe("AgentExecutionRunner", () => {
 
     // Allow runner to start (agent_start emitted, first model call in flight)
     await new Promise(r => setTimeout(r, 50));
-    executionStateStore.abort(executionId);
+    executionStateStore.abort("t1", "u1", "conv-runner", executionId);
 
     await done;
 
-    const events = runtimeEventStore.since("t1", "conv-runner", null);
+    const events = runtimeEventStore.since("t1", "u1", "conv-runner", null);
     const terminal = events[events.length - 1];
     expect(terminal.kind).toBe("stream_error");
     expect(terminal.data.errorClass).toBe("EXECUTION_ABORTED");
 
-    const state = executionStateStore.get(executionId);
+    const state = executionStateStore.get("t1", "u1", "conv-runner", executionId);
     expect(state?.status).toBe("aborted");
     expect(state?.endReason).toBe("EXECUTION_ABORTED");
   });
@@ -311,7 +311,7 @@ describe("AgentExecutionRunner", () => {
     const { executionId, done } = runner.start(baseInput);
     await done;
 
-    const events = runtimeEventStore.since("t1", "conv-runner", null);
+    const events = runtimeEventStore.since("t1", "u1", "conv-runner", null);
     expect(events.every(e => e.executionId === executionId)).toBe(true);
   });
 
@@ -321,8 +321,8 @@ describe("AgentExecutionRunner", () => {
     const r2 = runner.start({ ...baseInput, conversationId: "conv-B" });
     await Promise.all([r1.done, r2.done]);
 
-    const aEvents = runtimeEventStore.since("t1", "conv-A", null);
-    const bEvents = runtimeEventStore.since("t1", "conv-B", null);
+    const aEvents = runtimeEventStore.since("t1", "u1", "conv-A", null);
+    const bEvents = runtimeEventStore.since("t1", "u1", "conv-B", null);
     expect(aEvents.every(e => e.executionId === r1.executionId)).toBe(true);
     expect(bEvents.every(e => e.executionId === r2.executionId)).toBe(true);
   });
@@ -341,20 +341,20 @@ describe("AgentExecutionRunner", () => {
     );
 
     const { executionId, done } = runner.start(baseInput);
-    await waitFor(() => runtimeEventStore.since("t1", "conv-runner", null).some(e => e.kind === "approval_requested"));
+    await waitFor(() => runtimeEventStore.since("t1", "u1", "conv-runner", null).some(e => e.kind === "approval_requested"));
 
-    const state = executionStateStore.get(executionId);
+    const state = executionStateStore.get("t1", "u1", "conv-runner", executionId);
     expect(state?.status).toBe("waiting_approval");
-    const approvalEvent = runtimeEventStore.since("t1", "conv-runner", null).find(e => e.kind === "approval_requested");
+    const approvalEvent = runtimeEventStore.since("t1", "u1", "conv-runner", null).find(e => e.kind === "approval_requested");
     expect(approvalEvent?.data).toMatchObject({
       toolCallId: "call-1",
       toolName: "do_thing",
       reason: "needs approval",
       approvalToken: "approval-token-1"
     });
-    expect(history.get("t1", "conv-runner").some(m => m.content === "PENDING_APPROVAL")).toBe(false);
+    expect(history.get("t1", "u1", "conv-runner").some(m => m.content === "PENDING_APPROVAL")).toBe(false);
 
-    expect(approvalStore.decide(executionId, "call-1", {
+    expect(approvalStore.decide("t1", "u1", "conv-runner", executionId, "call-1", {
       action: "approve",
       respondedAt: new Date().toISOString()
     })).toBe(true);
@@ -362,7 +362,7 @@ describe("AgentExecutionRunner", () => {
     await done;
     expect(javaClient.executedTools.map(t => t.toolCallId)).toContain("call-1");
     expect(javaClient.executedTools[0].approvalToken).toBe("approval-token-1");
-    expect(executionStateStore.get(executionId)?.status).toBe("completed");
+    expect(executionStateStore.get("t1", "u1", "conv-runner", executionId)?.status).toBe("completed");
   });
 
   it("wraps untrusted tool output and forwards untrusted context for sensitive follow-up", async () => {
@@ -378,9 +378,9 @@ describe("AgentExecutionRunner", () => {
     );
 
     const { executionId, done } = runner.start(baseInput);
-    await waitFor(() => runtimeEventStore.since("t1", "conv-runner", null).some(e => e.kind === "approval_requested"));
+    await waitFor(() => runtimeEventStore.since("t1", "u1", "conv-runner", null).some(e => e.kind === "approval_requested"));
 
-    const messages = history.get("t1", "conv-runner");
+    const messages = history.get("t1", "u1", "conv-runner");
     const toolMessage = messages.find(m => m.role === "tool" && m.toolCallId === "call-read");
     expect(toolMessage?.toolResultProvenance).toBe("untrusted");
     expect(String(toolMessage?.content)).toContain("<tool_output trust=\"untrusted\" tool=\"read_file\">");
@@ -391,7 +391,7 @@ describe("AgentExecutionRunner", () => {
     const toolPermissions = sensitivePolicyRequest?.context.toolPermissions as Record<string, string> | undefined;
     expect(toolPermissions?.submit_payment).toBe("sensitive");
 
-    expect(approvalStore.decide(executionId, "call-pay", {
+    expect(approvalStore.decide("t1", "u1", "conv-runner", executionId, "call-pay", {
       action: "approve",
       respondedAt: new Date().toISOString()
     })).toBe(true);
@@ -401,8 +401,8 @@ describe("AgentExecutionRunner", () => {
 
   it("builds budgeted model context and reports context metadata", async () => {
     process.env.MODEL_CONTEXT_BUDGET_TOKENS = "20";
-    history.append("t1", "conv-runner", { role: "user", content: "old ".repeat(200) });
-    history.append("t1", "conv-runner", { role: "assistant", content: "middle ".repeat(30) });
+    history.append("t1", "u1", "conv-runner", { role: "user", content: "old ".repeat(200) });
+    history.append("t1", "u1", "conv-runner", { role: "assistant", content: "middle ".repeat(30) });
     const javaClient = new FakeJavaClient();
     const runner = new AgentExecutionRunner(javaClient, history, undefined, runtimeEventStore, executionStateStore);
 
@@ -412,7 +412,7 @@ describe("AgentExecutionRunner", () => {
     const firstRequest = javaClient.chatRequests[0];
     expect(firstRequest.messages[0].role).toBe("system");
     expect(firstRequest.messages.slice(1).map(m => m.content)).toEqual(["latest question"]);
-    expect(history.get("t1", "conv-runner").some(m => String(m.content).startsWith("old old"))).toBe(true);
+    expect(history.get("t1", "u1", "conv-runner").some(m => String(m.content).startsWith("old old"))).toBe(true);
     expect(firstRequest.meta.context).toMatchObject({
       builder: "default",
       selectedMessages: 1,
@@ -435,7 +435,7 @@ describe("AgentExecutionRunner", () => {
     expect(firstRequest.messages[1]).toMatchObject({ role: "user", content: "go" });
     expect(firstRequest.meta.promptId).toBe("openharness-default");
     expect(firstRequest.meta.promptVersion).toBe("v1");
-    expect(history.get("t1", "conv-runner").some(m => m.role === "system")).toBe(false);
+    expect(history.get("t1", "u1", "conv-runner").some(m => m.role === "system")).toBe(false);
   });
 
   it("retrieves scoped memory facts for model context when memory store is configured", async () => {
@@ -489,9 +489,9 @@ describe("AgentExecutionRunner", () => {
       approvalStore
     );
 
-    runtimeEventStore.subscribe("t1", "conv-runner", (event) => {
+    runtimeEventStore.subscribe("t1", "u1", "conv-runner", (event) => {
       if (event.kind === "approval_requested") {
-        approvalStore.decide(String(event.executionId), String(event.data.toolCallId), {
+        approvalStore.decide("t1", "u1", "conv-runner", String(event.executionId), String(event.data.toolCallId), {
           action: "approve",
           respondedAt: new Date().toISOString()
         });
@@ -561,7 +561,7 @@ describe("AgentExecutionRunner", () => {
       });
       await done;
 
-      const messages = history.get("t1", "conv-runner");
+      const messages = history.get("t1", "u1", "conv-runner");
       expect(messages.some(m => m.role === "tool" && m.toolName === "invoke_skill")).toBe(true);
       expect(messages.some(m => m.role === "assistant" && String(m.content).includes("Test step: Execute the task now."))).toBe(true);
       expect(messages.some(m => m.role === "user" && String(m.content).includes("The skill instructions above have been loaded"))).toBe(true);
@@ -629,7 +629,7 @@ describe("AgentExecutionRunner", () => {
       });
       await done;
 
-      const messages = history.get("t1", "conv-runner");
+      const messages = history.get("t1", "u1", "conv-runner");
       expect(messages.some(m => m.role === "tool" && m.toolName === "invoke_skill")).toBe(true);
       expect(messages.some(m => m.role === "assistant" && String(m.content).includes("Fallback step"))).toBe(false);
       expect(messages.some(m => m.role === "user" && String(m.content).includes("[SYSTEM] Skill instructions for test-skill-fallback loaded"))).toBe(true);
@@ -709,7 +709,7 @@ describe("AgentExecutionRunner", () => {
       });
       await done;
 
-      const parentMessages = history.get("t1", "conv-runner");
+      const parentMessages = history.get("t1", "u1", "conv-runner");
       expect(parentMessages.some(m => m.role === "tool" && m.toolName === "invoke_skill" && String(m.content).includes("subagent summary"))).toBe(true);
       expect(parentMessages.some(m => String(m.content).includes("Child-only instructions must not be injected"))).toBe(false);
       expect(javaClient.chatRequests.some(r => r.conversationId.includes("::subagent-") && r.model === "cheap-worker")).toBe(true);
@@ -795,7 +795,7 @@ describe("AgentExecutionRunner", () => {
       expect(subagentStart?.attributes?.skillName).toBe("fork-worker-trace");
       expect(subagentEnd?.attributes?.costUsdMicros).toBe(11);
 
-      const replayEvents = runtimeEventStore.since("t1", "conv-fork-trace", null);
+      const replayEvents = runtimeEventStore.since("t1", "u1", "conv-fork-trace", null);
       const traceEvents = replayEvents.filter(e => (e.kind as string) === "trace");
       expect(traceEvents.map(e => e.data.eventType)).toContain("SUBAGENT_START");
       expect(traceEvents.map(e => e.data.eventType)).toContain("SUBAGENT_END");

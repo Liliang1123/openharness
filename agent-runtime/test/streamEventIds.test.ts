@@ -195,8 +195,8 @@ describe("stream event ids", () => {
 
     const idsA = parseSse(r1.body).map(e => e.data.eventId as string);
     const idsB = parseSse(r2.body).map(e => e.data.eventId as string);
-    expect(idsA[0]).toBe("t1::conv-A:1");
-    expect(idsB[0]).toBe("t1::conv-B:1");
+    expect(idsA[0]).toBe("t1::u1::conv-A:1");
+    expect(idsB[0]).toBe("t1::u1::conv-B:1");
   });
 
   it("preserves legacy event names and legacy data fields", async () => {
@@ -240,7 +240,7 @@ describe("stream event ids", () => {
       payload: { conversationId: "conv-store", message: "go" }
     });
 
-    const stored = store.since("t1", "conv-store", null);
+    const stored = store.since("t1", "u1", "conv-store", null);
     expect(stored.length).toBeGreaterThan(0);
     expect(stored[0].kind).toBe("agent_start");
     expect(stored[0].executionId).toBeTruthy();

@@ -58,10 +58,11 @@ export function buildSessionContext(options: {
 
 export function injectSessionContextIfNeeded(
   history: {
-    get(tenantId: string, conversationId: string): AgentMessage[];
-    append(tenantId: string, conversationId: string, message: AgentMessage): void;
+    get(tenantId: string, userId: string, conversationId: string): AgentMessage[];
+    append(tenantId: string, userId: string, conversationId: string, message: AgentMessage): void;
   },
   tenantId: string,
+  userId: string,
   conversationId: string,
   modelName = "default"
 ): void {
@@ -69,7 +70,7 @@ export function injectSessionContextIfNeeded(
     return;
   }
 
-  const existingMessages = history.get(tenantId, conversationId);
+  const existingMessages = history.get(tenantId, userId, conversationId);
   const dateStr = new Date().toISOString().split("T")[0];
   const hasSessionContext = existingMessages.some(
     (m) => typeof m.content === "string" && m.content.startsWith(`[Session context: Today is ${dateStr}`)
@@ -77,7 +78,7 @@ export function injectSessionContextIfNeeded(
 
   if (!hasSessionContext) {
     const sessionCtxContent = `[Session context: Today is ${dateStr}. Current model: ${modelName}. OS: ${process.platform}. Working directory: ${process.cwd()}]`;
-    history.append(tenantId, conversationId, {
+    history.append(tenantId, userId, conversationId, {
       role: "user",
       content: sessionCtxContent,
       systemInjected: true,
@@ -85,5 +86,4 @@ export function injectSessionContextIfNeeded(
     } as AgentMessage);
   }
 }
-
 

@@ -13,6 +13,7 @@ import { AgentExecutionRunner } from "./agentExecutionRunner";
 import { loadAgentDefinitions, type AgentDefinitionRegistry } from "./agentDefinitionLoader";
 import { AskUserStore, type AskUserReply } from "./askUserStore";
 import {
+  ProcessApprovalStore,
   JsonFileApprovalStore,
   type ApprovalDecision,
   type ApprovalStore
@@ -23,7 +24,9 @@ import { HttpJavaClient, type JavaClient } from "./javaClient";
 import { JsonFileMemoryStore, type MemoryStore } from "./memoryStore";
 import { McpRegistry, loadMcpConfig } from "./mcpRegistry";
 import { InMemoryRuntimeEventStore, type RuntimeEventStore } from "./runtimeEventStore";
-import { InMemoryExecutionStateStore, type ExecutionStateStore } from "./executionStateStore";
+import { InMemoryExecutionStateStore, ProcessExecutionStateStore, type ExecutionStateStore } from "./executionStateStore";
+import { openProductionRuntimeContext, type ProductionRuntimeContext } from "./storage/productionRuntimeContext";
+import { publishCommittedLifecycleEvents } from "./storage/lifecycleCommands";
 import { deriveRuntimeProgress } from "./runtimeProgress";
 import type { AgentChatRequest, AgentChatResponse, StopReason } from "./types";
 
@@ -50,9 +53,36 @@ export interface CreateServerOptions {
   agentDefinitionRegistry?: AgentDefinitionRegistry;
   /** Optional local agent definitions directory. Defaults to process cwd / agents. */
   agentDefinitionsDir?: string;
+  /** Owned production storage/lifecycle context. Mutually exclusive with individual store injection. */
+  runtimeContext?: ProductionRuntimeContext;
+  /** Injectable development-only fallbacks; production context must bypass every factory. */
+  developmentStoreFactories?: DevelopmentStoreFactories;
+}
+
+export interface DevelopmentStoreFactories {
+  history(): HistoryStore;
+  memory(): MemoryStore;
+  events(): RuntimeEventStore;
+  executions(): ExecutionStateStore;
+  approvals(): ApprovalStore;
+}
+
+export interface CreateProductionServerOptions {
+  databasePath: string;
+  serviceToken: string;
+  javaClient?: JavaClient;
+  javaBaseUrl?: string;
+  frontendUrl?: string;
+  disableMcp?: boolean;
 }
 
 export async function createServer(options: CreateServerOptions = {}) {
+  if (options.runtimeContext && (
+    options.historyStore || options.memoryStore || options.runtimeEventStore
+    || options.executionStateStore || options.approvalStore
+  )) {
+    throw new Error("Production Runtime context cannot be combined with individually injected stores");
+  }
   const app = Fastify({ logger: false });
   const frontendUrl = options.frontendUrl ?? process.env.FRONTEND_URL ?? "http://localhost:5173";
   await app.register(cors, {
@@ -72,8 +102,9 @@ export async function createServer(options: CreateServerOptions = {}) {
   const javaClient = options.javaClient ?? new HttpJavaClient(options.javaBaseUrl ?? process.env.JAVA_BACKEND_URL ?? "http://localhost:8080");
   const serviceToken = options.serviceToken ?? process.env.OPENHARNESS_SERVICE_TOKEN ?? "dev-service-token";
   const requireServiceAuth = options.requireServiceAuth ?? process.env.AGENT_RUNTIME_REQUIRE_SERVICE_AUTH === "true";
-  const history = options.historyStore ?? createHistoryStore();
-  const memoryStore = options.memoryStore ?? new JsonFileMemoryStore();
+  const developmentStores = options.developmentStoreFactories ?? defaultDevelopmentStoreFactories;
+  const history = options.runtimeContext?.history ?? options.historyStore ?? developmentStores.history();
+  const memoryStore = options.runtimeContext?.memory ?? options.memoryStore ?? developmentStores.memory();
   const askUserStore = new AskUserStore();
   const agentDefinitionRegistry = options.agentDefinitionRegistry ?? loadAgentDefinitions(options.agentDefinitionsDir);
   app.decorate("agentDefinitionRegistry", agentDefinitionRegistry);
@@ -88,13 +119,39 @@ export async function createServer(options: CreateServerOptions = {}) {
     }
   }
 
-  const runtimeEventStore: RuntimeEventStore = options.runtimeEventStore ?? new InMemoryRuntimeEventStore();
-  const executionStateStore: ExecutionStateStore = options.executionStateStore ?? new InMemoryExecutionStateStore();
-  const approvalStore: ApprovalStore = options.approvalStore ?? new JsonFileApprovalStore();
-  const runner = new AgentExecutionRunner(javaClient, history, mcpRegistry, runtimeEventStore, executionStateStore, approvalStore, memoryStore);
+  const runtimeEventStore: RuntimeEventStore = options.runtimeContext
+    ? productionRuntimeEventStore(options.runtimeContext)
+    : options.runtimeEventStore ?? developmentStores.events();
+  const executionStateStore: ExecutionStateStore = options.runtimeContext
+    ? new ProcessExecutionStateStore()
+    : options.executionStateStore ?? developmentStores.executions();
+  const executionReader = options.runtimeContext?.executions ?? executionStateStore;
+  const approvalStore: ApprovalStore = options.runtimeContext
+    ? new ProcessApprovalStore()
+    : options.approvalStore ?? developmentStores.approvals();
+  const approvalReader = options.runtimeContext?.approvals ?? approvalStore;
+  const runner = new AgentExecutionRunner(
+    javaClient,
+    history,
+    mcpRegistry,
+    runtimeEventStore,
+    executionStateStore,
+    approvalStore,
+    memoryStore,
+    options.runtimeContext ? { lifecycle: options.runtimeContext.lifecycle, liveEvents: options.runtimeContext.liveEvents } : undefined
+  );
   const streamLoop = new AgentStreamLoop(runner, runtimeEventStore);
 
   app.addHook("preHandler", async (request, reply) => {
+    if (!header(request.headers["x-user-id"])?.trim()) {
+      reply.status(400).send({
+        error: {
+          errorClass: "MISSING_IDENTITY_HEADER",
+          errorMessage: "Missing required identity header: x-user-id"
+        }
+      });
+      return;
+    }
     if (!requireServiceAuth) return;
     if (!validBearer(header(request.headers.authorization), serviceToken)) {
       reply.status(401).send({ error: { errorClass: "UNAUTHORIZED", errorMessage: "Missing or invalid service credential" } });
@@ -113,7 +170,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   });
 
   const activeConflict = (tenantId: string, userId: string, conversationId: string) => {
-    const active = executionStateStore.getActive(tenantId, conversationId, userId);
+    const active = executionReader.getActive(tenantId, userId, conversationId);
     if (!active) return null;
     const errorClass = active.status === "waiting_approval"
       ? "EXECUTION_WAITING_APPROVAL"
@@ -128,7 +185,7 @@ export async function createServer(options: CreateServerOptions = {}) {
         executionId: active.executionId,
         status: active.status,
         pendingApprovals: active.status === "waiting_approval"
-          ? sanitizePendingApprovals(approvalStore.listPending(tenantId, conversationId, userId))
+          ? sanitizePendingApprovals(approvalReader.listPending(tenantId, userId, conversationId))
           : []
       }
     };
@@ -194,6 +251,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     const finalState = await handle.done;
     const response = buildSyncResponse(
       tenantId,
+      userId,
       body.conversationId,
       handle.executionId,
       traceId,
@@ -245,20 +303,6 @@ export async function createServer(options: CreateServerOptions = {}) {
 
   app.post<{ Params: { askUserId: string }; Body: AskUserReply }>("/api/v1/agent/ask-user/:askUserId/reply", async (request, reply) => {
     const { askUserId } = request.params;
-    const approvalPending = approvalStore.getByAskUserId(askUserId);
-    if (approvalPending) {
-      const body = request.body;
-      const decision = toApprovalDecision(body);
-      approvalStore.decide(approvalPending.executionId, approvalPending.toolCallId, decision);
-      reply.send({
-        askUserId,
-        executionId: approvalPending.executionId,
-        toolCallId: approvalPending.toolCallId,
-        status: approvalStatus(decision.action)
-      });
-      return;
-    }
-
     const pending = askUserStore.getById(askUserId);
     if (!pending) {
       reply.status(404).send({ error: { errorClass: "ASK_USER_NOT_FOUND", errorMessage: "No pending ask_user with id: " + askUserId } });
@@ -268,7 +312,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     askUserStore.remove(askUserId);
 
     if (body.action === "reject") {
-      history.append(pending.tenantId, pending.conversationId, {
+      history.append(pending.tenantId, pending.userId, pending.conversationId, {
         role: "tool",
         toolCallId: pending.pendingToolCall.id,
         content: "USER_REJECTED"
@@ -305,7 +349,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     }, execHeaders);
 
     const content = result.status === "ok" ? JSON.stringify(result.result ?? {}) : JSON.stringify(result.error);
-    history.append(pending.tenantId, pending.conversationId, {
+    history.append(pending.tenantId, pending.userId, pending.conversationId, {
       role: "tool", toolCallId: toolCall.id, content
     });
     reply.send({ askUserId, status: "approved", toolResult: result });
@@ -349,7 +393,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   });
 
   app.delete<{ Params: { memoryId: string } }>("/api/v1/memory/facts/:memoryId", async (request, reply) => {
-    const { tenantId, userId } = requestIdentity(request.headers);
+    const { tenantId, userId, traceId, requestId } = requestIdentity(request.headers);
     const { memoryId } = request.params;
     const deleted = await memoryStore.delete(tenantId, userId, memoryId);
     const body = MemoryDeleteResponseSchema.parse({ memoryId, deleted });
@@ -367,19 +411,15 @@ export async function createServer(options: CreateServerOptions = {}) {
     Querystring: { last_event_id?: string };
   }>("/api/v1/sessions/:conversationId/events", async (request, reply) => {
     const { tenantId, userId, traceId, requestId } = requestIdentity(request.headers);
-    const userScope = header(request.headers["x-user-id"]);
     const { conversationId } = request.params;
     const lastEventId = request.query.last_event_id ?? null;
 
-    const allEvents = runtimeEventStore.since(tenantId, conversationId, null);
-    const scopedEvents = allEvents.filter((event) => userScope === undefined || event.userId === userScope);
-    if (lastEventId && !scopedEvents.some((event) => event.eventId === lastEventId)) {
-      if (scopedEvents.length === 0 && allEvents.length > 0) {
-        reply.status(404).send({
-          error: { errorClass: "SESSION_EVENTS_NOT_FOUND", errorMessage: "Session events not found" }
-        });
-        return;
-      }
+    const scopedEvents = runtimeEventStore.since(tenantId, userId, conversationId, null);
+    if (lastEventId && scopedEvents.length === 0) {
+      reply.status(404).send({
+        error: { errorClass: "SESSION_EVENTS_NOT_FOUND", errorMessage: "Session events not found" }
+      });
+      return;
     }
 
     const origin = request.headers.origin ?? "*";
@@ -407,11 +447,11 @@ export async function createServer(options: CreateServerOptions = {}) {
 
     // Gap detection: cursor unknown but store has events for this conversation.
     if (lastEventId && !scopedEvents.some((event) => event.eventId === lastEventId)) {
-      const latest = latestScopedEventId(runtimeEventStore, tenantId, userScope, conversationId);
+      const latest = latestScopedEventId(runtimeEventStore, tenantId, userId, conversationId);
       if (latest != null) {
         writeEvent("stream_resync_required", {
           durability: "durable",
-          eventId: `${tenantId}::${conversationId}:resync`,
+          eventId: `${tenantId}::${userId}::${conversationId}:resync`,
           executionId: "resync",
           conversationId,
           tenantId,
@@ -449,9 +489,8 @@ export async function createServer(options: CreateServerOptions = {}) {
 
     // Subscribe BEFORE replay to avoid losing fast-arriving live events; JS single-thread
     // guarantees no append can interleave between since() and subscribe() in this same tick.
-    unsubscribe = runtimeEventStore.subscribe(tenantId, conversationId, (event) => {
+    unsubscribe = runtimeEventStore.subscribe(tenantId, userId, conversationId, (event) => {
       if (closed) return;
-      if (userScope !== undefined && event.userId !== userScope) return;
       emitStored(event);
       if (isTerminal(event.kind)) close();
     });
@@ -477,21 +516,20 @@ export async function createServer(options: CreateServerOptions = {}) {
   });
 
   app.get("/api/v1/sessions", async (request, reply) => {
-    const { tenantId } = requestIdentity(request.headers);
-    const sessions = await history.list(tenantId);
+    const { tenantId, userId } = requestIdentity(request.headers);
+    const sessions = await history.list(tenantId, userId);
     reply.send(sessions);
   });
 
   app.get<{ Params: { conversationId: string } }>("/api/v1/sessions/:conversationId", async (request, reply) => {
     const { tenantId, userId } = requestIdentity(request.headers);
-    const userScope = header(request.headers["x-user-id"]);
     const { conversationId } = request.params;
-    const active = executionStateStore.getActive(tenantId, conversationId, userScope);
-    const pendingApprovals = approvalStore.listPending(tenantId, conversationId, userScope);
-    const scopedEvents = runtimeEventStore.since(tenantId, conversationId, null).filter((event) => userScope === undefined || event.userId === userScope);
+    const active = executionReader.getActive(tenantId, userId, conversationId);
+    const pendingApprovals = approvalReader.listPending(tenantId, userId, conversationId);
+    const scopedEvents = runtimeEventStore.since(tenantId, userId, conversationId, null);
     const hasScopedRuntimeState = active != null || pendingApprovals.length > 0 || scopedEvents.length > 0;
-    const messages = hasScopedRuntimeState ? history.get(tenantId, conversationId) : history.get(tenantId, conversationId);
-    const runtimeProgress = progressForSession(runtimeEventStore, executionStateStore, tenantId, userScope, conversationId, active?.executionId);
+    const messages = history.get(tenantId, userId, conversationId);
+    const runtimeProgress = progressForSession(runtimeEventStore, executionStateStore, tenantId, userId, conversationId, active?.executionId);
     if (messages.length === 0 && !hasScopedRuntimeState) {
       reply.status(404).send({
         error: { errorClass: "SESSION_NOT_FOUND", errorMessage: `Session not found: ${conversationId}` }
@@ -507,10 +545,12 @@ export async function createServer(options: CreateServerOptions = {}) {
             conversationId: active.conversationId,
             tenantId: active.tenantId,
             status: active.status,
-            startedAt: active.startedAt,
+            startedAt: "startedAt" in active ? active.startedAt : active.createdAt,
             updatedAt: active.updatedAt,
-            endedAt: active.endedAt,
-            endReason: active.endReason
+            endedAt: "endedAt" in active ? active.endedAt : undefined,
+            endReason: "endReason" in active
+              ? active.endReason
+              : "stopReason" in active ? active.stopReason ?? undefined : undefined
           }
         : null,
       ...(runtimeProgress ? { runtimeProgress } : {}),
@@ -523,10 +563,9 @@ export async function createServer(options: CreateServerOptions = {}) {
     Body: Partial<ApprovalDecision>;
   }>("/api/v1/sessions/:conversationId/executions/:executionId/approvals/:toolCallId", async (request, reply) => {
     const { conversationId, executionId, toolCallId } = request.params;
-    const { tenantId, userId } = requestIdentity(request.headers);
-    const userScope = header(request.headers["x-user-id"]);
-    const pending = approvalStore.get(executionId, toolCallId);
-    if (!pending || pending.conversationId !== conversationId || pending.tenantId !== tenantId || (userScope !== undefined && pending.userId !== undefined && pending.userId !== userId)) {
+    const { tenantId, userId, traceId, requestId } = requestIdentity(request.headers);
+    const pending = approvalReader.get(tenantId, userId, conversationId, executionId, toolCallId);
+    if (!pending) {
       reply.status(404).send({
         error: {
           errorClass: "APPROVAL_NOT_FOUND",
@@ -536,7 +575,20 @@ export async function createServer(options: CreateServerOptions = {}) {
       return;
     }
     const decision = toApprovalDecision(request.body);
-    approvalStore.decide(executionId, toolCallId, decision);
+    if (options.runtimeContext) {
+      const committed = options.runtimeContext.lifecycle.decideApproval({
+        tenantId,
+        userId,
+        conversationId,
+        executionId,
+        traceId,
+        requestId,
+        approvalId: pending.askUserId,
+        nextStatus: approvalLifecycleStatus(decision.action)
+      });
+      publishCommittedLifecycleEvents(options.runtimeContext.liveEvents, committed);
+    }
+    approvalStore.decide(tenantId, userId, conversationId, executionId, toolCallId, decision);
     reply.send({
       executionId,
       toolCallId,
@@ -545,9 +597,9 @@ export async function createServer(options: CreateServerOptions = {}) {
   });
 
   app.delete<{ Params: { conversationId: string } }>("/api/v1/sessions/:conversationId", async (request, reply) => {
-    const { tenantId } = requestIdentity(request.headers);
+    const { tenantId, userId } = requestIdentity(request.headers);
     const { conversationId } = request.params;
-    await history.delete(tenantId, conversationId);
+    await history.delete(tenantId, userId, conversationId);
     reply.status(204).send();
   });
 
@@ -556,8 +608,9 @@ export async function createServer(options: CreateServerOptions = {}) {
   app.post<{
     Params: { conversationId: string; executionId: string };
   }>("/api/v1/sessions/:conversationId/executions/:executionId/abort", async (request, reply) => {
-    const { executionId } = request.params;
-    const state = executionStateStore.get(executionId);
+    const { conversationId, executionId } = request.params;
+    const { tenantId, userId } = requestIdentity(request.headers);
+    const state = executionReader.get(tenantId, userId, conversationId, executionId);
     if (!state) {
       reply.status(404).send({
         error: { errorClass: "EXECUTION_NOT_FOUND", errorMessage: `Execution not found: ${executionId}` }
@@ -565,8 +618,24 @@ export async function createServer(options: CreateServerOptions = {}) {
       return;
     }
     // No-op if already terminal.
-    executionStateStore.abort(executionId);
-    const after = executionStateStore.get(executionId)!;
+    if (options.runtimeContext) {
+      const identity = requestIdentity(request.headers);
+      const committed = options.runtimeContext.lifecycle.abortExecution({
+        tenantId,
+        userId,
+        conversationId,
+        executionId,
+        traceId: identity.traceId,
+        requestId: identity.requestId,
+        errorMessage: "Execution was aborted by client"
+      });
+      publishCommittedLifecycleEvents(options.runtimeContext.liveEvents, committed);
+    }
+    const processState = executionStateStore.get(tenantId, userId, conversationId, executionId);
+    if (processState) {
+      executionStateStore.abort(tenantId, userId, conversationId, executionId);
+    }
+    const after = executionStateStore.get(tenantId, userId, conversationId, executionId) ?? state;
     reply.send({ executionId: after.executionId, status: after.status });
   });
 
@@ -574,6 +643,59 @@ export async function createServer(options: CreateServerOptions = {}) {
   (app as unknown as { askUserStore: AskUserStore }).askUserStore = askUserStore;
 
   return app;
+}
+
+const defaultDevelopmentStoreFactories: DevelopmentStoreFactories = {
+  history: () => createHistoryStore(),
+  memory: () => new JsonFileMemoryStore(),
+  events: () => new InMemoryRuntimeEventStore(),
+  executions: () => new InMemoryExecutionStateStore(),
+  approvals: () => new JsonFileApprovalStore()
+};
+
+export async function createProductionServer(options: CreateProductionServerOptions) {
+  if (!options.serviceToken.trim()) throw new Error("Production Runtime service token is required");
+  const context = openProductionRuntimeContext(options.databasePath);
+  try {
+    const app = await createServer({
+      runtimeContext: context,
+      javaClient: options.javaClient,
+      javaBaseUrl: options.javaBaseUrl,
+      frontendUrl: options.frontendUrl,
+      disableMcp: options.disableMcp,
+      serviceToken: options.serviceToken,
+      requireServiceAuth: true
+    });
+    app.addHook("onClose", async () => context.close());
+    return app;
+  } catch (error) {
+    context.close();
+    throw error;
+  }
+}
+
+function productionRuntimeEventStore(context: ProductionRuntimeContext): RuntimeEventStore {
+  return {
+    append(tenantId, userId, conversationId, event) {
+      const committed = context.lifecycle.recordEvent({
+        tenantId,
+        userId,
+        conversationId,
+        executionId: event.executionId,
+        traceId: event.traceId,
+        requestId: event.requestId,
+        kind: event.kind,
+        data: event.data
+      });
+      publishCommittedLifecycleEvents(context.liveEvents, committed);
+      return committed.events[0];
+    },
+    publish: event => context.liveEvents.publish(event),
+    subscribe: (tenantId, userId, conversationId, listener) => context.liveEvents.subscribe(tenantId, userId, conversationId, listener),
+    since: (tenantId, userId, conversationId, afterEventId) => context.events.since(tenantId, userId, conversationId, afterEventId),
+    latestEventId: (tenantId, userId, conversationId) => context.events.latestEventId(tenantId, userId, conversationId),
+    hasEvent: (tenantId, userId, conversationId, eventId) => context.events.hasEvent(tenantId, userId, conversationId, eventId)
+  };
 }
 
 function header(value: string | string[] | undefined): string | undefined {
@@ -588,7 +710,7 @@ function requestIdentity(headers: Record<string, string | string[] | undefined>)
 } {
   return {
     tenantId: header(headers["x-tenant-id"]) ?? "tenant-001",
-    userId: header(headers["x-user-id"]) ?? "user-001",
+    userId: header(headers["x-user-id"])!,
     traceId: header(headers["x-trace-id"]) ?? crypto.randomUUID(),
     requestId: header(headers["x-request-id"]) ?? crypto.randomUUID()
   };
@@ -617,10 +739,10 @@ function sanitizePendingApprovals(approvals: ReturnType<ApprovalStore["listPendi
 function latestScopedEventId(
   runtimeEventStore: RuntimeEventStore,
   tenantId: string,
-  userId: string | undefined,
+  userId: string,
   conversationId: string
 ): string | null {
-  const events = runtimeEventStore.since(tenantId, conversationId, null).filter((event) => userId === undefined || event.userId === userId);
+  const events = runtimeEventStore.since(tenantId, userId, conversationId, null);
   return events[events.length - 1]?.eventId ?? null;
 }
 
@@ -655,8 +777,13 @@ function approvalStatus(action: ApprovalDecision["action"]): "approved" | "rejec
   return "approved";
 }
 
+function approvalLifecycleStatus(action: ApprovalDecision["action"]): "approved" | "rejected" | "revised" {
+  return approvalStatus(action);
+}
+
 function buildSyncResponse(
   tenantId: string,
+  userId: string,
   conversationId: string,
   executionId: string,
   traceId: string,
@@ -665,7 +792,7 @@ function buildSyncResponse(
   runtimeEventStore: RuntimeEventStore
 ): AgentChatResponse {
   const events = runtimeEventStore
-    .since(tenantId, conversationId, null)
+    .since(tenantId, userId, conversationId, null)
     .filter((event) => event.executionId === executionId);
   const finalAnswer = [...events].reverse().find((event) => event.kind === "final_answer");
   const usage = isUsage(finalAnswer?.data.usage) ? finalAnswer.data.usage : undefined;
@@ -690,16 +817,16 @@ function progressForSession(
   runtimeEventStore: RuntimeEventStore,
   executionStateStore: ExecutionStateStore,
   tenantId: string,
-  userId: string | undefined,
+  userId: string,
   conversationId: string,
   activeExecutionId?: string
 ) {
-  const allEvents = runtimeEventStore.since(tenantId, conversationId, null).filter((event) => userId === undefined || event.userId === userId);
+  const allEvents = runtimeEventStore.since(tenantId, userId, conversationId, null);
   const executionId = activeExecutionId ?? allEvents[allEvents.length - 1]?.executionId;
   if (!executionId) return null;
   const events = allEvents.filter((event) => event.executionId === executionId);
   return deriveRuntimeProgress({
     events,
-    state: executionStateStore.get(executionId)
+    state: executionStateStore.get(tenantId, userId, conversationId, executionId)
   });
 }

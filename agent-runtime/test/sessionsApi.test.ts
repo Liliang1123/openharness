@@ -67,7 +67,7 @@ describe("Sessions API", () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v1/sessions",
-      headers: { "x-tenant-id": "t-empty" }
+      headers: { "x-tenant-id": "t-empty", "x-user-id": "u-empty" }
     });
     expect(res.statusCode).toBe(200);
     expect(JSON.parse(res.payload)).toEqual([]);
@@ -81,7 +81,7 @@ describe("Sessions API", () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v1/sessions",
-      headers: { "x-tenant-id": "t1" }
+      headers: { "x-tenant-id": "t1", "x-user-id": "u1" }
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
@@ -96,7 +96,7 @@ describe("Sessions API", () => {
     await postChat(app, "t1", "c-t1", "for tenant 1");
     await postChat(app, "t2", "c-t2", "for tenant 2");
 
-    const res1 = await app.inject({ method: "GET", url: "/api/v1/sessions", headers: { "x-tenant-id": "t1" } });
+    const res1 = await app.inject({ method: "GET", url: "/api/v1/sessions", headers: { "x-tenant-id": "t1", "x-user-id": "u1" } });
     expect(JSON.parse(res1.payload)).toHaveLength(1);
     expect(JSON.parse(res1.payload)[0].conversationId).toBe("c-t1");
   });
@@ -116,7 +116,7 @@ describe("Sessions API", () => {
         conversationId: "conv-shared",
         executionId: "exec-user-a"
       });
-      runtimeEventStore.append("tenant-a", "conv-shared", {
+      runtimeEventStore.append("tenant-a", "user-a", "conv-shared", {
         executionId: "exec-user-a",
         conversationId: "conv-shared",
         tenantId: "tenant-a",
@@ -145,7 +145,7 @@ describe("Sessions API", () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v1/sessions/nonexistent",
-      headers: { "x-tenant-id": "t1" }
+      headers: { "x-tenant-id": "t1", "x-user-id": "u1" }
     });
     expect(res.statusCode).toBe(404);
   });
@@ -155,7 +155,7 @@ describe("Sessions API", () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v1/sessions/c1",
-      headers: { "x-tenant-id": "t1" }
+      headers: { "x-tenant-id": "t1", "x-user-id": "u1" }
     });
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
@@ -175,10 +175,11 @@ describe("Sessions API", () => {
     try {
       executionStateStore.create({
         tenantId: "t1",
+        userId: "u1",
         conversationId: "conv-progress",
         executionId: "exec-progress"
       });
-      runtimeEventStore.append("t1", "conv-progress", {
+      runtimeEventStore.append("t1", "u1", "conv-progress", {
         executionId: "exec-progress",
         conversationId: "conv-progress",
         tenantId: "t1",
@@ -193,7 +194,7 @@ describe("Sessions API", () => {
       const res = await localApp.inject({
         method: "GET",
         url: "/api/v1/sessions/conv-progress",
-        headers: { "x-tenant-id": "t1" }
+        headers: { "x-tenant-id": "t1", "x-user-id": "u1" }
       });
 
       expect(res.statusCode).toBe(200);
@@ -215,11 +216,11 @@ describe("Sessions API", () => {
     const del = await app.inject({
       method: "DELETE",
       url: "/api/v1/sessions/c1",
-      headers: { "x-tenant-id": "t1" }
+      headers: { "x-tenant-id": "t1", "x-user-id": "u1" }
     });
     expect(del.statusCode).toBe(204);
 
-    const list = await app.inject({ method: "GET", url: "/api/v1/sessions", headers: { "x-tenant-id": "t1" } });
+    const list = await app.inject({ method: "GET", url: "/api/v1/sessions", headers: { "x-tenant-id": "t1", "x-user-id": "u1" } });
     expect(JSON.parse(list.payload)).toHaveLength(0);
   });
 
@@ -227,7 +228,7 @@ describe("Sessions API", () => {
     const res = await app.inject({
       method: "DELETE",
       url: "/api/v1/sessions/never-existed",
-      headers: { "x-tenant-id": "t1" }
+      headers: { "x-tenant-id": "t1", "x-user-id": "u1" }
     });
     expect(res.statusCode).toBe(204);
   });

@@ -33,18 +33,18 @@ class StubJavaClient implements JavaClient {
 describe("active execution lock", () => {
   it("getActive returns the running execution for the same tenant and conversation", () => {
     const store = new InMemoryExecutionStateStore();
-    const state = store.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-1" });
+    const state = store.create({ tenantId: "t1", userId: "u1", conversationId: "c1", executionId: "exec-1" });
 
-    expect(store.getActive("t1", "c1")).toEqual(state);
-    expect(store.getActive("t1", "other")).toBeNull();
+    expect(store.getActive("t1", "u1", "c1")).toEqual(state);
+    expect(store.getActive("t1", "u1", "other")).toBeNull();
 
-    store.transitionToTerminal("exec-1", "completed", "FINAL_ANSWER");
-    expect(store.getActive("t1", "c1")).toBeNull();
+    store.transitionToTerminal("t1", "u1", "c1", "exec-1", "completed", "FINAL_ANSWER");
+    expect(store.getActive("t1", "u1", "c1")).toBeNull();
   });
 
   it("rejects a second stream request for a running conversation with EXECUTION_ALREADY_RUNNING", async () => {
     const executionStateStore = new InMemoryExecutionStateStore();
-    executionStateStore.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-running" });
+    executionStateStore.create({ tenantId: "t1", userId: "u1", conversationId: "c1", executionId: "exec-running" });
     const app = await createServer({
       javaClient: new StubJavaClient(),
       disableMcp: true,
@@ -68,11 +68,12 @@ describe("active execution lock", () => {
 
   it("rejects a new request for a waiting approval conversation with pending approvals", async () => {
     const executionStateStore = new InMemoryExecutionStateStore();
-    executionStateStore.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-waiting" });
-    executionStateStore.transition("exec-waiting", "waiting_approval");
+    executionStateStore.create({ tenantId: "t1", userId: "u1", conversationId: "c1", executionId: "exec-waiting" });
+    executionStateStore.transition("t1", "u1", "c1", "exec-waiting", "waiting_approval");
     const approvalStore = new JsonFileApprovalStore("/tmp/openharness-active-lock-approval-test");
     approvalStore.createPending({
       tenantId: "t1",
+      userId: "u1",
       conversationId: "c1",
       executionId: "exec-waiting",
       toolCallId: "call-1",

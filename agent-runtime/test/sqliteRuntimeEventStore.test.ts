@@ -28,6 +28,11 @@ describe("SqliteRuntimeEventStore", () => {
     });
 
     expect(db.transaction((tx) => events.replayAfter(tx, "tenant-a", "user-a", "conversation-a", 1)).map((e) => e.eventId)).toEqual(["event-a2"]);
+    expect(db.transaction((tx) => events.replayAfter(tx, "tenant-a", "user-a", "conversation-a", 1))[0]).toMatchObject({
+      traceId: "trace-a",
+      requestId: "request-a",
+      data: { cursor: 2 }
+    });
     expect(db.transaction((tx) => events.latestCursor(tx, "tenant-a", "user-a", "conversation-a"))).toBe(2);
     expect(db.transaction((tx) => events.latestCursor(tx, "tenant-a", "user-b", "conversation-a"))).toBe(1);
     db.close();

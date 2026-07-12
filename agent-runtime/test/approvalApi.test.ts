@@ -34,10 +34,11 @@ describe("approval API", () => {
     rmSync(TEST_DIR, { recursive: true, force: true });
     const approvalStore = new JsonFileApprovalStore(TEST_DIR);
     const executionStateStore = new InMemoryExecutionStateStore();
-    executionStateStore.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-1" });
-    executionStateStore.transition("exec-1", "waiting_approval");
+    executionStateStore.create({ tenantId: "t1", userId: "u1", conversationId: "c1", executionId: "exec-1" });
+    executionStateStore.transition("t1", "u1", "c1", "exec-1", "waiting_approval");
     approvalStore.createPending({
       tenantId: "t1",
+      userId: "u1",
       conversationId: "c1",
       executionId: "exec-1",
       toolCallId: "call-1",
@@ -49,25 +50,26 @@ describe("approval API", () => {
     const res = await app.inject({
       method: "POST",
       url: "/api/v1/sessions/c1/executions/exec-1/approvals/call-1",
-      headers: { "x-tenant-id": "t1", "content-type": "application/json" },
+      headers: { "x-tenant-id": "t1", "x-user-id": "u1", "content-type": "application/json" },
       payload: { action: "approve" }
     });
 
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ executionId: "exec-1", toolCallId: "call-1", status: "approved" });
-    expect(approvalStore.listPending("t1", "c1")).toEqual([]);
+    expect(approvalStore.listPending("t1", "u1", "c1")).toEqual([]);
     await app.close();
     rmSync(TEST_DIR, { recursive: true, force: true });
   });
 
-  it("routes the legacy ask-user reply endpoint to ApprovalStore by askUserId", async () => {
+  it("does not route durable approvals through the unscoped legacy ask-user endpoint", async () => {
     rmSync(TEST_DIR, { recursive: true, force: true });
     const approvalStore = new JsonFileApprovalStore(TEST_DIR);
     const executionStateStore = new InMemoryExecutionStateStore();
-    executionStateStore.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-1" });
-    executionStateStore.transition("exec-1", "waiting_approval");
+    executionStateStore.create({ tenantId: "t1", userId: "u1", conversationId: "c1", executionId: "exec-1" });
+    executionStateStore.transition("t1", "u1", "c1", "exec-1", "waiting_approval");
     const pending = approvalStore.createPending({
       tenantId: "t1",
+      userId: "u1",
       conversationId: "c1",
       executionId: "exec-1",
       toolCallId: "call-legacy",
@@ -79,13 +81,12 @@ describe("approval API", () => {
     const res = await app.inject({
       method: "POST",
       url: `/api/v1/agent/ask-user/${pending.askUserId}/reply`,
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-user-id": "u1" },
       payload: { askUserId: pending.askUserId, action: "reject", respondedAt: "2026-06-04T00:00:00.000Z" }
     });
 
-    expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ askUserId: pending.askUserId, status: "rejected" });
-    expect(approvalStore.listPending("t1", "c1")).toEqual([]);
+    expect(res.statusCode).toBe(404);
+    expect(approvalStore.listPending("t1", "u1", "c1")).toHaveLength(1);
     await app.close();
     rmSync(TEST_DIR, { recursive: true, force: true });
   });
@@ -94,8 +95,8 @@ describe("approval API", () => {
     rmSync(TEST_DIR, { recursive: true, force: true });
     const approvalStore = new JsonFileApprovalStore(TEST_DIR);
     const executionStateStore = new InMemoryExecutionStateStore();
-    executionStateStore.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-1" });
-    executionStateStore.transition("exec-1", "waiting_approval");
+    executionStateStore.create({ tenantId: "t1", userId: "u1", conversationId: "c1", executionId: "exec-1" });
+    executionStateStore.transition("t1", "u1", "c1", "exec-1", "waiting_approval");
     approvalStore.createPending({
       tenantId: "t1",
       userId: "u1",
@@ -117,7 +118,7 @@ describe("approval API", () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.payload).not.toContain("raw-secret-token");
-    expect(approvalStore.listPending("t1", "c1")).toHaveLength(1);
+    expect(approvalStore.listPending("t1", "u1", "c1")).toHaveLength(1);
     await app.close();
     rmSync(TEST_DIR, { recursive: true, force: true });
   });
@@ -126,8 +127,8 @@ describe("approval API", () => {
     rmSync(TEST_DIR, { recursive: true, force: true });
     const approvalStore = new JsonFileApprovalStore(TEST_DIR);
     const executionStateStore = new InMemoryExecutionStateStore();
-    executionStateStore.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-1" });
-    executionStateStore.transition("exec-1", "waiting_approval");
+    executionStateStore.create({ tenantId: "t1", userId: "u1", conversationId: "c1", executionId: "exec-1" });
+    executionStateStore.transition("t1", "u1", "c1", "exec-1", "waiting_approval");
     approvalStore.createPending({
       tenantId: "t1",
       userId: "u1",

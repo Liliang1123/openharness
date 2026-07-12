@@ -24,6 +24,7 @@ function state(status: ExecutionState["status"], endReason?: string): ExecutionS
     executionId: "exec-1",
     conversationId: "c1",
     tenantId: "t1",
+    userId: "u1",
     status,
     startedAt: 1000,
     updatedAt: 2000,

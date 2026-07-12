@@ -84,8 +84,8 @@ export class AgentStreamLoop {
     };
 
     // Subscribe first, then drain any events already emitted synchronously by runner.start().
-    unsubscribe = this.runtimeEventStore.subscribe(input.tenantId, input.conversationId, writeSse);
-    for (const e of this.runtimeEventStore.since(input.tenantId, input.conversationId, null)) {
+    unsubscribe = this.runtimeEventStore.subscribe(input.tenantId, input.userId, input.conversationId, writeSse);
+    for (const e of this.runtimeEventStore.since(input.tenantId, input.userId, input.conversationId, null)) {
       if (closed) break;
       writeSse(e);
     }

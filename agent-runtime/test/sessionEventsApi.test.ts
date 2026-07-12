@@ -35,12 +35,13 @@ function parseSse(body: string): Array<{ event: string; data: Record<string, unk
 }
 
 function seedEvents(store: InMemoryRuntimeEventStore, tenantId: string, conversationId: string, kinds: string[]) {
+  const userId = "user-001";
   for (const kind of kinds) {
-    store.append(tenantId, conversationId, {
+    store.append(tenantId, userId, conversationId, {
       executionId: "exec-seed",
       conversationId,
       tenantId,
-      userId: "u1",
+      userId,
       traceId: "tr-seed",
       requestId: "req-seed",
       createdAt: Date.now(),
@@ -52,7 +53,7 @@ function seedEvents(store: InMemoryRuntimeEventStore, tenantId: string, conversa
 
 function seedEventsForUser(store: InMemoryRuntimeEventStore, tenantId: string, userId: string, conversationId: string, kinds: string[]) {
   for (const kind of kinds) {
-    store.append(tenantId, conversationId, {
+    store.append(tenantId, userId, conversationId, {
       executionId: `exec-${userId}`,
       conversationId,
       tenantId,
@@ -87,7 +88,7 @@ describe("session events SSE endpoint", () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v1/sessions/conv-replay-all/events",
-      headers: { "x-tenant-id": "t1" }
+      headers: { "x-tenant-id": "t1", "x-user-id": "user-001" }
     });
 
     expect(res.statusCode).toBe(200);
@@ -104,8 +105,8 @@ describe("session events SSE endpoint", () => {
     // last_event_id points to model_call_start (eventId :2)
     const res = await app.inject({
       method: "GET",
-      url: "/api/v1/sessions/conv-cursor/events?last_event_id=t1::conv-cursor:2",
-      headers: { "x-tenant-id": "t1" }
+      url: "/api/v1/sessions/conv-cursor/events?last_event_id=t1::user-001::conv-cursor:2",
+      headers: { "x-tenant-id": "t1", "x-user-id": "user-001" }
     });
 
     const events = parseSse(res.body);
@@ -120,13 +121,13 @@ describe("session events SSE endpoint", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/api/v1/sessions/conv-gap/events?last_event_id=t1::conv-gap:999",
-      headers: { "x-tenant-id": "t1" }
+      url: "/api/v1/sessions/conv-gap/events?last_event_id=t1::user-001::conv-gap:999",
+      headers: { "x-tenant-id": "t1", "x-user-id": "user-001" }
     });
 
     const events = parseSse(res.body);
     expect(events.map(e => e.event)).toEqual(["stream_resync_required"]);
-    expect((events[0].data.data as Record<string, unknown>).lastAvailableEventId).toBe("t1::conv-gap:2");
+    expect((events[0].data.data as Record<string, unknown>).lastAvailableEventId).toBe("t1::user-001::conv-gap:2");
   });
 
   it("isolates events across tenants for the same conversationId", async () => {
@@ -138,12 +139,12 @@ describe("session events SSE endpoint", () => {
     const resA = await app.inject({
       method: "GET",
       url: "/api/v1/sessions/conv-shared/events",
-      headers: { "x-tenant-id": "tenant-A" }
+      headers: { "x-tenant-id": "tenant-A", "x-user-id": "user-001" }
     });
     const resB = await app.inject({
       method: "GET",
       url: "/api/v1/sessions/conv-shared/events",
-      headers: { "x-tenant-id": "tenant-B" }
+      headers: { "x-tenant-id": "tenant-B", "x-user-id": "user-001" }
     });
 
     expect(parseSse(resA.body).map(e => e.event)).toEqual(["agent_start", "stream_done"]);
@@ -172,7 +173,7 @@ describe("session events SSE endpoint", () => {
     const responseP = app.inject({
       method: "GET",
       url: "/api/v1/sessions/conv-live/events",
-      headers: { "x-tenant-id": "t1" }
+      headers: { "x-tenant-id": "t1", "x-user-id": "user-001" }
     });
 
     // Yield once so handler runs and subscribes.
@@ -193,7 +194,7 @@ describe("session events SSE endpoint", () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v1/sessions/conv-fields/events",
-      headers: { "x-tenant-id": "t1" }
+      headers: { "x-tenant-id": "t1", "x-user-id": "user-001" }
     });
 
     const events = parseSse(res.body);

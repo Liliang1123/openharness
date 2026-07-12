@@ -20,13 +20,13 @@ export interface SessionMeta {
 // ── Interface ────────────────────────────────────────────────────────────────
 
 export interface HistoryStore {
-  append(tenantId: string, conversationId: string, message: AgentMessage): void;
-  get(tenantId: string, conversationId: string): AgentMessage[];
-  replace(tenantId: string, conversationId: string, messages: AgentMessage[]): void;
-  save(tenantId: string, conversationId: string): Promise<void>;
-  load(tenantId: string, conversationId: string): Promise<void>;
-  list(tenantId: string): Promise<SessionMeta[]>;
-  delete(tenantId: string, conversationId: string): Promise<void>;
+  append(tenantId: string, userId: string, conversationId: string, message: AgentMessage): void;
+  get(tenantId: string, userId: string, conversationId: string): AgentMessage[];
+  replace(tenantId: string, userId: string, conversationId: string, messages: AgentMessage[]): void;
+  save(tenantId: string, userId: string, conversationId: string): Promise<void>;
+  load(tenantId: string, userId: string, conversationId: string): Promise<void>;
+  list(tenantId: string, userId: string): Promise<SessionMeta[]>;
+  delete(tenantId: string, userId: string, conversationId: string): Promise<void>;
 }
 
 // ── Views ────────────────────────────────────────────────────────────────────
@@ -94,40 +94,40 @@ interface InMemoryEntry {
 export class InMemoryHistoryStore implements HistoryStore {
   private readonly histories = new Map<string, InMemoryEntry>();
 
-  private key(tenantId: string, conversationId: string) {
-    return `${tenantId}:${conversationId}`;
+  private key(tenantId: string, userId: string, conversationId: string) {
+    return `${tenantId}:${userId}:${conversationId}`;
   }
 
-  append(tenantId: string, conversationId: string, message: AgentMessage): void {
+  append(tenantId: string, userId: string, conversationId: string, message: AgentMessage): void {
     assertStableHistoryMessage(message);
-    const k = this.key(tenantId, conversationId);
+    const k = this.key(tenantId, userId, conversationId);
     const entry = this.histories.get(k) ?? { messages: [], updatedAt: new Date().toISOString() };
     entry.messages.push(message);
     entry.updatedAt = new Date().toISOString();
     this.histories.set(k, entry);
   }
 
-  get(tenantId: string, conversationId: string): AgentMessage[] {
-    return stableHistory(this.histories.get(this.key(tenantId, conversationId))?.messages ?? []);
+  get(tenantId: string, userId: string, conversationId: string): AgentMessage[] {
+    return stableHistory(this.histories.get(this.key(tenantId, userId, conversationId))?.messages ?? []);
   }
 
-  replace(tenantId: string, conversationId: string, messages: AgentMessage[]): void {
-    this.histories.set(this.key(tenantId, conversationId), {
+  replace(tenantId: string, userId: string, conversationId: string, messages: AgentMessage[]): void {
+    this.histories.set(this.key(tenantId, userId, conversationId), {
       messages: stableHistory(messages),
       updatedAt: new Date().toISOString()
     });
   }
 
-  async save(_tenantId: string, _conversationId: string): Promise<void> {
+  async save(_tenantId: string, _userId: string, _conversationId: string): Promise<void> {
     // no-op for in-memory
   }
 
-  async load(_tenantId: string, _conversationId: string): Promise<void> {
+  async load(_tenantId: string, _userId: string, _conversationId: string): Promise<void> {
     // no-op for in-memory
   }
 
-  async list(tenantId: string): Promise<SessionMeta[]> {
-    const prefix = `${tenantId}:`;
+  async list(tenantId: string, userId: string): Promise<SessionMeta[]> {
+    const prefix = `${tenantId}:${userId}:`;
     const result: SessionMeta[] = [];
     for (const [key, entry] of this.histories.entries()) {
       if (!key.startsWith(prefix)) continue;
@@ -142,8 +142,8 @@ export class InMemoryHistoryStore implements HistoryStore {
     return result;
   }
 
-  async delete(tenantId: string, conversationId: string): Promise<void> {
-    this.histories.delete(this.key(tenantId, conversationId));
+  async delete(tenantId: string, userId: string, conversationId: string): Promise<void> {
+    this.histories.delete(this.key(tenantId, userId, conversationId));
   }
 }
 

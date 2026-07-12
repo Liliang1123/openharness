@@ -28,6 +28,24 @@ class RecordingJavaClient implements JavaClient {
 }
 
 describe("production service authentication", () => {
+  it("requires explicit user identity even in development mode", async () => {
+    const app = await createServer({
+      javaClient: new RecordingJavaClient(),
+      disableMcp: true,
+      memoryStore: new InMemoryMemoryStore()
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/memory/facts",
+      headers: { "x-tenant-id": "tenant-a" }
+    });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.errorClass).toBe("MISSING_IDENTITY_HEADER");
+    await app.close();
+  });
+
   it("rejects missing or invalid bearer token before tenant state access", async () => {
     const javaClient = new RecordingJavaClient();
     const app = await createServer({

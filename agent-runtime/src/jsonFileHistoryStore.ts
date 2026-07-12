@@ -18,57 +18,58 @@ export class JsonFileHistoryStore implements HistoryStore {
     this.dataDir = dataDir ?? process.env.HISTORY_DATA_DIR ?? "data/sessions";
   }
 
-  private key(tenantId: string, conversationId: string) {
-    return `${tenantId}:${conversationId}`;
+  private key(tenantId: string, userId: string, conversationId: string) {
+    return `${tenantId}:${userId}:${conversationId}`;
   }
 
-  private filePath(tenantId: string, conversationId: string): string {
-    return join(this.dataDir, tenantId, `${conversationId}.json`);
+  private filePath(tenantId: string, userId: string, conversationId: string): string {
+    return join(this.dataDir, tenantId, userId, `${conversationId}.json`);
   }
 
-  private tenantDir(tenantId: string): string {
-    return join(this.dataDir, tenantId);
+  private userDir(tenantId: string, userId: string): string {
+    return join(this.dataDir, tenantId, userId);
   }
 
-  private appendInMemory(tenantId: string, conversationId: string, message: AgentMessage) {
-    const k = this.key(tenantId, conversationId);
+  private appendInMemory(tenantId: string, userId: string, conversationId: string, message: AgentMessage) {
+    const k = this.key(tenantId, userId, conversationId);
     const current = this.histories.get(k) ?? [];
     current.push(message);
     this.histories.set(k, current);
   }
 
-  append(tenantId: string, conversationId: string, message: AgentMessage): void {
+  append(tenantId: string, userId: string, conversationId: string, message: AgentMessage): void {
     assertStableHistoryMessage(message);
-    const k = this.key(tenantId, conversationId);
+    const k = this.key(tenantId, userId, conversationId);
     if (!this.histories.has(k)) {
-      this.loadSync(tenantId, conversationId);
+      this.loadSync(tenantId, userId, conversationId);
     }
-    this.appendInMemory(tenantId, conversationId, message);
+    this.appendInMemory(tenantId, userId, conversationId, message);
   }
 
-  get(tenantId: string, conversationId: string): AgentMessage[] {
-    const k = this.key(tenantId, conversationId);
+  get(tenantId: string, userId: string, conversationId: string): AgentMessage[] {
+    const k = this.key(tenantId, userId, conversationId);
     if (!this.histories.has(k)) {
-      this.loadSync(tenantId, conversationId);
+      this.loadSync(tenantId, userId, conversationId);
     }
     return stableHistory(this.histories.get(k) ?? []);
   }
 
-  replace(tenantId: string, conversationId: string, messages: AgentMessage[]): void {
-    this.histories.set(this.key(tenantId, conversationId), stableHistory(messages));
+  replace(tenantId: string, userId: string, conversationId: string, messages: AgentMessage[]): void {
+    this.histories.set(this.key(tenantId, userId, conversationId), stableHistory(messages));
   }
 
-  async save(tenantId: string, conversationId: string): Promise<void> {
-    const messages = this.histories.get(this.key(tenantId, conversationId));
+  async save(tenantId: string, userId: string, conversationId: string): Promise<void> {
+    const messages = this.histories.get(this.key(tenantId, userId, conversationId));
     if (!messages) return;
 
-    const filePath = this.filePath(tenantId, conversationId);
+    const filePath = this.filePath(tenantId, userId, conversationId);
     const dir = dirname(filePath);
     mkdirSync(dir, { recursive: true });
 
     // 只保留符合 replay 契约的历史消息并持久化，过滤 transient
     const data = {
       tenantId,
+      userId,
       conversationId,
       updatedAt: new Date().toISOString(),
       messages: toReplay(messages)
@@ -76,12 +77,12 @@ export class JsonFileHistoryStore implements HistoryStore {
     writeFileSync(filePath, JSON.stringify(data, null, 2));
   }
 
-  async load(tenantId: string, conversationId: string): Promise<void> {
-    this.loadSync(tenantId, conversationId);
+  async load(tenantId: string, userId: string, conversationId: string): Promise<void> {
+    this.loadSync(tenantId, userId, conversationId);
   }
 
-  async list(tenantId: string): Promise<SessionMeta[]> {
-    const dir = this.tenantDir(tenantId);
+  async list(tenantId: string, userId: string): Promise<SessionMeta[]> {
+    const dir = this.userDir(tenantId, userId);
     if (!existsSync(dir)) return [];
 
     const files = readdirSync(dir).filter((f) => f.endsWith(".json") && !f.endsWith("-approvals.json"));
@@ -106,13 +107,13 @@ export class JsonFileHistoryStore implements HistoryStore {
     return result;
   }
 
-  async delete(tenantId: string, conversationId: string): Promise<void> {
+  async delete(tenantId: string, userId: string, conversationId: string): Promise<void> {
     // Remove main JSON file
-    const filePath = this.filePath(tenantId, conversationId);
+    const filePath = this.filePath(tenantId, userId, conversationId);
     if (existsSync(filePath)) rmSync(filePath, { force: true });
 
     // Remove all chunk files: {conversationId}-chunk-N.md
-    const dir = this.tenantDir(tenantId);
+    const dir = this.userDir(tenantId, userId);
     if (existsSync(dir)) {
       const chunkPrefix = `${conversationId}-chunk-`;
       for (const file of readdirSync(dir)) {
@@ -123,12 +124,12 @@ export class JsonFileHistoryStore implements HistoryStore {
     }
 
     // Remove from in-memory cache
-    this.histories.delete(this.key(tenantId, conversationId));
+    this.histories.delete(this.key(tenantId, userId, conversationId));
   }
 
-  private loadSync(tenantId: string, conversationId: string): void {
-    const k = this.key(tenantId, conversationId);
-    const filePath = this.filePath(tenantId, conversationId);
+  private loadSync(tenantId: string, userId: string, conversationId: string): void {
+    const k = this.key(tenantId, userId, conversationId);
+    const filePath = this.filePath(tenantId, userId, conversationId);
     if (existsSync(filePath)) {
       try {
         const raw = readFileSync(filePath, "utf-8");
@@ -142,4 +143,3 @@ export class JsonFileHistoryStore implements HistoryStore {
     }
   }
 }
-

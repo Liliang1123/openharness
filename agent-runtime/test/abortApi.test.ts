@@ -87,7 +87,7 @@ describe("abort execution API", () => {
       await new Promise(r => setTimeout(r, 100));
 
       // Read executionId from the first agent_start event in the store.
-      const events = store.since("t1", "conv-abort", null);
+      const events = store.since("t1", "u1", "conv-abort", null);
       const agentStart = events.find(e => e.kind === "agent_start");
       expect(agentStart).toBeDefined();
       const executionId = agentStart!.executionId;
@@ -109,12 +109,12 @@ describe("abort execution API", () => {
       ac.abort();
       await reqP;
 
-      const finalEvents = store.since("t1", "conv-abort", null);
+      const finalEvents = store.since("t1", "u1", "conv-abort", null);
       const errEvent = finalEvents.find(e => e.kind === "stream_error");
       expect(errEvent).toBeDefined();
       expect(errEvent?.data.errorClass).toBe("EXECUTION_ABORTED");
 
-      const state = executionStateStore.get(executionId);
+      const state = executionStateStore.get("t1", "u1", "conv-abort", executionId);
       expect(state?.status).toBe("aborted");
     } finally {
       await app.close();
@@ -165,13 +165,13 @@ describe("abort execution API", () => {
         if (done) break;
       }
 
-      const events = store.since("t1", "conv-done", null);
+      const events = store.since("t1", "u1", "conv-done", null);
       const agentStart = events.find(e => e.kind === "agent_start");
       expect(agentStart).toBeDefined();
       const executionId = agentStart!.executionId;
 
       // Should be terminal by now.
-      expect(executionStateStore.get(executionId)?.status).toBe("completed");
+      expect(executionStateStore.get("t1", "u1", "conv-done", executionId)?.status).toBe("completed");
 
       // Abort should be a 200 no-op.
       const abortResp = await fetch(`${baseUrl}/api/v1/sessions/conv-done/executions/${executionId}/abort`, {

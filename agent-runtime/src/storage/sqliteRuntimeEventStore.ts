@@ -40,7 +40,13 @@ export class SqliteRuntimeEventStore {
         event.executionId,
         event.cursor,
         event.kind,
-        JSON.stringify(event.data),
+        JSON.stringify({
+          __openharnessRuntimeEvent: {
+            traceId: event.traceId,
+            requestId: event.requestId,
+            data: event.data
+          }
+        }),
         event.createdAt
       ]
     );
@@ -69,6 +75,20 @@ export class SqliteRuntimeEventStore {
       `SELECT MAX(cursor) AS cursor FROM runtime_events
        WHERE tenant_id = ? AND user_id = ? AND conversation_id = ?`,
       [tenantId, userId, conversationId]
+    )?.cursor ?? null;
+  }
+
+  cursorForEventId(
+    tx: RuntimeTransaction,
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    eventId: string
+  ): number | null {
+    return tx.get<{ cursor: number }>(
+      `SELECT cursor FROM runtime_events
+       WHERE tenant_id = ? AND user_id = ? AND conversation_id = ? AND event_id = ?`,
+      [tenantId, userId, conversationId, eventId]
     )?.cursor ?? null;
   }
 
@@ -158,6 +178,7 @@ export class SqliteRuntimeEventStore {
 }
 
 function fromRow(row: RuntimeEventRow): SessionEvent {
+  const payload = decodePayload(row.payload_json);
   return {
     durability: "durable",
     eventId: row.event_id,
@@ -165,12 +186,30 @@ function fromRow(row: RuntimeEventRow): SessionEvent {
     conversationId: row.conversation_id,
     tenantId: row.tenant_id,
     userId: row.user_id,
-    traceId: "persisted",
-    requestId: "persisted",
+    traceId: payload.traceId,
+    requestId: payload.requestId,
     createdAt: row.created_at,
     kind: row.kind,
-    data: JSON.parse(row.payload_json) as Record<string, unknown>
+    data: payload.data
   };
+}
+
+function decodePayload(payloadJson: string): {
+  traceId: string;
+  requestId: string;
+  data: Record<string, unknown>;
+} {
+  const parsed = JSON.parse(payloadJson) as Record<string, unknown>;
+  const envelope = parsed.__openharnessRuntimeEvent;
+  if (envelope && typeof envelope === "object") {
+    const stored = envelope as Record<string, unknown>;
+    return {
+      traceId: typeof stored.traceId === "string" ? stored.traceId : "persisted",
+      requestId: typeof stored.requestId === "string" ? stored.requestId : "persisted",
+      data: stored.data && typeof stored.data === "object" ? stored.data as Record<string, unknown> : {}
+    };
+  }
+  return { traceId: "persisted", requestId: "persisted", data: parsed };
 }
 
 function stripCursor(event: SqliteRuntimeEventInput): SessionEvent {

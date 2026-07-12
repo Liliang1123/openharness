@@ -69,7 +69,40 @@ export class SqliteHistoryStore {
        ORDER BY seq ASC`,
       [tenantId, userId, conversationId]
     );
-    return stableHistory(rows.map((row) => JSON.parse(row.content_json) as AgentMessage));
+    return stableHistory(rows.map((row) => stripLifecycleFields(JSON.parse(row.content_json) as AgentMessage)));
+  }
+
+  hasToolResultForExecution(
+    tx: RuntimeTransaction,
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    executionId: string,
+    toolCallId: string
+  ): boolean {
+    return tx.get<{ present: number }>(
+      `SELECT 1 AS present FROM messages
+       WHERE tenant_id = ? AND user_id = ? AND conversation_id = ? AND role = 'tool'
+         AND json_extract(content_json, '$.lifecycleExecutionId') = ?
+         AND json_extract(content_json, '$.toolCallId') = ?
+       LIMIT 1`,
+      [tenantId, userId, conversationId, executionId, toolCallId]
+    ) != null;
+  }
+
+  toolResultIdsForExecution(
+    tx: RuntimeTransaction,
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    executionId: string
+  ): string[] {
+    return tx.all<{ tool_call_id: string }>(
+      `SELECT json_extract(content_json, '$.toolCallId') AS tool_call_id FROM messages
+       WHERE tenant_id = ? AND user_id = ? AND conversation_id = ? AND role = 'tool'
+         AND json_extract(content_json, '$.lifecycleExecutionId') = ?`,
+      [tenantId, userId, conversationId, executionId]
+    ).map(row => row.tool_call_id);
   }
 
   replace(
@@ -119,6 +152,22 @@ export class SqliteHistoryStore {
     );
   }
 
+  finalizeProvisionalByExecution(
+    tx: RuntimeTransaction,
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    executionId: string
+  ): void {
+    tx.run(
+      `UPDATE messages
+       SET content_json = json_remove(content_json, '$.transient', '$.provisionalExecutionId')
+       WHERE tenant_id = ? AND user_id = ? AND conversation_id = ?
+         AND content_json LIKE ?`,
+      [tenantId, userId, conversationId, `%"provisionalExecutionId":"${executionId}"%`]
+    );
+  }
+
   list(tx: RuntimeTransaction, tenantId: string, userId: string): SessionMeta[] {
     return tx.all<SessionRow>(
       `SELECT conversation_id, title, updated_at FROM conversations
@@ -138,4 +187,11 @@ export class SqliteHistoryStore {
       [tenantId, userId, conversationId]
     ).changes > 0;
   }
+}
+
+function stripLifecycleFields(message: AgentMessage): AgentMessage {
+  const { lifecycleExecutionId: _lifecycleExecutionId, ...stable } = message as AgentMessage & {
+    lifecycleExecutionId?: string;
+  };
+  return stable;
 }

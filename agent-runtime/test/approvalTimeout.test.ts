@@ -43,14 +43,14 @@ describe("approval timeout", () => {
 
     const final = await done;
     const terminal = runtimeEventStore
-      .since("t1", "conv-approval-timeout", null)
+      .since("t1", "u1", "conv-approval-timeout", null)
       .find((event) => event.kind === "stream_error");
 
     expect(terminal?.data.errorClass).toBe("APPROVAL_TIMEOUT");
     expect(final.status).toBe("errored");
     expect(final.endReason).toBe("APPROVAL_TIMEOUT");
-    expect(executionStateStore.get(executionId)?.endReason).toBe("APPROVAL_TIMEOUT");
-    expect(history.get("t1", "conv-approval-timeout").some((m) => m.content === "PENDING_APPROVAL")).toBe(false);
+    expect(executionStateStore.get("t1", "u1", "conv-approval-timeout", executionId)?.endReason).toBe("APPROVAL_TIMEOUT");
+    expect(history.get("t1", "u1", "conv-approval-timeout").some((m) => m.content === "PENDING_APPROVAL")).toBe(false);
   });
 });
 

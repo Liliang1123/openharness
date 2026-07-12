@@ -46,10 +46,11 @@ describe("approval recovery via session GET", () => {
       payload: { conversationId: "c1", message: "hello" }
     });
 
-    executionStateStore.create({ tenantId: "t1", conversationId: "c1", executionId: "exec-1" });
-    executionStateStore.transition("exec-1", "waiting_approval");
+    executionStateStore.create({ tenantId: "t1", userId: "u1", conversationId: "c1", executionId: "exec-1" });
+    executionStateStore.transition("t1", "u1", "c1", "exec-1", "waiting_approval");
     approvalStore.createPending({
       tenantId: "t1",
+      userId: "u1",
       conversationId: "c1",
       executionId: "exec-1",
       toolCallId: "call-1",
@@ -61,7 +62,7 @@ describe("approval recovery via session GET", () => {
     const res = await app.inject({
       method: "GET",
       url: "/api/v1/sessions/c1",
-      headers: { "x-tenant-id": "t1" }
+      headers: { "x-tenant-id": "t1", "x-user-id": "u1" }
     });
 
     expect(res.statusCode).toBe(200);

@@ -110,7 +110,7 @@ describe("detached stream", () => {
       expect(hasAssistantFinal).toBe(true);
 
       // Verify the store has stream_done.
-      const events = store.since("t1", "conv-disc", null);
+      const events = store.since("t1", "u1", "conv-disc", null);
       expect(events.some(e => e.kind === "stream_done")).toBe(true);
     } finally {
       await app.close();
@@ -151,7 +151,7 @@ describe("detached stream", () => {
 
       // Reconnect via session events SSE — should replay buffered events and close on stream_done.
       const eventsResp = await fetch(`${baseUrl}/api/v1/sessions/conv-recon/events`, {
-        headers: { "X-Tenant-Id": "t1" }
+        headers: { "X-Tenant-Id": "t1", "X-User-Id": "u1" }
       });
       expect(eventsResp.ok).toBe(true);
       const body = await eventsResp.text();
