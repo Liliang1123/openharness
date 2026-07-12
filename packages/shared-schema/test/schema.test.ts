@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   AgentDefinitionSchema,
@@ -10,6 +11,9 @@ import {
   MemoryListResponseSchema,
   MemorySearchQuerySchema,
   MemoryUpsertRequestSchema,
+  PendingCodexTurnSchema,
+  CodexToolResultSubmissionSchema,
+  CodexTurnCancelRequestSchema,
   ModelChatResponseSchema,
   ModelChatRequestSchema,
   ReviewPolicyEvaluateRequestSchema,
@@ -35,6 +39,15 @@ import {
   TraceNodeKindSchema,
   TraceTreeAttributesSchema
 } from "../src/index";
+
+function nonCanonicalNumberTwin(canonical: string): string {
+  const exponent = canonical.indexOf("e");
+  if (exponent >= 0) {
+    const coefficient = canonical.slice(0, exponent);
+    return `${coefficient.includes(".") ? `${coefficient}0` : `${coefficient}.0`}${canonical.slice(exponent)}`;
+  }
+  return canonical.includes(".") ? `${canonical}0` : `${canonical}.0`;
+}
 
 const structuredError = {
   errorClass: "TOOL_USER_ERROR",
@@ -169,6 +182,259 @@ describe("shared schema", () => {
     });
 
     expect(parsed.usage?.costUsdMicros).toBe(123);
+  });
+
+  it("parses bounded Codex pending turns with canonical object arguments", () => {
+    const parsed = PendingCodexTurnSchema.parse({
+      bridgeId: "bridge-001",
+      threadId: "thread-001",
+      turnId: "turn-001",
+      callId: "call-001",
+      toolName: "get_current_time",
+      argumentsRaw: "{\"timezone\":\"Asia/Shanghai\"}",
+      expiresAt: "2026-07-11T10:00:00.000Z"
+    });
+
+    expect(parsed.argumentsRaw).toBe("{\"timezone\":\"Asia/Shanghai\"}");
+    expect(() => PendingCodexTurnSchema.parse({ ...parsed, argumentsRaw: "[1,2,3]" })).toThrow();
+    expect(() => PendingCodexTurnSchema.parse({ ...parsed, argumentsRaw: "{ \"timezone\": \"Asia/Shanghai\" }" })).toThrow();
+    expect(() => PendingCodexTurnSchema.parse({ ...parsed, argumentsRaw: "{\"z\":1,\"a\":2}" })).toThrow();
+    expect(() => PendingCodexTurnSchema.parse({ ...parsed, bridgeId: "b".repeat(257) })).toThrow();
+    expect(() => PendingCodexTurnSchema.parse({ ...parsed, toolName: "" })).toThrow();
+    expect(() => PendingCodexTurnSchema.parse({ ...parsed, expiresAt: "tomorrow" })).toThrow();
+  });
+
+  it("requires UTC seconds or milliseconds for pending-turn expiry", () => {
+    const pending = {
+      bridgeId: "bridge-001",
+      threadId: "thread-001",
+      turnId: "turn-001",
+      callId: "call-001",
+      toolName: "echo",
+      argumentsRaw: "{}"
+    };
+
+    for (const expiresAt of ["2026-07-11T10:00:00Z", "2026-07-11T10:00:00.123Z"]) {
+      expect(PendingCodexTurnSchema.parse({ ...pending, expiresAt }).expiresAt).toBe(expiresAt);
+    }
+    for (const expiresAt of [
+      "2026-07-11T10:00:00.1Z",
+      "2026-07-11T10:00:00.1234Z",
+      "2026-07-11T18:00:00+08:00",
+      "2026-02-30T10:00:00Z"
+    ]) {
+      expect(() => PendingCodexTurnSchema.parse({ ...pending, expiresAt })).toThrow();
+    }
+  });
+
+  it("validates canonical JSON without JavaScript object enumeration semantics", () => {
+    const pending = {
+      bridgeId: "bridge-001",
+      threadId: "thread-001",
+      turnId: "turn-001",
+      callId: "call-001",
+      toolName: "canonical_probe",
+      expiresAt: "2026-07-11T10:00:00.000Z"
+    };
+    const valid = [
+      "{\"10\":\"ten\",\"2\":\"two\",\"a\":\"letter\"}",
+      "{\"nested\":{\"10\":10,\"2\":2,\"a\":[{\"x\":true},null]}}",
+      "{\"big\":1e+30,\"fraction\":0.000001,\"negativeZero\":0}",
+      "{\"emoji\":\"😀\",\"é\":\"雪\"}",
+      "{\"\":\"empty\",\"__proto__\":\"safe\",\"constructor\":\"value\"}"
+    ];
+
+    for (const argumentsRaw of valid) {
+      expect(PendingCodexTurnSchema.parse({ ...pending, argumentsRaw }).argumentsRaw).toBe(argumentsRaw);
+    }
+
+    for (const argumentsRaw of [
+      "{\"a\":1,\"a\":2}",
+      "{\"nested\":{\"a\":1,\"a\":2}}",
+      "{\"bad\":\"\\ud800\"}",
+      "{\"badKey\\udfff\":true}",
+      "{\"negativeZero\":-0}",
+      "{\"expanded\":1e3}",
+      "{\"overflow\":1e400}"
+    ]) {
+      expect(() => PendingCodexTurnSchema.parse({ ...pending, argumentsRaw }), argumentsRaw).toThrow();
+    }
+  });
+
+  it("matches ECMAScript canonical number boundary spellings", () => {
+    const pending = {
+      bridgeId: "bridge-001",
+      threadId: "thread-001",
+      turnId: "turn-001",
+      callId: "call-001",
+      toolName: "number_probe",
+      expiresAt: "2026-07-11T10:00:00Z"
+    };
+    const canonical = [
+      "5e-324",
+      "-5e-324",
+      "1e-323",
+      "-1e-323",
+      "5e-323",
+      "-5e-323",
+      "6e-323",
+      "-6e-323",
+      "7e-323",
+      "-7e-323",
+      "8e-323",
+      "-8e-323",
+      "9e-323",
+      "-9e-323",
+      "1e-320",
+      "-1e-320",
+      "2.2250738585072014e-308",
+      "1e-7",
+      "0.000001",
+      "100000000000000000000",
+      "1e+21",
+      "1.7976931348623157e+308",
+      "333333333.3333333",
+      "1e+23"
+    ];
+    const nonCanonical = [
+      "4.9e-324",
+      "-4.9e-324",
+      "1.0e-320",
+      "-1.0e-320",
+      "0.0000001",
+      "1e-6",
+      "1e20",
+      "1000000000000000000000",
+      "1.0e+21",
+      "1.79769313486231570e+308",
+      "333333333.33333329",
+      "9.999999999999999e+22"
+    ];
+
+    for (const number of canonical) {
+      const argumentsRaw = `{"value":${number}}`;
+      expect(PendingCodexTurnSchema.parse({ ...pending, argumentsRaw }).argumentsRaw).toBe(argumentsRaw);
+    }
+    for (const number of nonCanonical) {
+      expect(() => PendingCodexTurnSchema.parse({ ...pending, argumentsRaw: `{"value":${number}}` }), number)
+        .toThrow();
+    }
+  });
+
+  it("accepts a deterministic ECMAScript number corpus and rejects every twin", () => {
+    const pending = {
+      bridgeId: "bridge-001",
+      threadId: "thread-001",
+      turnId: "turn-001",
+      callId: "call-001",
+      toolName: "number_corpus",
+      expiresAt: "2026-07-11T10:00:00Z"
+    };
+    let checked = 0;
+    let rejected = 0;
+    const fixture = readFileSync(
+      new URL("../../../backend/src/test/resources/ecmascript-canonical-numbers.tsv", import.meta.url),
+      "utf8"
+    );
+    const buffer = new ArrayBuffer(8);
+    const view = new DataView(buffer);
+    for (const line of fixture.trim().split("\n")) {
+      if (line.startsWith("#")) continue;
+      const [bitsHex, canonical] = line.split(" ");
+      view.setBigUint64(0, BigInt(`0x${bitsHex}`));
+      expect(JSON.stringify(view.getFloat64(0)), bitsHex).toBe(canonical);
+      const twin = nonCanonicalNumberTwin(canonical);
+      expect(PendingCodexTurnSchema.safeParse({ ...pending, argumentsRaw: `{"value":${canonical}}` }).success)
+        .toBe(true);
+      checked += 1;
+      expect(PendingCodexTurnSchema.safeParse({ ...pending, argumentsRaw: `{"value":${twin}}` }).success)
+        .toBe(false);
+      rejected += 1;
+    }
+
+    expect({ checked, rejected }).toEqual({ checked: 1_034, rejected: 1_034 });
+  });
+
+  it("fails closed without throwing for bounded deeply nested canonical JSON", () => {
+    const argumentsRaw = `{"value":${"[".repeat(12_000)}0${"]".repeat(12_000)}}`;
+    const pending = {
+      bridgeId: "bridge-001",
+      threadId: "thread-001",
+      turnId: "turn-001",
+      callId: "call-001",
+      toolName: "depth_probe",
+      argumentsRaw,
+      expiresAt: "2026-07-11T10:00:00Z"
+    };
+
+    expect(argumentsRaw.length).toBeLessThanOrEqual(65_536);
+    expect(() => PendingCodexTurnSchema.safeParse(pending)).not.toThrow();
+    expect(PendingCodexTurnSchema.safeParse(pending).success).toBe(false);
+  });
+
+  it("parses exact Codex tool-result and cancel payloads with bounded fields", () => {
+    const result = CodexToolResultSubmissionSchema.parse({
+      requestId: "req-001",
+      conversationId: "conv-001",
+      threadId: "thread-001",
+      turnId: "turn-001",
+      callId: "call-001",
+      idempotencyKey: "idem-001",
+      status: "rejected",
+      content: "operator rejected"
+    });
+    const cancel = CodexTurnCancelRequestSchema.parse({
+      requestId: "req-001",
+      conversationId: "conv-001",
+      threadId: "thread-001",
+      turnId: "turn-001",
+      callId: "call-001"
+    });
+
+    expect(result.status).toBe("rejected");
+    expect(cancel.callId).toBe("call-001");
+    expect(() => CodexToolResultSubmissionSchema.parse({ ...result, status: "cancelled" })).toThrow();
+    expect(() => CodexToolResultSubmissionSchema.parse({ ...result, content: "x".repeat(65_537) })).toThrow();
+    expect(() => CodexToolResultSubmissionSchema.parse({ ...result, extra: true })).toThrow();
+    expect(() => CodexTurnCancelRequestSchema.parse({ ...cancel, callId: "" })).toThrow();
+    expect(() => CodexTurnCancelRequestSchema.parse({ ...cancel, extra: true })).toThrow();
+  });
+
+  it("requires exactly one ModelChatResponse outcome and supports continuation replay metadata", () => {
+    const base = { requestId: "req-001", conversationId: "conv-001", rawProvider: "openai-codex" };
+    const message = { role: "assistant" as const, content: "done" };
+    const pendingTurn = {
+      bridgeId: "bridge-001",
+      threadId: "thread-001",
+      turnId: "turn-001",
+      callId: "call-001",
+      toolName: "echo",
+      argumentsRaw: "{\"text\":\"hello\"}",
+      expiresAt: "2026-07-11T10:00:00.000Z"
+    };
+
+    expect(ModelChatResponseSchema.parse({ ...base, message }).message).toEqual(message);
+    expect(ModelChatResponseSchema.parse({ ...base, pendingTurn }).pendingTurn).toEqual(pendingTurn);
+    expect(ModelChatResponseSchema.parse({ ...base, error: structuredError }).error).toEqual(structuredError);
+    expect(ModelChatResponseSchema.parse({ ...base, pendingTurn, idempotentReplay: true }).idempotentReplay).toBe(true);
+
+    expect(() => ModelChatResponseSchema.parse(base)).toThrow();
+    expect(() => ModelChatResponseSchema.parse({ ...base, message, pendingTurn })).toThrow();
+    expect(() => ModelChatResponseSchema.parse({ ...base, message, error: structuredError })).toThrow();
+    expect(() => ModelChatResponseSchema.parse({ ...base, pendingTurn, error: structuredError })).toThrow();
+    expect(() => ModelChatResponseSchema.parse({ ...base, message, pendingTurn, error: structuredError })).toThrow();
+  });
+
+  it("rejects unknown and sensitive ModelChatResponse fields", () => {
+    const response = {
+      requestId: "req-001",
+      conversationId: "conv-001",
+      rawProvider: "openai-codex",
+      message: { role: "assistant" as const, content: "done" }
+    };
+
+    expect(() => ModelChatResponseSchema.parse({ ...response, unexpected: true })).toThrow();
+    expect(() => ModelChatResponseSchema.parse({ ...response, accessToken: "secret" })).toThrow();
   });
 
   it("parses model chat request context metadata", () => {

@@ -164,6 +164,23 @@ class CodexProcessSupervisorTest {
   }
 
   @Test
+  void readyStdioProcessExposesExactlyOneBoundedClient() {
+    FakeProcess process = new FakeProcess();
+    CodexProcessSupervisor supervisor = new CodexProcessSupervisor(
+        config("stdio://"), (cmd, args) -> process, (p, timeout) -> {},
+        Duration.ofMillis(200), Duration.ofMillis(50), 0, Duration.ZERO);
+    supervisor.start();
+
+    assertThat(supervisor.openClient(Duration.ofSeconds(1))).isNotNull();
+    assertThatExceptionOfType(IllegalStateException.class)
+        .isThrownBy(() -> supervisor.openClient(Duration.ofSeconds(1)))
+        .withMessageContaining("already opened");
+
+    supervisor.stop();
+    assertThat(process.destroyCalled).isTrue();
+  }
+
+  @Test
   void stopWhileRestartBackoffWaitClearsPendingProcesses() throws Exception {
     FakeProcess first = new FakeProcess();
     FakeProcess second = new FakeProcess();

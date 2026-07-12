@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.openharness.backend.model.Contracts.AgentMessage;
 import org.openharness.backend.model.Contracts.ModelChatRequest;
 import org.openharness.backend.model.Contracts.ModelChatResponse;
+import org.openharness.backend.model.Contracts.PendingCodexTurn;
 import org.openharness.backend.model.Contracts.Usage;
 import org.openharness.backend.service.MockModelService;
 import org.openharness.backend.service.TraceService;
@@ -24,7 +25,25 @@ class ModelControllerTest {
 
   @Test
   void chatAddsCostUsdMicrosForPricedProviderUsage() {
-    ProviderRegistry registry = new ProviderRegistry(List.of(adapterReturningUsage()));
+    ModelChatResponse response = controllerFor(adapterReturningMessageUsage()).chat(requestModel(), request());
+
+    assertThat(response.usage().costUsdMicros()).isEqualTo(1);
+    assertThat(response.message().content()).isEqualTo("ok");
+  }
+
+  @Test
+  void chatAddsCostWithoutDroppingPendingContinuationFields() {
+    ModelChatResponse response = controllerFor(adapterReturningPendingUsage()).chat(requestModel(), request());
+
+    assertThat(response.usage().costUsdMicros()).isEqualTo(1);
+    assertThat(response.pendingTurn()).isEqualTo(new PendingCodexTurn(
+        "bridge-001", "thread-001", "turn-001", "call-001", "echo", "{\"text\":\"hello\"}",
+        "2026-07-11T10:00:00.000Z"));
+    assertThat(response.idempotentReplay()).isTrue();
+  }
+
+  private ModelController controllerFor(ProviderAdapter adapter) {
+    ProviderRegistry registry = new ProviderRegistry(List.of(adapter));
     registry.register(
         new ProviderConfig(
             "zhipu",
@@ -44,39 +63,52 @@ class ModelControllerTest {
     provider.setPricing(Map.of("glm-4-flash", new Pricing(100L, 300L)));
     properties.setProviders(List.of(provider));
 
-    ModelController controller = new ModelController(
+    return new ModelController(
         new ModelRouter(registry, properties),
         new CostCalculator(properties),
         new MockModelService(),
         new TraceService(new com.fasterxml.jackson.databind.ObjectMapper()));
-
-    ModelChatResponse response = controller.chat(
-        new ModelChatRequest(
-            "req-cost",
-            "conv-cost",
-            "user-001",
-            "tenant-001",
-            "glm-4-flash",
-            false,
-            List.of(new AgentMessage("user", "hello", null, null, null, null, null, null, null, null, null, null, null)),
-            List.of(),
-            Map.of()),
-        request());
-
-    assertThat(response.usage().costUsdMicros()).isEqualTo(1);
   }
 
-  private ProviderAdapter adapterReturningUsage() {
+  private ModelChatRequest requestModel() {
+    return new ModelChatRequest(
+        "req-cost", "conv-cost", "user-001", "tenant-001", "glm-4-flash", false,
+        List.of(new AgentMessage("user", "hello", null, null, null, null, null, null, null, null, null, null, null)),
+        List.of(), Map.of());
+  }
+
+  private ProviderAdapter adapterReturningMessageUsage() {
+    return new ProviderAdapter() {
+      @Override
+      public ModelChatResponse chat(ModelChatRequest request, ProviderConfig config) {
+        return new ModelChatResponse(
+            request.requestId(), request.conversationId(),
+            new AgentMessage("assistant", "ok", null, null, null, null, null, null, null, null, null, null, null),
+            new Usage(1200, 500, 1700, null, null, false, null), config.name(), null);
+      }
+
+      @Override
+      public String providerType() {
+        return "openai-compatible";
+      }
+    };
+  }
+
+  private ProviderAdapter adapterReturningPendingUsage() {
     return new ProviderAdapter() {
       @Override
       public ModelChatResponse chat(ModelChatRequest request, ProviderConfig config) {
         return new ModelChatResponse(
             request.requestId(),
             request.conversationId(),
-            new AgentMessage("assistant", "ok", null, null, null, null, null, null, null, null, null, null, null),
+            null,
+            new PendingCodexTurn(
+                "bridge-001", "thread-001", "turn-001", "call-001", "echo", "{\"text\":\"hello\"}",
+                "2026-07-11T10:00:00.000Z"),
             new Usage(1200, 500, 1700, null, null, false, null),
             config.name(),
-            null);
+            null,
+            true);
       }
 
       @Override

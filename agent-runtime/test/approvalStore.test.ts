@@ -1,4 +1,4 @@
-import { rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { JsonFileApprovalStore } from "../src/approvalStore";
 
@@ -36,6 +36,37 @@ describe("JsonFileApprovalStore", () => {
 
     const afterDecisionReload = new JsonFileApprovalStore(TEST_DIR);
     expect(afterDecisionReload.listPending("t1", "c1")).toEqual([]);
+    rmSync(TEST_DIR, { recursive: true, force: true });
+  });
+
+  it("keeps Codex pending approval payload in memory only", async () => {
+    rmSync(TEST_DIR, { recursive: true, force: true });
+    const store = new JsonFileApprovalStore(TEST_DIR);
+    const pending = store.createPending({
+      tenantId: "t1",
+      conversationId: "codex",
+      executionId: "exec-codex",
+      toolCallId: "call-codex",
+      toolName: "submit_payment",
+      argumentsRaw: "{\"secret\":\"ARG-CANARY\"}",
+      approvalToken: "APPROVAL-CANARY"
+    }, { persist: false });
+
+    expect(store.listPending("t1", "codex")).toHaveLength(1);
+    const approvalFile = `${TEST_DIR}/t1/codex-approvals.json`;
+    if (existsSync(approvalFile)) {
+      expect(readFileSync(approvalFile, "utf-8")).not.toContain("ARG-CANARY");
+      expect(readFileSync(approvalFile, "utf-8")).not.toContain("APPROVAL-CANARY");
+    }
+    expect(new JsonFileApprovalStore(TEST_DIR).listPending("t1", "codex")).toEqual([]);
+
+    const decision = store.waitForDecision("exec-codex", "call-codex");
+    expect(store.decide("exec-codex", "call-codex", {
+      action: "reject",
+      respondedAt: "2026-07-12T00:00:00.000Z"
+    })).toBe(true);
+    await expect(decision).resolves.toMatchObject({ action: "reject" });
+    expect(store.getByAskUserId(pending.askUserId)).toBeNull();
     rmSync(TEST_DIR, { recursive: true, force: true });
   });
 });

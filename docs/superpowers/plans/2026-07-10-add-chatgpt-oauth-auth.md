@@ -90,7 +90,7 @@
 
 #### Task 4.1: Lock the shared pending-turn contract
 
-- [ ] Step 1: Add RED schema tests in [schema.test.ts](file:///Users/elvis/file/develop/opensource/openharness/packages/shared-schema/test/schema.test.ts) for the following discriminated response and exact result payload. Reject responses containing more or fewer than one of `message`, `pendingTurn`, or `error`.
+- [x] Step 1: Add RED schema tests in [schema.test.ts](file:///Users/elvis/file/develop/opensource/openharness/packages/shared-schema/test/schema.test.ts) for the following discriminated response and exact result payload. Reject responses containing more or fewer than one of `message`, `pendingTurn`, or `error`.
 
 ```ts
 type PendingCodexTurn = {
@@ -105,9 +105,9 @@ type CodexToolResultSubmission = {
 };
 ```
 
-- [ ] Step 2: Run `pnpm --filter @openharness/shared-schema test` and require RED because the pending schemas/one-of invariant do not exist. Stop if failure is unrelated.
-- [ ] Step 3: Add `PendingCodexTurnSchema`, `CodexToolResultSubmissionSchema`, `CodexTurnCancelRequestSchema`, and `idempotentReplay` on the continuation response; mirror the records in Java. Bound every identifier/content field and parse `argumentsRaw` as canonical JSON object text.
-- [ ] Step 4: Run `pnpm --filter @openharness/shared-schema test` and `pnpm typecheck`; require GREEN.
+- [x] Step 2: Run `pnpm --filter @openharness/shared-schema test` and require RED because the pending schemas/one-of invariant do not exist. Stop if failure is unrelated.
+- [x] Step 3: Add `PendingCodexTurnSchema`, `CodexToolResultSubmissionSchema`, `CodexTurnCancelRequestSchema`, and `idempotentReplay` on the continuation response; mirror the records in Java. Bound every identifier/content field and parse `argumentsRaw` as canonical JSON object text.
+- [x] Step 4: Run `pnpm --filter @openharness/shared-schema test` and `pnpm typecheck`; require GREEN.
 
 #### Task 4.2: Hold and resume the exact app-server turn
 
@@ -170,11 +170,11 @@ type CodexToolResultSubmission = {
 
 **Files:** local operator command surface, [docs/architecture/auth_contract.md](file:///Users/elvis/file/develop/opensource/openharness/docs/architecture/auth_contract.md), [docs/architecture/dev_runbook.md](file:///Users/elvis/file/develop/opensource/openharness/docs/architecture/dev_runbook.md), focused command tests.
 
-- [x] Step 1: Write RED tests asserting status output contains only provider id, readiness, process state, model availability, and needs-login state.
-- [x] Step 2: Run RED and inspect that token-like fixture values would fail the redaction assertion.
-- [x] Step 3: Implement delegation to the official Codex CLI/app login/status/logout command without importing credential files or printing command output verbatim.
-- [x] Step 4: Document prerequisites, supported Codex versions, local startup, login recovery, logout, and platform limitations.
-- [x] Step 5: Run GREEN and scan command output/docs fixtures for token canaries.
+- [ ] Step 1: Write RED tests asserting status output contains only provider id, readiness, process state, model availability, and needs-login state.
+- [ ] Step 2: Run RED and inspect that token-like fixture values would fail the redaction assertion.
+- [ ] Step 3: Implement delegation to the official Codex CLI/app login/status/logout command without importing credential files or printing command output verbatim.
+- [ ] Step 4: Document prerequisites, supported Codex versions, local startup, login recovery, logout, and platform limitations.
+- [ ] Step 5: Run GREEN and scan command output/docs fixtures for token canaries.
 
 **Signoff:** OpenHarness never becomes an OAuth client; the operator uses the official Codex login surface.
 

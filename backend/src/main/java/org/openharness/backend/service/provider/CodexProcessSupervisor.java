@@ -73,7 +73,9 @@ public class CodexProcessSupervisor {
   private volatile Instant readyAt;
   private volatile int restartCount;
   private volatile Thread monitorThread;
+  private volatile Thread stderrThread;
   private volatile boolean stopping;
+  private volatile CodexAppServerClient client;
 
   public CodexProcessSupervisor(ProviderConfig providerConfig) {
     this(
@@ -146,6 +148,22 @@ public class CodexProcessSupervisor {
         readyLatencyMs);
   }
 
+  public CodexAppServerClient openClient(Duration requestTimeout) {
+    synchronized (lock) {
+      if (state != State.READY || process == null || !process.isAlive()) {
+        throw new IllegalStateException("Codex process is not ready");
+      }
+      if (!"stdio://".equals(providerConfig.endpoint())) {
+        throw new IllegalStateException("Codex transport is unavailable");
+      }
+      if (client != null) {
+        throw new IllegalStateException("Codex process client already opened");
+      }
+      client = new CodexAppServerClient(process.getInputStream(), process.getOutputStream(), requestTimeout);
+      return client;
+    }
+  }
+
   public void start() {
     synchronized (lock) {
       if (state == State.STARTING || state == State.READY || state == State.DEGRADED) {
@@ -197,6 +215,7 @@ public class CodexProcessSupervisor {
     }
 
     Process runningProcess = process;
+    closeClient();
     if (runningProcess != null) {
       terminate(runningProcess);
     }
@@ -210,10 +229,31 @@ public class CodexProcessSupervisor {
         Thread.currentThread().interrupt();
       }
     }
+    Thread currentStderr = stderrThread;
+    if (currentStderr != null) currentStderr.interrupt();
 
     clearStreams(runningProcess);
     state = State.STOPPED;
     process = null;
+  }
+
+  private void closeClient() {
+    CodexAppServerClient current = client;
+    client = null;
+    if (current != null) current.close();
+  }
+
+  private void startErrorDrain(Process target) {
+    Thread drain = new Thread(() -> {
+      try {
+        target.getErrorStream().transferTo(OutputStream.nullOutputStream());
+      } catch (IOException ignored) {
+        // Process diagnostics are intentionally discarded and never enter OpenHarness logs.
+      }
+    }, "openharness-codex-stderr-drain");
+    drain.setDaemon(true);
+    stderrThread = drain;
+    drain.start();
   }
 
   private void runMonitor() {
@@ -222,6 +262,7 @@ public class CodexProcessSupervisor {
     while (!stopping) {
       Process current = launchProcess();
       process = current;
+      startErrorDrain(current);
       startedAt = Instant.now();
       try {
         readinessProbe.waitUntilReady(current, startupTimeout);

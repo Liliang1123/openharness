@@ -94,3 +94,47 @@ curl -s http://localhost:3001/api/v1/sessions -H "X-Tenant-Id: dev"
 curl -s http://localhost:3001/api/v1/sessions/conv-real -H "X-Tenant-Id: dev"
 curl -s -X DELETE http://localhost:3001/api/v1/sessions/conv-real -H "X-Tenant-Id: dev"
 ```
+
+## Local Codex operator control
+
+Prerequisites:
+
+- Java 21 and a locally installed official Codex CLI/app on `PATH`.
+- A Codex build that supports `login`, `login status`, `logout`, and the app-server v2
+  protocol used by this change. Pin the exact build recorded by real qualification; an
+  unqualified newer/older build is not assumed compatible.
+- An explicit `openai-codex/<model>` route. Codex must not be the default provider.
+- A graphical session for browser-based login. Headless/device-code-only environments may
+  require running the official Codex CLI directly because OpenHarness intentionally
+  discards delegated CLI output.
+
+Build the backend classes, then run the local control from the repository root:
+
+```bash
+mvn -o -f backend/pom.xml -DskipTests compile
+java -cp backend/target/classes \
+  org.openharness.backend.service.provider.CodexOperatorControl status
+java -cp backend/target/classes \
+  org.openharness.backend.service.provider.CodexOperatorControl login
+java -cp backend/target/classes \
+  org.openharness.backend.service.provider.CodexOperatorControl logout
+```
+
+If the executable is not named `codex`, set only its executable path:
+
+```bash
+OPENHARNESS_CODEX_COMMAND=/absolute/path/to/codex \
+  java -cp backend/target/classes \
+  org.openharness.backend.service.provider.CodexOperatorControl status
+```
+
+The command prints exactly five non-secret fields: `providerId`, `readiness`,
+`processState`, `modelAvailability`, and `needsLogin`. It never prints delegated stdout or
+stderr. `needsLogin=true` means use the official login surface and retry status; after
+logout, Codex routes remain fail-closed until login is restored. The command does not start
+the Gateway app-server child; normal backend startup owns that bounded process lifecycle.
+
+Platform limitations: only local process execution is supported. Remote login endpoints,
+credential-file import, token flags, arbitrary pass-through arguments, and Windows-specific
+launcher discovery are not supported. The security boundary is documented in
+[auth_contract.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-chatgpt-oauth-auth-task4/docs/architecture/auth_contract.md).

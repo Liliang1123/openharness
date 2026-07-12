@@ -123,22 +123,18 @@ MODEL_PROVIDER=mock
 
 ## 8. Codex OAuth Operator Boundary
 
-ChatGPT/Codex OAuth credentials remain owned by the official local Codex CLI/app. The Java Gateway local operator command surface delegates only these operations:
+OpenHarness is not an OAuth client. For the `openai-codex` provider, login, status, and
+logout are delegated to the locally installed official Codex CLI/app. OpenHarness:
 
-- `login` -> `codex login`
-- `status` -> `codex login status`
-- `logout` -> `codex logout`
+1. never reads, imports, copies, refreshes, persists, or prints Codex credential files or
+   OAuth token values;
+2. invokes only the fixed official commands `codex login`, `codex login status`, and
+   `codex logout` through the local operator control;
+3. discards delegated stdout/stderr and emits only provider id, readiness, process state,
+   model availability, and needs-login state;
+4. keeps OAuth material inside the official Codex credential boundary and never forwards
+   it to TS Runtime, Frontend, traces, audit records, or qualification reports;
+5. fails `openai-codex/*` routes closed with needs-login/unavailable after logout or when
+   the official CLI is absent.
 
-OpenHarness MUST NOT read credential files, import tokens, receive authorization codes, or copy child-process output into logs, traces, HTTP responses, or command output. The official process output and error streams are discarded by the OpenHarness command invoker.
-
-The OpenHarness `status` response is generated from the official command exit status, the Java process-supervisor snapshot, and the configured model allow-list. It contains exactly these fields:
-
-```text
-providerId=<provider id>
-readiness=<ready|unavailable>
-processState=<STOPPED|STARTING|READY|DEGRADED|UNAVAILABLE|SHUTDOWN>
-modelAvailability=<available|unavailable>
-needsLogin=<true|false>
-```
-
-The operator surface is local-only. It is not exposed through Frontend, TS Runtime, or an unauthenticated HTTP endpoint. A nonzero official status result or a non-ready supervisor fails closed; it never enables an API-key or mock fallback.
+The implementation boundary is [CodexOperatorControl.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-chatgpt-oauth-auth-task4/backend/src/main/java/org/openharness/backend/service/provider/CodexOperatorControl.java).

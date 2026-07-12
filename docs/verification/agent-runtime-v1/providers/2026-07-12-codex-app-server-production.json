@@ -1,0 +1,224 @@
+{
+  "result" : "pass",
+  "track" : "production",
+  "generatedAt" : "2026-07-12T04:21:24.553154Z",
+  "rows" : [ {
+    "id" : "codex-real-sync",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "clientImplementationSha256" : "08b2aa0126f78ca45aad239e20981ad06b6e796539a1edc498706f2b81833ddc",
+      "cliVersion" : "codex-cli-0.144.1",
+      "provider" : "codex-app-server",
+      "qualificationAuthorization" : "granted",
+      "os" : "Mac OS X",
+      "commandFingerprint" : "8eb8c47db53fc12f7160283383db3bbd199338a3030793d1280681c50df21b50",
+      "transport" : "stdio-local",
+      "probeSha256" : "02701a4f0c2b9ed6b681db13642628d719fe8ea9d5e650f0f5f8d99559032249",
+      "model" : "gpt-5.4",
+      "arch" : "aarch64",
+      "credentialState" : "not-read"
+    },
+    "protocolVersion" : "codex-app-server-v2-experimental",
+    "capabilities" : [ "sync" ],
+    "requestHash" : "85c84eca54af29002c1fe79488bdfefe2b43e6f051bc6e951354a5e86be259cd",
+    "observed" : {
+      "nonEmptyAssistant" : true,
+      "terminal" : true,
+      "safeThreadStart" : true,
+      "processCleaned" : true
+    },
+    "oracle" : {
+      "terminalRequired" : true,
+      "localCleanupRequired" : true,
+      "fallbackForbidden" : true
+    },
+    "durationMs" : 15992,
+    "result" : "pass"
+  }, {
+    "id" : "codex-real-reasoning",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "clientImplementationSha256" : "08b2aa0126f78ca45aad239e20981ad06b6e796539a1edc498706f2b81833ddc",
+      "cliVersion" : "codex-cli-0.144.1",
+      "provider" : "codex-app-server",
+      "qualificationAuthorization" : "granted",
+      "os" : "Mac OS X",
+      "commandFingerprint" : "8eb8c47db53fc12f7160283383db3bbd199338a3030793d1280681c50df21b50",
+      "transport" : "stdio-local",
+      "probeSha256" : "02701a4f0c2b9ed6b681db13642628d719fe8ea9d5e650f0f5f8d99559032249",
+      "model" : "gpt-5.4",
+      "arch" : "aarch64",
+      "credentialState" : "not-read"
+    },
+    "protocolVersion" : "codex-app-server-v2-experimental",
+    "capabilities" : [ "reasoning" ],
+    "requestHash" : "062b76f0c1d57d51e181b092f31709facb2b5b599f38c0fba699ca7e4de7b39c",
+    "observed" : {
+      "processCleaned" : true,
+      "reasoningSummaryEntryCount" : 1,
+      "incomingMethods" : {
+        "item/reasoning/summaryTextDelta" : 106,
+        "remoteControl/status/changed" : 1,
+        "item/agentMessage/delta" : 1,
+        "thread/tokenUsage/updated" : 1,
+        "item/started" : 3,
+        "turn/started" : 1,
+        "thread/started" : 1,
+        "item/reasoning/summaryPartAdded" : 1,
+        "item/completed" : 3,
+        "account/rateLimits/updated" : 1,
+        "thread/status/changed" : 2,
+        "thread/settings/updated" : 1,
+        "turn/completed" : 1,
+        "mcpServer/startupStatus/updated" : 6
+      },
+      "completedItemTypes" : {
+        "reasoning" : 1,
+        "agentMessage" : 1,
+        "userMessage" : 1
+      },
+      "reasoningPresent" : true,
+      "reasoningContentEntryCount" : 0,
+      "reasoningEventCount" : 106
+    },
+    "oracle" : {
+      "eventRequired" : true,
+      "reasoningRequired" : true
+    },
+    "durationMs" : 17268,
+    "result" : "pass"
+  }, {
+    "id" : "codex-real-usage",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "clientImplementationSha256" : "08b2aa0126f78ca45aad239e20981ad06b6e796539a1edc498706f2b81833ddc",
+      "cliVersion" : "codex-cli-0.144.1",
+      "provider" : "codex-app-server",
+      "qualificationAuthorization" : "granted",
+      "os" : "Mac OS X",
+      "commandFingerprint" : "8eb8c47db53fc12f7160283383db3bbd199338a3030793d1280681c50df21b50",
+      "transport" : "stdio-local",
+      "probeSha256" : "02701a4f0c2b9ed6b681db13642628d719fe8ea9d5e650f0f5f8d99559032249",
+      "model" : "gpt-5.4",
+      "arch" : "aarch64",
+      "credentialState" : "not-read"
+    },
+    "protocolVersion" : "codex-app-server-v2-experimental",
+    "capabilities" : [ "usage" ],
+    "requestHash" : "a5860240319ffe0e0481b3b67e12edcf229368971f26495916e0854cd2355eab",
+    "observed" : {
+      "usagePresent" : true,
+      "processCleaned" : true
+    },
+    "oracle" : {
+      "integralNonNegativeRequired" : true,
+      "positiveInputOutputRequired" : true
+    },
+    "usage" : {
+      "inputTokens" : 15320,
+      "outputTokens" : 40,
+      "cachedInputTokens" : 15232
+    },
+    "durationMs" : 15991,
+    "result" : "pass"
+  }, {
+    "id" : "codex-real-stream",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "clientImplementationSha256" : "08b2aa0126f78ca45aad239e20981ad06b6e796539a1edc498706f2b81833ddc",
+      "cliVersion" : "codex-cli-0.144.1",
+      "provider" : "codex-app-server",
+      "qualificationAuthorization" : "granted",
+      "os" : "Mac OS X",
+      "commandFingerprint" : "8eb8c47db53fc12f7160283383db3bbd199338a3030793d1280681c50df21b50",
+      "transport" : "stdio-local",
+      "probeSha256" : "02701a4f0c2b9ed6b681db13642628d719fe8ea9d5e650f0f5f8d99559032249",
+      "model" : "gpt-5.4",
+      "arch" : "aarch64",
+      "credentialState" : "not-read"
+    },
+    "protocolVersion" : "codex-app-server-v2-experimental",
+    "capabilities" : [ "stream" ],
+    "requestHash" : "457fbf6a6430c07983bc2d817c3ee6429380a12516752a4d4b9b7be8f00766a5",
+    "observed" : {
+      "processCleaned" : true,
+      "aggregatedAssistantPresent" : true,
+      "assistantDeltaCount" : 65
+    },
+    "oracle" : {
+      "aggregationRequired" : true,
+      "deltaEventRequired" : true
+    },
+    "durationMs" : 22637,
+    "result" : "pass"
+  }, {
+    "id" : "codex-real-cancellation",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "clientImplementationSha256" : "08b2aa0126f78ca45aad239e20981ad06b6e796539a1edc498706f2b81833ddc",
+      "cliVersion" : "codex-cli-0.144.1",
+      "provider" : "codex-app-server",
+      "qualificationAuthorization" : "granted",
+      "os" : "Mac OS X",
+      "commandFingerprint" : "8eb8c47db53fc12f7160283383db3bbd199338a3030793d1280681c50df21b50",
+      "transport" : "stdio-local",
+      "probeSha256" : "02701a4f0c2b9ed6b681db13642628d719fe8ea9d5e650f0f5f8d99559032249",
+      "model" : "gpt-5.4",
+      "arch" : "aarch64",
+      "credentialState" : "not-read"
+    },
+    "protocolVersion" : "codex-app-server-v2-experimental",
+    "capabilities" : [ "cancellation" ],
+    "requestHash" : "7b9019f98c174474fea33cea57c59cd36b599bd60ab3c93d2a3b0255af5f4031",
+    "observed" : {
+      "structuredCancelled" : true,
+      "interruptCount" : 1,
+      "failedResponderCount" : 1,
+      "processCleaned" : true
+    },
+    "oracle" : {
+      "localCleanupRequired" : true,
+      "exactInterruptCount" : 1,
+      "failedResponderCount" : 1
+    },
+    "durationMs" : 16066,
+    "result" : "pass"
+  }, {
+    "id" : "codex-real-redaction",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "clientImplementationSha256" : "08b2aa0126f78ca45aad239e20981ad06b6e796539a1edc498706f2b81833ddc",
+      "cliVersion" : "codex-cli-0.144.1",
+      "provider" : "codex-app-server",
+      "qualificationAuthorization" : "granted",
+      "os" : "Mac OS X",
+      "commandFingerprint" : "8eb8c47db53fc12f7160283383db3bbd199338a3030793d1280681c50df21b50",
+      "transport" : "stdio-local",
+      "probeSha256" : "02701a4f0c2b9ed6b681db13642628d719fe8ea9d5e650f0f5f8d99559032249",
+      "model" : "gpt-5.4",
+      "arch" : "aarch64",
+      "credentialState" : "not-read"
+    },
+    "protocolVersion" : "codex-app-server-v2-experimental",
+    "capabilities" : [ "redaction" ],
+    "requestHash" : "2055e69f6ce3be11fa44a2e0ef140fc5b404f516faad43465e5c3eda988a1c22",
+    "observed" : {
+      "rawCanaryObserved" : false,
+      "terminal" : true,
+      "processCleaned" : true,
+      "redactionMarkerObserved" : true
+    },
+    "oracle" : {
+      "redactionMarkerObserved" : true,
+      "rawCanaryObserved" : false
+    },
+    "durationMs" : 16582,
+    "result" : "pass"
+  } ]
+}

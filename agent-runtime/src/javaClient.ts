@@ -5,6 +5,10 @@ import {
   TraceEventSchema
 } from "@openharness/shared-schema";
 import type {
+  CodexToolResultSubmission,
+  CodexTurnCancelRequest
+} from "@openharness/shared-schema";
+import type {
   CatalogResponse,
   ModelChatRequest,
   ModelChatResponse,
@@ -38,11 +42,28 @@ export interface PolicyEvaluateResponse {
   }[];
 }
 
+export class AmbiguousHttpResultError extends Error {
+  constructor() {
+    super("HTTP outcome is ambiguous");
+    this.name = "AmbiguousHttpResultError";
+  }
+}
+
 export interface JavaClient {
   getCatalog(headers: Record<string, string>): Promise<CatalogResponse>;
   chat(request: ModelChatRequest, headers: Record<string, string>): Promise<ModelChatResponse>;
   executeTool(request: ToolCallRequest, headers: Record<string, string>): Promise<ToolCallResponse>;
   cancelTool?(request: ToolCancelRequest, headers: Record<string, string>): Promise<ToolCancelResponse>;
+  completeCodexToolCall?(
+    bridgeId: string,
+    request: CodexToolResultSubmission,
+    headers: Record<string, string>
+  ): Promise<ModelChatResponse>;
+  cancelCodexTurn?(
+    bridgeId: string,
+    request: CodexTurnCancelRequest,
+    headers: Record<string, string>
+  ): Promise<ModelChatResponse>;
   postTrace(event: TraceEvent, headers: Record<string, string>): Promise<void>;
   evaluatePolicy(request: PolicyEvaluateRequest, headers: Record<string, string>): Promise<PolicyEvaluateResponse>;
   compress?(messages: AgentMessage[], headers: Record<string, string>): Promise<string>;
@@ -82,6 +103,39 @@ export class HttpJavaClient implements JavaClient {
     return ToolCancelResponseSchema.parse(response);
   }
 
+  async completeCodexToolCall(
+    bridgeId: string,
+    request: CodexToolResultSubmission,
+    headers: Record<string, string>
+  ): Promise<ModelChatResponse> {
+    const response = await this.request<unknown>(
+      `/api/v1/model/codex/turns/${encodeURIComponent(bridgeId)}/tool-result`,
+      {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(request)
+      },
+      true
+    );
+    return ModelChatResponseSchema.parse(response);
+  }
+
+  async cancelCodexTurn(
+    bridgeId: string,
+    request: CodexTurnCancelRequest,
+    headers: Record<string, string>
+  ): Promise<ModelChatResponse> {
+    const response = await this.request<unknown>(
+      `/api/v1/model/codex/turns/${encodeURIComponent(bridgeId)}/cancel`,
+      {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(request)
+      }
+    );
+    return ModelChatResponseSchema.parse(response);
+  }
+
   async postTrace(event: TraceEvent, headers: Record<string, string>): Promise<void> {
     TraceEventSchema.parse(event);
     await this.request<unknown>("/api/v1/trace/events", {
@@ -108,8 +162,14 @@ export class HttpJavaClient implements JavaClient {
     return response.summary;
   }
 
-  private async request<T>(path: string, init: RequestInit): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, init);
+  private async request<T>(path: string, init: RequestInit, ambiguousOnNetworkFailure = false): Promise<T> {
+    let response: Response;
+    try {
+      response = await fetch(`${this.baseUrl}${path}`, init);
+    } catch (failure) {
+      if (ambiguousOnNetworkFailure) throw new AmbiguousHttpResultError();
+      throw failure;
+    }
     const text = await response.text();
     const body = text ? JSON.parse(text) : undefined;
     if (!response.ok) {

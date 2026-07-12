@@ -1,5 +1,10 @@
-import type { AgentDefinition } from "@openharness/shared-schema";
-import type { JavaClient } from "./javaClient";
+import { createHash } from "node:crypto";
+import type {
+  AgentDefinition,
+  CodexToolResultSubmission,
+  PendingCodexTurn
+} from "@openharness/shared-schema";
+import { AmbiguousHttpResultError, type JavaClient } from "./javaClient";
 import { hasUntrustedToolOutputSinceLastUser, type HistoryStore } from "./history";
 import { ToolRegistry } from "./toolRegistry";
 import type { McpRegistry } from "./mcpRegistry";
@@ -46,6 +51,13 @@ const DEFAULT_APPROVAL_TIMEOUT_MS = 3_600_000;
 const DEFAULT_EXECUTION_TIMEOUT_MS = 1_800_000;
 
 type ToolResultProvenance = "trusted" | "untrusted";
+
+interface ToolBatchOutcome {
+  toolCallId: string;
+  toolName: string;
+  status: "ok" | "rejected" | "error";
+  content: string;
+}
 
 class RuntimeTerminalFailure extends Error {
   constructor(
@@ -191,11 +203,24 @@ export class AgentExecutionRunner {
 
         send("model_call_start", { stepIndex });
         await emit(this.ev(input, TRACE_MODEL_NODE_START, "model call start", { stepIndex }));
-        const resp = await this.withExecutionDeadline(
+        let resp = await this.withExecutionDeadline(
           executionId,
           executionDeadline,
           this.callModel(input, catalog)
         );
+        if (resp.pendingTurn) {
+          resp = await this.continueCodexTurn(
+            executionId,
+            executionDeadline,
+            input,
+            catalog,
+            resp,
+            stepIndex,
+            send,
+            emit,
+            isAborted
+          );
+        }
         if (typeof resp.usage?.costUsdMicros === "number") {
           usage = { costUsdMicros: resp.usage.costUsdMicros };
         }
@@ -259,6 +284,9 @@ export class AgentExecutionRunner {
       send("stream_done", { stopReason });
       return final ?? this.executionStateStore.get(executionId)!;
     } catch (e) {
+      if (e instanceof RuntimeTerminalFailure && e.errorClass === "EXECUTION_ABORTED") {
+        return this.finalizeAborted(executionId, send, emit, input);
+      }
       const errorClass = e instanceof RuntimeTerminalFailure
         ? e.errorClass
         : "MODEL_ERROR";
@@ -405,8 +433,10 @@ export class AgentExecutionRunner {
     stepIndex: number,
     send: (event: RuntimeEventKind, data: Record<string, unknown>) => void,
     emit: (ev: TraceEvent) => Promise<void>,
-    isAborted: () => boolean
-  ): Promise<void> {
+    isAborted: () => boolean,
+    options: { persistHistory?: boolean; transientApproval?: boolean } = {}
+  ): Promise<ToolBatchOutcome[]> {
+    const outcomes: ToolBatchOutcome[] = [];
     const decisions = await beforeToolUse(toolCalls, {
       requestId: input.requestId,
       conversationId: input.conversationId,
@@ -423,7 +453,7 @@ export class AgentExecutionRunner {
     const decisionMap = new Map(decisions.map(d => [d.toolCallId, d]));
 
     for (const toolCall of toolCalls) {
-      if (isAborted()) return;
+      if (isAborted()) return outcomes;
 
       const decision = decisionMap.get(toolCall.id);
       if (!decision || decision.decision !== "ALLOW") {
@@ -438,9 +468,15 @@ export class AgentExecutionRunner {
             argumentsRaw: toolCall.argumentsRaw,
             reason: decision.reason,
             approvalToken: decision.approvalToken
-          });
+          }, options.transientApproval ? { persist: false } : undefined);
           this.executionStateStore.transition(pending.executionId, "waiting_approval");
-          send("approval_requested", {
+          send("approval_requested", options.transientApproval ? {
+            askUserId: pending.askUserId,
+            toolCallId: toolCall.id,
+            toolName: toolCall.name,
+            reason: decision.reason,
+            stepIndex
+          } : {
             askUserId: pending.askUserId,
             toolCallId: toolCall.id,
             toolName: toolCall.name,
@@ -455,22 +491,35 @@ export class AgentExecutionRunner {
             toolCall.name
           );
           this.executionStateStore.transition(pending.executionId, "running");
+          if (isAborted()) return outcomes;
           if (approval.action === "reject") {
-            this.history.append(input.tenantId, input.conversationId, {
+            const rejected = {
               role: "tool",
               toolCallId: toolCall.id,
               toolName: toolCall.name,
               toolResultProvenance: "trusted",
               content: JSON.stringify({ rejected: true, message: approval.message ?? "USER_REJECTED" })
-            });
+            } as AgentMessage;
+            if (options.persistHistory !== false) {
+              this.history.append(input.tenantId, input.conversationId, rejected);
+            }
             send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "rejected", stepIndex });
+            outcomes.push({
+              toolCallId: toolCall.id,
+              toolName: toolCall.name,
+              status: "rejected",
+              content: "USER_REJECTED"
+            });
             continue;
           }
           const approvedToolCall = withApprovedArguments(toolCall, approval);
           send("tool_call", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, stepIndex });
           const toolResult = await this.executeTool(input, catalog, approvedToolCall, stepIndex, emit, pending.approvalToken);
-          this.history.append(input.tenantId, input.conversationId, toolResult);
+          if (options.persistHistory !== false) {
+            this.history.append(input.tenantId, input.conversationId, toolResult);
+          }
           send("tool_result", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, status: "ok", stepIndex });
+          outcomes.push(this.toolOutcome(approvedToolCall, toolResult));
           continue;
         }
         const status = decision?.decision === "REQUIRE_APPROVAL" ? "pending_approval" : "denied";
@@ -483,9 +532,147 @@ export class AgentExecutionRunner {
       }
       send("tool_call", { toolCallId: toolCall.id, toolName: toolCall.name, stepIndex });
       const toolResult = await this.executeTool(input, catalog, toolCall, stepIndex, emit);
-      this.history.append(input.tenantId, input.conversationId, toolResult);
+      if (options.persistHistory !== false) {
+        this.history.append(input.tenantId, input.conversationId, toolResult);
+      }
       send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "ok", stepIndex });
+      outcomes.push(this.toolOutcome(toolCall, toolResult));
     }
+    return outcomes;
+  }
+
+  private toolOutcome(toolCall: ToolCall, result: AgentMessage): ToolBatchOutcome {
+    const content = String(result.content ?? "");
+    return {
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      status: content === "MODEL_TOOL_PARSE_ERROR" ? "error" : "ok",
+      content
+    };
+  }
+
+  private async continueCodexTurn(
+    executionId: ExecutionId,
+    executionDeadline: number,
+    input: AgentExecutionInput,
+    catalog: { catalogVersion: string; catalogHash: string; tools: unknown[] },
+    initial: ModelChatResponse,
+    stepIndex: number,
+    send: (event: RuntimeEventKind, data: Record<string, unknown>) => void,
+    emit: (ev: TraceEvent) => Promise<void>,
+    isAborted: () => boolean
+  ): Promise<ModelChatResponse> {
+    if (!this.javaClient.completeCodexToolCall || !this.javaClient.cancelCodexTurn) {
+      throw new RuntimeTerminalFailure("MODEL_ERROR", "Codex continuation is unavailable", { stepIndex });
+    }
+
+    let response = initial;
+    let active: PendingCodexTurn | undefined;
+    try {
+      while ((active = response.pendingTurn) !== undefined) {
+        if (isAborted()) {
+          throw new RuntimeTerminalFailure("EXECUTION_ABORTED", "Execution was aborted by client", { stepIndex });
+        }
+        const toolCall: ToolCall = {
+          id: active.callId,
+          name: active.toolName,
+          argumentsRaw: active.argumentsRaw
+        };
+
+        let status: CodexToolResultSubmission["status"];
+        let content: string;
+        try {
+          this.assertToolCallsAllowed(input, [toolCall], stepIndex);
+          const outcomes = await this.withExecutionDeadline(
+            executionId,
+            executionDeadline,
+            this.runToolBatch(input, catalog, [toolCall], stepIndex, send, emit, isAborted, {
+              persistHistory: false,
+              transientApproval: true
+            })
+          );
+          const outcome = outcomes[0];
+          if (!outcome) {
+            throw new RuntimeTerminalFailure("EXECUTION_ABORTED", "Execution was aborted by client", { stepIndex });
+          }
+          if (isAborted()) {
+            throw new RuntimeTerminalFailure("EXECUTION_ABORTED", "Execution was aborted by client", { stepIndex });
+          }
+          status = outcome.status;
+          content = this.boundedCodexContent(outcome.content);
+        } catch (failure) {
+          if (failure instanceof RuntimeTerminalFailure && failure.errorClass === "POLICY_DENY") {
+            status = "rejected";
+            content = "POLICY_REJECTED";
+          } else if (failure instanceof RuntimeTerminalFailure
+            && (failure.errorClass === "APPROVAL_TIMEOUT" || failure.errorClass === "EXECUTION_TIMEOUT")) {
+            status = "timeout";
+            content = failure.errorClass;
+          } else if (failure instanceof RuntimeTerminalFailure && failure.errorClass === "EXECUTION_ABORTED") {
+            throw failure;
+          } else {
+            status = "error";
+            content = failure instanceof RuntimeTerminalFailure ? failure.errorClass : "TOOL_ERROR";
+          }
+        }
+
+        const submission: CodexToolResultSubmission = {
+          requestId: input.requestId,
+          conversationId: input.conversationId,
+          threadId: active.threadId,
+          turnId: active.turnId,
+          callId: active.callId,
+          idempotencyKey: this.codexIdempotencyKey(executionId, input.requestId, active.callId),
+          status,
+          content
+        };
+        response = await this.withExecutionDeadline(
+          executionId,
+          executionDeadline,
+          this.completeCodexWithSingleRetry(active.bridgeId, submission, input.headers)
+        );
+      }
+      return response;
+    } catch (failure) {
+      if (active) await this.bestEffortCancelCodex(active, input);
+      if (failure instanceof RuntimeTerminalFailure) throw failure;
+      throw new RuntimeTerminalFailure("MODEL_ERROR", "Codex continuation failed", { stepIndex });
+    }
+  }
+
+  private async completeCodexWithSingleRetry(
+    bridgeId: string,
+    submission: CodexToolResultSubmission,
+    headers: Record<string, string>
+  ): Promise<ModelChatResponse> {
+    try {
+      return await this.javaClient.completeCodexToolCall!(bridgeId, submission, headers);
+    } catch (failure) {
+      if (!(failure instanceof AmbiguousHttpResultError)) throw failure;
+      return this.javaClient.completeCodexToolCall!(bridgeId, submission, headers);
+    }
+  }
+
+  private async bestEffortCancelCodex(pending: PendingCodexTurn, input: AgentExecutionInput): Promise<void> {
+    try {
+      await this.javaClient.cancelCodexTurn?.(pending.bridgeId, {
+        requestId: input.requestId,
+        conversationId: input.conversationId,
+        threadId: pending.threadId,
+        turnId: pending.turnId,
+        callId: pending.callId
+      }, input.headers);
+    } catch {
+      // Cancellation must never replace the original terminal outcome.
+    }
+  }
+
+  private codexIdempotencyKey(executionId: string, requestId: string, callId: string): string {
+    return `codex-${createHash("sha256").update(`${executionId}:${requestId}:${callId}`).digest("hex")}`;
+  }
+
+  private boundedCodexContent(content: string): string {
+    return content.length <= 65_536 ? content : content.slice(0, 65_536);
   }
 
   private currentExecutionId(tenantId: string, conversationId: string): ExecutionId {
