@@ -15,6 +15,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openharness.backend.model.Contracts.AgentMessage;
 import org.openharness.backend.model.Contracts.ModelChatRequest;
+import org.openharness.backend.model.Contracts.ModelChatResponse;
 import org.openharness.backend.service.provider.OpenAiCompatibleAdapter;
 import org.openharness.backend.service.provider.ProviderConfig;
 
@@ -184,5 +185,43 @@ class OpenAiFakeProviderMatrixTest {
     org.junit.jupiter.api.Assertions.assertThrows(RuntimeException.class, () -> {
       OpenAiCompatibleAdapter.calculateCanonicalRequestHash(url, key, "{invalid-json");
     });
+  }
+
+  @Test
+  void capturesRawProviderUsageIndependentlyBeforeAdapterComparison() {
+    OpenAiCompatibleAdapter adapter = new OpenAiCompatibleAdapter();
+    ProviderConfig config = new ProviderConfig("fake-openai", "openai-compatible",
+        "http://127.0.0.1:" + server.getAddress().getPort(), "fake-key", List.of("matrix-sync"), Map.of());
+    ModelChatRequest request = new ModelChatRequest("req-raw-usage", "conv-local", "user-local", "tenant-local",
+        "matrix-sync", false, List.of(new AgentMessage("user", "hello", null, null, null, null, null, null,
+        null, null, null, null, null)), List.of(), Map.of());
+
+    try (QualificationExchangeCapture.Capture ignored = QualificationExchangeCapture.beginCapture()) {
+      ModelChatResponse response = adapter.chat(request, config);
+      Map<String, Object> capture = QualificationExchangeCapture.consume(request.requestId());
+      Map<?, ?> rawUsage = (Map<?, ?>) capture.get("rawProviderUsage");
+      assertThat(rawUsage.get("promptTokens")).isEqualTo(7L);
+      assertThat(rawUsage.get("completionTokens")).isEqualTo(3L);
+      assertThat(response.usage().promptTokens()).isEqualTo(7);
+      assertThat(response.usage().completionTokens()).isEqualTo(3);
+    }
+  }
+
+  @Test
+  void streamCaptureComesFromActualSseParserEvents() {
+    OpenAiCompatibleAdapter adapter = new OpenAiCompatibleAdapter();
+    ProviderConfig config = new ProviderConfig("fake-openai", "openai-compatible",
+        "http://127.0.0.1:" + server.getAddress().getPort(), "fake-key", List.of("matrix-stream"), Map.of());
+    ModelChatRequest request = new ModelChatRequest("req-stream-capture", "conv-local", "user-local", "tenant-local",
+        "matrix-stream", true, List.of(new AgentMessage("user", "hello", null, null, null, null, null, null,
+        null, null, null, null, null)), List.of(), Map.of());
+    try (QualificationExchangeCapture.Capture ignored = QualificationExchangeCapture.beginCapture()) {
+      adapter.chat(request, config);
+      Map<String, Object> capture = QualificationExchangeCapture.consume(request.requestId());
+      assertThat(capture.get("parserStreamEvents")).isEqualTo(List.of("stream-start", "delta", "stream-end"));
+      assertThat(capture.get("parserRequestId")).isEqualTo(request.requestId());
+      assertThat(((Number) capture.get("streamDeltaCount")).intValue()).isPositive();
+      assertThat(capture.get("streamMergeComplete")).isEqualTo(true);
+    }
   }
 }
