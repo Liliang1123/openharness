@@ -3,9 +3,157 @@
   "project": {
     "name": "openharness",
     "root": ".",
-    "updatedAt": "2026-07-03"
+    "updatedAt": "2026-07-12"
   },
   "entries": [
+    {
+      "changeId": "add-chatgpt-oauth-auth",
+      "title": "Add ChatGPT/Codex OAuth via Local App Server",
+      "status": "archived",
+      "date": "2026-07-12",
+      "type": "feature",
+      "summary": "通过本机官方 Codex app-server 使用既有 ChatGPT/Codex 登录态提供 openai-codex 模型路由；OAuth token 始终由官方进程持有，OpenHarness 仅实现 local-only IPC、pending-turn bridge、TS policy/approval/execution ownership、operator controls 与 evidence-backed qualification。",
+      "tags": [
+        "codex",
+        "oauth",
+        "provider-adapter",
+        "pending-turn",
+        "agent-runtime",
+        "qualification",
+        "security"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-07-12-add-chatgpt-oauth-auth/proposal.md",
+        "design": "openspec/changes/archive/2026-07-12-add-chatgpt-oauth-auth/design.md",
+        "tasks": "openspec/changes/archive/2026-07-12-add-chatgpt-oauth-auth/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-07-12-add-chatgpt-oauth-auth/specs/backend-gateway/spec.md",
+          "openspec/changes/archive/2026-07-12-add-chatgpt-oauth-auth/specs/provider-adapter/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/backend-gateway/spec.md",
+          "openspec/specs/provider-adapter/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-07-12-add-chatgpt-oauth-auth/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-07-10-add-chatgpt-oauth-auth.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "backend/src/main/java/org/openharness/backend/api/CodexTurnController.java",
+          "backend/src/main/java/org/openharness/backend/model/Contracts.java",
+          "backend/src/main/java/org/openharness/backend/qualification/CodexFakeProviderMatrix.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/CodexAppServerAdapter.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/CodexAppServerClient.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/CodexOperatorControl.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/CodexPendingTurnConfiguration.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/CodexPendingTurnRegistry.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/CodexProcessSupervisor.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/ModelRouter.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/ProviderConfig.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/ProviderProperties.java",
+          "backend/src/main/java/org/openharness/backend/service/provider/ProviderRegistry.java",
+          "agent-runtime/src/agentExecutionRunner.ts",
+          "agent-runtime/src/approvalStore.ts",
+          "agent-runtime/src/javaClient.ts",
+          "packages/shared-schema/src/index.ts",
+          "docs/architecture/auth_contract.md",
+          "docs/architecture/dev_runbook.md",
+          "docs/verification/agent-runtime-v1/providers/2026-07-12-codex-app-server-fake.json",
+          "docs/verification/agent-runtime-v1/providers/2026-07-12-codex-app-server-production.json",
+          "docs/verification/agent-runtime-v1/providers/qualification-report-promotion-audit.jsonl"
+        ],
+        "testFiles": [
+          "backend/src/test/java/org/openharness/backend/api/CodexTurnControllerTest.java",
+          "backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java",
+          "backend/src/test/java/org/openharness/backend/model/ContractsTest.java",
+          "backend/src/test/java/org/openharness/backend/qualification/CodexFakeProviderMatrixTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/CodexAppServerAdapterTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/CodexAppServerClientTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/CodexOperatorControlTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/CodexPendingTurnConfigurationTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/CodexPendingTurnRegistryTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/CodexProcessSupervisorTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/ModelRouterTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/ProviderPropertiesTest.java",
+          "backend/src/test/java/org/openharness/backend/service/provider/ProviderRegistryTest.java",
+          "agent-runtime/test/approvalStore.test.ts",
+          "agent-runtime/test/codexPendingTurn.test.ts",
+          "packages/shared-schema/test/schema.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "mvn -o -f backend/pom.xml clean test",
+          "result": "passed",
+          "note": "149/149 backend tests passed"
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test",
+          "result": "passed",
+          "note": "64 files and 317/317 tests passed"
+        },
+        {
+          "command": "pnpm --filter @openharness/shared-schema test",
+          "result": "passed",
+          "note": "58/58 tests passed; actual production evidence additionally parsed through QualificationReportSchema"
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": "shared-schema, agent-runtime, and frontend passed"
+        },
+        {
+          "command": "Task42HighRereviewProbe fresh compile and run",
+          "result": "passed",
+          "note": "7/7 independent adversarial probes passed"
+        },
+        {
+          "command": "authorized real Codex app-server production qualification",
+          "result": "passed",
+          "note": "production report result=pass; 6/6 required rows passed; no OAuth token read, displayed, or persisted"
+        },
+        {
+          "command": "npx openspec validate add-chatgpt-oauth-auth --strict --no-interactive",
+          "result": "passed",
+          "note": "change valid; offline PostHog warning is non-gating"
+        },
+        {
+          "command": "git diff --check",
+          "result": "passed",
+          "note": "no whitespace diagnostics"
+        },
+        {
+          "command": "npx openspec archive add-chatgpt-oauth-auth --yes",
+          "result": "passed",
+          "note": "archived as 2026-07-12-add-chatgpt-oauth-auth and merged 12 requirements into current specs"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "23 passed and 0 failed after archive"
+        }
+      ],
+      "closeout": "docs/review/2026-07-12-chatgpt-oauth-auth-closeout-review.md",
+      "next": [
+        "Start Runtime parity only in a separate worktree and separate OpenSpec intake",
+        "Do not implement Runtime parity until its proposal is independently reviewed and approved"
+      ],
+      "nonGoals": [
+        "Reading, persisting, refreshing, or displaying OAuth tokens",
+        "Frontend login UI or credential import",
+        "Java-side tool policy, approval, or execution",
+        "Remote app-server transport",
+        "Runtime parity beyond the approved pending-turn bridge"
+      ],
+      "notes": [
+        "Task 8 real qualification was explicitly authorized by the user",
+        "Official Codex retained OAuth ownership throughout qualification",
+        "Production evidence SHA-256: af2aee9aa03ed1d795599205936fe3f47e25bbfa3bdd3e16e317e6e0769bfad6",
+        "OpenSpec tasks closed 23/23 before archive"
+      ]
+    },
     {
       "changeId": "harden-agent-runtime-single-node-production",
       "title": "Harden Agent Runtime for Single-Node Production",

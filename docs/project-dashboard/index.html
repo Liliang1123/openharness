@@ -252,10 +252,10 @@
 <body>
   <header>
     <h1>openharness — 开发导航台</h1>
-    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-03</div>
+    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-12</div>
     <div class="stats">
-      <div class="stat"><div class="number">32</div><div class="label">Total</div></div>
-      <div class="stat"><div class="number">17</div><div class="label">Archived</div></div>
+      <div class="stat"><div class="number">33</div><div class="label">Total</div></div>
+      <div class="stat"><div class="number">18</div><div class="label">Archived</div></div>
       <div class="stat"><div class="number">13</div><div class="label">Partial</div></div>
       <div class="stat"><div class="number">1</div><div class="label">Proposed</div></div>
       <div class="stat"><div class="number">1</div><div class="label">Verified</div></div>
@@ -272,6 +272,17 @@
   <section id="timeline" class="active">
     <h2>Timeline</h2>
     
+      <div class="timeline-group">
+        <div class="timeline-date">2026-07-12</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-chatgpt-oauth-auth</strong>
+            <span class="summary">通过本机官方 Codex app-server 使用既有 ChatGPT/Codex 登录态提供 openai-codex 模型路由；OAuth token 始终由官方进程持有，OpenHarness 仅实现 local-only IPC、pending-turn bridge、TS policy/approval/execution ownership、operator controls 与 evidence-backed qualification。</span>
+          </div>
+        </div>
+      </div>
+
       <div class="timeline-group">
         <div class="timeline-date">2026-07-03</div>
         <div class="timeline-items">
@@ -486,6 +497,17 @@
       </thead>
       <tbody>
         <tr>
+      <td><strong>add-chatgpt-oauth-auth</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-07-12</td>
+      <td>backend-gateway, provider-adapter</td>
+      <td><a href="docs/superpowers/plans/2026-07-10-add-chatgpt-oauth-auth.md">2026-07-10-add-chatgpt-oauth-auth.md</a></td>
+      <td>CodexTurnController.java, Contracts.java, CodexFakeProviderMatrix.java, CodexAppServerAdapter.java, CodexAppServerClient.java, CodexOperatorControl.java, CodexPendingTurnConfiguration.java, CodexPendingTurnRegistry.java, CodexProcessSupervisor.java, ModelRouter.java, ProviderConfig.java, ProviderProperties.java, ProviderRegistry.java, agentExecutionRunner.ts, approvalStore.ts, javaClient.ts, index.ts, auth_contract.md, dev_runbook.md, 2026-07-12-codex-app-server-fake.json, 2026-07-12-codex-app-server-production.json, qualification-report-promotion-audit.jsonl</td>
+      <td>CodexTurnControllerTest.java, ModelControllerTest.java, ContractsTest.java, CodexFakeProviderMatrixTest.java, CodexAppServerAdapterTest.java, CodexAppServerClientTest.java, CodexOperatorControlTest.java, CodexPendingTurnConfigurationTest.java, CodexPendingTurnRegistryTest.java, CodexProcessSupervisorTest.java, ModelRouterTest.java, ProviderPropertiesTest.java, ProviderRegistryTest.java, approvalStore.test.ts, codexPendingTurn.test.ts, schema.test.ts</td>
+      <td><a href="docs/review/2026-07-12-chatgpt-oauth-auth-closeout-review.md">2026-07-12-chatgpt-oauth-auth-closeout-review.md</a></td>
+      <td>Start Runtime parity only in a separate worktree and separate OpenSpec intake<br>Do not implement Runtime parity until its proposal is independently reviewed and approved</td>
+    </tr>
+<tr>
       <td><strong>harden-agent-runtime-single-node-production</strong></td>
       <td><span class="badge badge-proposed">proposed</span></td>
       <td>2026-07-03</td>
@@ -873,7 +895,8 @@
       <div class="tag-group">
         <h3>agent-runtime</h3>
         <ul>
-          <li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
+          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+<li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
 <li><span class="badge badge-archived">archived</span> add-runtime-progress-panel</li>
 <li><span class="badge badge-archived">archived</span> add-runtime-cache-stability</li>
 <li><span class="badge badge-archived">archived</span> add-agent-definition-model-selection</li>
@@ -959,6 +982,13 @@
         <h3>cache-stability</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> add-runtime-cache-stability</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>codex</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
         </ul>
       </div>
 
@@ -1157,6 +1187,13 @@
       </div>
 
       <div class="tag-group">
+        <h3>oauth</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>observability</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> add-runtime-progress-panel</li>
@@ -1218,6 +1255,13 @@
       </div>
 
       <div class="tag-group">
+        <h3>pending-turn</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>persistence</h3>
         <ul>
           <li><span class="badge badge-partial">partial</span> add-p1b-persistence</li>
@@ -1272,8 +1316,16 @@
       <div class="tag-group">
         <h3>provider-adapter</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
+          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+<li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
 <li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>qualification</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
         </ul>
       </div>
 
@@ -1329,7 +1381,8 @@
       <div class="tag-group">
         <h3>security</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
+          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+<li><span class="badge badge-archived">archived</span> add-p3d-injection-guard</li>
 <li><span class="badge badge-partial">partial</span> add-p3c-policy-mcp-aware</li>
 <li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
         </ul>
@@ -1490,7 +1543,9 @@
 
   <section id="next">
     <h2>Next Work Queue</h2>
-    <h3>推荐下一步</h3><ul><li>Continue local-only Tasks 9-12 with fake Provider servers and real local Java sandbox/MCP processes <em>(from harden-agent-runtime-single-node-production)</em></li>
+    <h3>推荐下一步</h3><ul><li>Start Runtime parity only in a separate worktree and separate OpenSpec intake <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Do not implement Runtime parity until its proposal is independently reviewed and approved <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Continue local-only Tasks 9-12 with fake Provider servers and real local Java sandbox/MCP processes <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>Do not begin production cutover, real credential tests, formal soak, or production promotion without their required human gates <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>真实 Java Gateway 联调与 trace tree 视图优化 <em>(from add-subagent-dispatcher)</em></li>
@@ -1550,7 +1605,12 @@
 <li>Add dynamic MCP-tool permission configurations <em>(from add-p3d-injection-guard)</em></li>
 <li>Operator budgets and daily rate limits enforcement <em>(from add-p3b-cost-and-router)</em></li>
 <li>Logical intent based logical routing mappings <em>(from add-p3b-cost-and-router)</em></li></ul>
-    <h3>暂不建议</h3><ul><li>Multi-node high availability or PostgreSQL deployment <em>(from harden-agent-runtime-single-node-production)</em></li>
+    <h3>暂不建议</h3><ul><li>Reading, persisting, refreshing, or displaying OAuth tokens <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Frontend login UI or credential import <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Java-side tool policy, approval, or execution <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Remote app-server transport <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Runtime parity beyond the approved pending-turn bridge <em>(from add-chatgpt-oauth-auth)</em></li>
+<li>Multi-node high availability or PostgreSQL deployment <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>User login, tenant administration, browser sessions, or platform UI <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>Model configuration UI or provider credentials in TypeScript Runtime/Frontend <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>SDK or Agent Definition management UI <em>(from harden-agent-runtime-single-node-production)</em></li>

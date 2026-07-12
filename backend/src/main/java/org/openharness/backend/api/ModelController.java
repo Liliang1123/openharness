@@ -154,8 +154,10 @@ public class ModelController {
         response.requestId(),
         response.conversationId(),
         response.message(),
+        response.pendingTurn(),
         withCost,
         response.rawProvider(),
-        response.error());
+        response.error(),
+        response.idempotentReplay());
   }
 }

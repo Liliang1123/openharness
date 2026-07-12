@@ -25,7 +25,10 @@ export interface ApprovalDecision {
 }
 
 export interface ApprovalStore {
-  createPending(input: Omit<PendingApproval, "askUserId" | "createdAt">): PendingApproval;
+  createPending(
+    input: Omit<PendingApproval, "askUserId" | "createdAt">,
+    options?: { persist?: boolean }
+  ): PendingApproval;
   listPending(tenantId: string, conversationId: string, userId?: string): PendingApproval[];
   get(executionId: string, toolCallId: string): PendingApproval | null;
   getByAskUserId(askUserId: string): PendingApproval | null;
@@ -45,19 +48,29 @@ function key(executionId: string, toolCallId: string): string {
 
 export class JsonFileApprovalStore implements ApprovalStore {
   private readonly pending = new Map<string, PendingApproval>();
+  private readonly transient = new Set<string>();
   private readonly waiters = new Map<string, (decision: ApprovalDecision) => void>();
   private readonly decisions = new Map<string, ApprovalDecision>();
 
   constructor(private readonly dataDir = process.env.HISTORY_DATA_DIR ?? "data/sessions") {}
 
-  createPending(input: Omit<PendingApproval, "askUserId" | "createdAt">): PendingApproval {
+  createPending(
+    input: Omit<PendingApproval, "askUserId" | "createdAt">,
+    options?: { persist?: boolean }
+  ): PendingApproval {
     this.loadConversation(input.tenantId, input.conversationId);
     const pending: PendingApproval = {
       ...input,
       askUserId: crypto.randomUUID(),
       createdAt: new Date().toISOString()
     };
-    this.pending.set(key(pending.executionId, pending.toolCallId), pending);
+    const pendingKey = key(pending.executionId, pending.toolCallId);
+    this.pending.set(pendingKey, pending);
+    if (options?.persist === false) {
+      this.transient.add(pendingKey);
+    } else {
+      this.transient.delete(pendingKey);
+    }
     this.saveConversation(input.tenantId, input.conversationId);
     return pending;
   }
@@ -97,7 +110,9 @@ export class JsonFileApprovalStore implements ApprovalStore {
     const pending = this.get(executionId, toolCallId);
     if (!pending) return false;
 
-    this.pending.delete(key(executionId, toolCallId));
+    const pendingKey = key(executionId, toolCallId);
+    this.pending.delete(pendingKey);
+    this.transient.delete(pendingKey);
     this.saveConversation(pending.tenantId, pending.conversationId);
 
     const waiter = this.waiters.get(key(executionId, toolCallId));
@@ -135,7 +150,9 @@ export class JsonFileApprovalStore implements ApprovalStore {
     const filePath = this.filePath(tenantId, conversationId);
     mkdirSync(dirname(filePath), { recursive: true });
     const pendingApprovals = [...this.pending.values()].filter(
-      (p) => p.tenantId === tenantId && p.conversationId === conversationId
+      (p) => p.tenantId === tenantId
+        && p.conversationId === conversationId
+        && !this.transient.has(key(p.executionId, p.toolCallId))
     );
     const data: ApprovalFile = { tenantId, conversationId, pendingApprovals };
     writeFileSync(filePath, JSON.stringify(data, null, 2));

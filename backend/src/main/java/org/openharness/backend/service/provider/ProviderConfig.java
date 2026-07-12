@@ -9,4 +9,24 @@ public record ProviderConfig(
     String baseUrl,
     String apiKey,
     List<String> models,
-    Map<String, Pricing> pricing) {}
+    Map<String, Pricing> pricing,
+    String command,
+    List<String> appServerArgs,
+    String endpoint) {
+
+  public ProviderConfig(
+      String name,
+      String type,
+      String baseUrl,
+      String apiKey,
+      List<String> models,
+      Map<String, Pricing> pricing) {
+    this(name, type, baseUrl, apiKey, models, pricing, null, List.of(), null);
+  }
+
+  public ProviderConfig {
+    models = models != null ? List.copyOf(models) : List.of();
+    pricing = pricing != null ? Map.copyOf(pricing) : Map.of();
+    appServerArgs = appServerArgs != null ? List.copyOf(appServerArgs) : List.of();
+  }
+}

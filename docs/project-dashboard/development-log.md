@@ -1,9 +1,13 @@
 # openharness — 开发导航台
 
 > 自动生成，请勿直接编辑。数据源：`development-log.json`  
-> 最后更新：2026-07-03
+> 最后更新：2026-07-12
 
 ## Timeline
+
+### 2026-07-12
+
+- 📦 archived **add-chatgpt-oauth-auth** — 通过本机官方 Codex app-server 使用既有 ChatGPT/Codex 登录态提供 openai-codex 模型路由；OAuth token 始终由官方进程持有，OpenHarness 仅实现 local-only IPC、pending-turn bridge、TS policy/approval/execution ownership、operator controls 与 evidence-backed qualification。
 
 ### 2026-07-03
 
@@ -62,6 +66,7 @@
 
 | 功能点 | 状态 | Spec | Plan | Code | Tests | Closeout |
 |---|---|---|---|---|---|---|
+| add-chatgpt-oauth-auth | 📦 archived | backend-gateway, provider-adapter | [plan](docs/superpowers/plans/2026-07-10-add-chatgpt-oauth-auth.md) | 22 files | 16 files | [closeout](docs/review/2026-07-12-chatgpt-oauth-auth-closeout-review.md) |
 | harden-agent-runtime-single-node-production | 📋 proposed | agent-runtime, agent-sse, shared-schema, backend-gateway, message-history, long-term-memory, provider-adapter, mcp-tools | [plan](docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md) | — | — | — |
 | add-runtime-progress-panel | 📦 archived | agent-runtime, frontend-runtime, shared-schema | [plan](docs/superpowers/plans/2026-06-29-add-runtime-progress-panel.md) | 8 files | 6 files | [closeout](docs/design/2026-06-29-add-runtime-progress-panel-closeout.md) |
 | add-subagent-trace-tree | 📦 archived | agent-runtime, backend-gateway, frontend-runtime, shared-schema | [plan](docs/superpowers/plans/2026-06-23-add-subagent-trace-tree.md) | 7 files | 5 files | [closeout](docs/design/2026-06-29-add-subagent-trace-tree-closeout.md) |
@@ -115,6 +120,7 @@
 
 ### agent-runtime
 
+- 📦 archived add-chatgpt-oauth-auth
 - 📋 proposed harden-agent-runtime-single-node-production
 - 📦 archived add-runtime-progress-panel
 - 📦 archived add-runtime-cache-stability
@@ -177,6 +183,10 @@
 ### cache-stability
 
 - 📦 archived add-runtime-cache-stability
+
+### codex
+
+- 📦 archived add-chatgpt-oauth-auth
 
 ### context-builder
 
@@ -294,6 +304,10 @@
 
 - ⚠️ partial add-p3a-multi-step-loop
 
+### oauth
+
+- 📦 archived add-chatgpt-oauth-auth
+
 ### observability
 
 - 📦 archived add-runtime-progress-panel
@@ -334,6 +348,10 @@
 - 📦 archived add-p5c-memory-management-api
 - ⚠️ partial add-p5b-memory-context-retrieval
 
+### pending-turn
+
+- 📦 archived add-chatgpt-oauth-auth
+
 ### persistence
 
 - ⚠️ partial add-p1b-persistence
@@ -367,8 +385,13 @@
 
 ### provider-adapter
 
+- 📦 archived add-chatgpt-oauth-auth
 - 📦 archived add-p3b-cost-and-router
 - ⚠️ partial add-p1a-provider-adapter
+
+### qualification
+
+- 📦 archived add-chatgpt-oauth-auth
 
 ### real-provider
 
@@ -400,6 +423,7 @@
 
 ### security
 
+- 📦 archived add-chatgpt-oauth-auth
 - 📦 archived add-p3d-injection-guard
 - ⚠️ partial add-p3c-policy-mcp-aware
 - ⚠️ partial implement-p0b-hookable
@@ -500,6 +524,8 @@
 
 ### 推荐下一步
 
+- Start Runtime parity only in a separate worktree and separate OpenSpec intake _(from add-chatgpt-oauth-auth)_
+- Do not implement Runtime parity until its proposal is independently reviewed and approved _(from add-chatgpt-oauth-auth)_
 - Continue local-only Tasks 9-12 with fake Provider servers and real local Java sandbox/MCP processes _(from harden-agent-runtime-single-node-production)_
 - Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review _(from harden-agent-runtime-single-node-production)_
 - Do not begin production cutover, real credential tests, formal soak, or production promotion without their required human gates _(from harden-agent-runtime-single-node-production)_
@@ -563,6 +589,11 @@
 
 ### 暂不建议
 
+- Reading, persisting, refreshing, or displaying OAuth tokens _(from add-chatgpt-oauth-auth)_
+- Frontend login UI or credential import _(from add-chatgpt-oauth-auth)_
+- Java-side tool policy, approval, or execution _(from add-chatgpt-oauth-auth)_
+- Remote app-server transport _(from add-chatgpt-oauth-auth)_
+- Runtime parity beyond the approved pending-turn bridge _(from add-chatgpt-oauth-auth)_
 - Multi-node high availability or PostgreSQL deployment _(from harden-agent-runtime-single-node-production)_
 - User login, tenant administration, browser sessions, or platform UI _(from harden-agent-runtime-single-node-production)_
 - Model configuration UI or provider credentials in TypeScript Runtime/Frontend _(from harden-agent-runtime-single-node-production)_

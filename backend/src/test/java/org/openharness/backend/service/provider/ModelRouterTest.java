@@ -1,6 +1,7 @@
 package org.openharness.backend.service.provider;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,65 @@ class ModelRouterTest {
     assertThat(resolved.adapter().providerType()).isEqualTo("openai-compatible");
   }
 
+  @Test
+  void explicitCodexRouteResolvesAllowedBareModel() {
+    ProviderRegistry registry = registryWithCodexModels(List.of("gpt-5.4"));
+    ModelRouter router = new ModelRouter(
+        registry,
+        properties("zhipu", Map.of("openai-codex/gpt-5.4", "openai-codex")));
+
+    ResolvedProvider resolved = router.resolve("openai-codex/gpt-5.4");
+
+    assertThat(resolved.config().name()).isEqualTo("openai-codex");
+    assertThat(resolved.adapter().providerType()).isEqualTo("codex-app-server");
+  }
+
+  @Test
+  void unmappedCodexRouteFailsClosedInsteadOfUsingDefaultProvider() {
+    ProviderRegistry registry = registryWithCodexModels(List.of("gpt-5.4"));
+    ModelRouter router = new ModelRouter(registry, properties("zhipu", Map.of()));
+
+    assertThatThrownBy(() -> router.resolve("openai-codex/gpt-5.4"))
+        .isInstanceOf(ProviderUnavailableException.class)
+        .hasMessageContaining("explicit route");
+  }
+
+  @Test
+  void codexRouteRejectsNonCodexProviderTarget() {
+    ProviderRegistry registry = registryWithCodexModels(List.of("gpt-5.4"));
+    ModelRouter router = new ModelRouter(
+        registry,
+        properties("zhipu", Map.of("openai-codex/gpt-5.4", "zhipu")));
+
+    assertThatThrownBy(() -> router.resolve("openai-codex/gpt-5.4"))
+        .isInstanceOf(ProviderUnavailableException.class)
+        .hasMessageContaining("codex-app-server");
+  }
+
+  @Test
+  void codexRouteRejectsModelOutsideBareModelAllowList() {
+    ProviderRegistry registry = registryWithCodexModels(List.of("gpt-5.4"));
+    ModelRouter router = new ModelRouter(
+        registry,
+        properties("zhipu", Map.of("openai-codex/gpt-5.5", "openai-codex")));
+
+    assertThatThrownBy(() -> router.resolve("openai-codex/gpt-5.5"))
+        .isInstanceOf(ProviderUnavailableException.class)
+        .hasMessageContaining("allow-list");
+  }
+
+  @Test
+  void ordinaryModelCannotResolveToCodexProvider() {
+    ProviderRegistry registry = registryWithCodexModels(List.of("gpt-5.4"));
+    ModelRouter router = new ModelRouter(
+        registry,
+        properties("zhipu", Map.of("gpt-5.4", "openai-codex")));
+
+    assertThatThrownBy(() -> router.resolve("gpt-5.4"))
+        .isInstanceOf(ProviderUnavailableException.class)
+        .hasMessageContaining("openai-codex/");
+  }
+
   private ProviderRegistry registryWith(String... providerNames) {
     ProviderRegistry registry = new ProviderRegistry(List.of(
         adapter("openai-compatible"),
@@ -51,6 +111,19 @@ class ModelRouterTest {
       String type = providerName.equals("anthropic") ? "anthropic" : "openai-compatible";
       registry.register(new ProviderConfig(providerName, type, "https://example.test/" + providerName, "key", List.of(providerName + "-model"), Map.of()), providerName.equals("zhipu"));
     }
+    return registry;
+  }
+
+  private ProviderRegistry registryWithCodexModels(List<String> models) {
+    ProviderRegistry registry = new ProviderRegistry(List.of(
+        adapter("openai-compatible"),
+        adapter("codex-app-server")));
+    registry.register(
+        new ProviderConfig("zhipu", "openai-compatible", "https://example.test/zhipu", "key", List.of("glm-4-flash"), Map.of()),
+        true);
+    registry.register(
+        new ProviderConfig("openai-codex", "codex-app-server", null, null, models, Map.of()),
+        false);
     return registry;
   }
 

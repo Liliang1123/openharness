@@ -120,3 +120,21 @@ OPENHARNESS_DEV_USER_ID=user-001
 OPENHARNESS_DEV_TENANT_ID=tenant-001
 MODEL_PROVIDER=mock
 ```
+
+## 8. Codex OAuth Operator Boundary
+
+OpenHarness is not an OAuth client. For the `openai-codex` provider, login, status, and
+logout are delegated to the locally installed official Codex CLI/app. OpenHarness:
+
+1. never reads, imports, copies, refreshes, persists, or prints Codex credential files or
+   OAuth token values;
+2. invokes only the fixed official commands `codex login`, `codex login status`, and
+   `codex logout` through the local operator control;
+3. discards delegated stdout/stderr and emits only provider id, readiness, process state,
+   model availability, and needs-login state;
+4. keeps OAuth material inside the official Codex credential boundary and never forwards
+   it to TS Runtime, Frontend, traces, audit records, or qualification reports;
+5. fails `openai-codex/*` routes closed with needs-login/unavailable after logout or when
+   the official CLI is absent.
+
+The implementation boundary is [CodexOperatorControl.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-chatgpt-oauth-auth-task4/backend/src/main/java/org/openharness/backend/service/provider/CodexOperatorControl.java).

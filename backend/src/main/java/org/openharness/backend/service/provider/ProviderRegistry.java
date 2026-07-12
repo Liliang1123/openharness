@@ -20,11 +20,17 @@ public class ProviderRegistry {
   }
 
   public void register(ProviderConfig config, boolean isDefault) {
-    configByName.put(config.name(), config);
-    for (String model : config.models()) {
-      configByModel.put(model, config);
+    boolean codexProvider = "codex-app-server".equals(config.type());
+    if (codexProvider && !adaptersByType.containsKey(config.type())) {
+      throw new IllegalStateException("No adapter for provider type: " + config.type());
     }
-    if (isDefault || defaultConfig == null) {
+    configByName.put(config.name(), config);
+    if (!codexProvider) {
+      for (String model : config.models()) {
+        configByModel.put(model, config);
+      }
+    }
+    if (isDefault || (defaultConfig == null && !codexProvider)) {
       defaultConfig = config;
     }
   }
@@ -43,6 +49,10 @@ public class ProviderRegistry {
   }
 
   public ProviderConfig configFor(String model) {
+    if (model != null && model.startsWith("openai-codex/")) {
+      throw new ProviderUnavailableException(
+          "Codex models must resolve through ModelRouter");
+    }
     return configByModel.getOrDefault(model, defaultConfig);
   }
 

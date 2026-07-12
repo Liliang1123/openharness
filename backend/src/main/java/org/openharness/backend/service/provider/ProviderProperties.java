@@ -1,6 +1,7 @@
 package org.openharness.backend.service.provider;
 
 import jakarta.annotation.PostConstruct;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,8 +25,125 @@ public class ProviderProperties {
   @PostConstruct
   void init() {
     for (ProviderEntry entry : providers) {
-      ProviderConfig config = new ProviderConfig(entry.name, entry.type, entry.baseUrl, entry.apiKey, entry.models, entry.pricing);
+      validate(entry);
+      ProviderConfig config = new ProviderConfig(
+          entry.name,
+          entry.type,
+          entry.baseUrl,
+          entry.apiKey,
+          entry.models,
+          entry.pricing,
+          entry.command,
+          entry.appServerArgs,
+          entry.endpoint);
       registry.register(config, entry.name.equals(defaultProvider));
+    }
+  }
+
+  private void validate(ProviderEntry entry) {
+    if (!"codex-app-server".equals(entry.type)) {
+      return;
+    }
+    if (entry.baseUrl != null || entry.apiKey != null) {
+      throw new IllegalArgumentException(
+          "codex-app-server provider must not configure baseUrl or apiKey");
+    }
+    if (!hasText(entry.command)) {
+      throw new IllegalArgumentException(
+          "codex-app-server provider requires a command");
+    }
+    if (entry.appServerArgs == null || entry.appServerArgs.isEmpty()) {
+      throw new IllegalArgumentException(
+          "codex-app-server provider requires appServerArgs");
+    }
+    if (!isLocalEndpoint(entry.endpoint)) {
+      throw new IllegalArgumentException(
+          "codex-app-server provider requires a local endpoint");
+    }
+    validateSafeAppServerArgs(entry.appServerArgs);
+    validateListenEndpoint(entry.appServerArgs, entry.endpoint);
+    String routerDefault = modelRouter != null ? modelRouter.getDefault() : null;
+    if (entry.name != null
+        && (entry.name.equals(defaultProvider) || entry.name.equals(routerDefault))) {
+      throw new IllegalArgumentException(
+          "codex-app-server provider requires an explicit route and cannot be the default");
+    }
+    Map<String, String> routes = modelRouter != null ? modelRouter.getRoutes() : Map.of();
+    boolean hasExplicitRoute = entry.models != null && entry.models.stream()
+        .anyMatch(model -> entry.name != null
+            && entry.name.equals(routes.get("openai-codex/" + model)));
+    if (!hasExplicitRoute) {
+      throw new IllegalArgumentException(
+          "codex-app-server provider requires an explicit route for an allow-listed model");
+    }
+  }
+
+  private boolean hasText(String value) {
+    return value != null && !value.isBlank();
+  }
+
+  private boolean isLocalEndpoint(String endpoint) {
+    if (!hasText(endpoint)) {
+      return false;
+    }
+    if ("stdio://".equals(endpoint) || endpoint.startsWith("unix://")) {
+      return true;
+    }
+    try {
+      URI uri = URI.create(endpoint);
+      if (!"ws".equalsIgnoreCase(uri.getScheme())
+          || uri.getUserInfo() != null
+          || uri.getRawQuery() != null
+          || uri.getRawFragment() != null) {
+        return false;
+      }
+      String host = uri.getHost();
+      return "localhost".equalsIgnoreCase(host)
+          || "127.0.0.1".equals(host)
+          || "::1".equals(host)
+          || "[::1]".equals(host);
+    } catch (IllegalArgumentException ignored) {
+      return false;
+    }
+  }
+
+  private void validateListenEndpoint(List<String> args, String endpoint) {
+    int listenCount = 0;
+    String listenEndpoint = null;
+    for (int index = 0; index < args.size(); index++) {
+      String argument = args.get(index);
+      if ("--listen".equals(argument)) {
+        listenCount++;
+        if (index + 1 < args.size()) {
+          listenEndpoint = args.get(++index);
+        }
+      } else if (argument != null && argument.startsWith("--listen=")) {
+        listenCount++;
+        listenEndpoint = argument.substring("--listen=".length());
+      }
+    }
+    if (listenCount == 0 && "stdio://".equals(endpoint)) {
+      return;
+    }
+    if (listenCount != 1 || !endpoint.equals(listenEndpoint)) {
+      throw new IllegalArgumentException(
+          "codex-app-server appServerArgs --listen must match endpoint");
+    }
+  }
+
+  private void validateSafeAppServerArgs(List<String> args) {
+    if (args.isEmpty() || !"app-server".equals(args.getFirst())) {
+      throw new IllegalArgumentException(
+          "codex-app-server has unsupported appServerArgs");
+    }
+    for (int index = 1; index < args.size(); index++) {
+      String argument = args.get(index);
+      if ("--listen".equals(argument)) {
+        index++;
+      } else if (argument == null || !argument.startsWith("--listen=")) {
+        throw new IllegalArgumentException(
+            "codex-app-server has unsupported appServerArgs");
+      }
     }
   }
 
@@ -43,6 +161,9 @@ public class ProviderProperties {
     private String apiKey;
     private List<String> models = new ArrayList<>();
     private Map<String, Pricing> pricing = Map.of();
+    private String command;
+    private List<String> appServerArgs = new ArrayList<>();
+    private String endpoint;
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -56,6 +177,12 @@ public class ProviderProperties {
     public void setModels(List<String> models) { this.models = models; }
     public Map<String, Pricing> getPricing() { return pricing; }
     public void setPricing(Map<String, Pricing> pricing) { this.pricing = pricing != null ? pricing : Map.of(); }
+    public String getCommand() { return command; }
+    public void setCommand(String command) { this.command = command; }
+    public List<String> getAppServerArgs() { return appServerArgs; }
+    public void setAppServerArgs(List<String> appServerArgs) { this.appServerArgs = appServerArgs != null ? appServerArgs : List.of(); }
+    public String getEndpoint() { return endpoint; }
+    public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
   }
 
   public static class ModelRouterEntry {
