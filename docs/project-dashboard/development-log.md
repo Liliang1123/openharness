@@ -9,9 +9,13 @@
 
 - 📦 archived **add-chatgpt-oauth-auth** — 通过本机官方 Codex app-server 使用既有 ChatGPT/Codex 登录态提供 openai-codex 模型路由；OAuth token 始终由官方进程持有，OpenHarness 仅实现 local-only IPC、pending-turn bridge、TS policy/approval/execution ownership、operator controls 与 evidence-backed qualification。
 
+### 2026-07-09
+
+- ⚠️ partial **defer-anthropic-from-gate-c** — 将单节点 Gate C 真实 Provider 必选族从 OpenAI-compatible+Anthropic 降级为仅 OpenAI-compatible；Anthropic 真实矩阵后置为 deferred，缺失 Anthropic key 不再单独阻塞 Gate C。
+
 ### 2026-07-03
 
-- 📋 proposed **harden-agent-runtime-single-node-production** — 将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：以 SQLite 统一持久化和崩溃恢复；先完成 fake Provider、真实本地 Java 沙箱与 MCP 的 local_verified 全链路，再以独立生产证据完成真实 Provider、迁移和 24 小时 soak 门禁。
+- 📋 proposed **harden-agent-runtime-single-node-production** — 将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：SQLite 持久化与恢复、真实 Provider/工具及容量门禁仍按生产证据闭环；24 小时本地 database/sampler baseline 已达 local_verified，但不证明并发 Runtime workload/TS 进程重启，也不关闭 Gate D。
 
 ### 2026-06-29
 
@@ -67,6 +71,7 @@
 | 功能点 | 状态 | Spec | Plan | Code | Tests | Closeout |
 |---|---|---|---|---|---|---|
 | add-chatgpt-oauth-auth | 📦 archived | backend-gateway, provider-adapter | [plan](docs/superpowers/plans/2026-07-10-add-chatgpt-oauth-auth.md) | 22 files | 16 files | [closeout](docs/review/2026-07-12-chatgpt-oauth-auth-closeout-review.md) |
+| defer-anthropic-from-gate-c | ⚠️ partial | provider-adapter | — | — | — | — |
 | harden-agent-runtime-single-node-production | 📋 proposed | agent-runtime, agent-sse, shared-schema, backend-gateway, message-history, long-term-memory, provider-adapter, mcp-tools | [plan](docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md) | — | — | — |
 | add-runtime-progress-panel | 📦 archived | agent-runtime, frontend-runtime, shared-schema | [plan](docs/superpowers/plans/2026-06-29-add-runtime-progress-panel.md) | 8 files | 6 files | [closeout](docs/design/2026-06-29-add-runtime-progress-panel-closeout.md) |
 | add-subagent-trace-tree | 📦 archived | agent-runtime, backend-gateway, frontend-runtime, shared-schema | [plan](docs/superpowers/plans/2026-06-23-add-subagent-trace-tree.md) | 7 files | 5 files | [closeout](docs/design/2026-06-29-add-subagent-trace-tree-closeout.md) |
@@ -146,6 +151,10 @@
 - ⚠️ partial add-p1a-provider-adapter
 - ⚠️ partial implement-p0b-hookable
 - ⚠️ partial implement-p0a-skeleton
+
+### anthropic
+
+- ⚠️ partial defer-anthropic-from-gate-c
 
 ### api
 
@@ -243,6 +252,10 @@
 - 📦 archived add-subagent-trace-tree
 - ⚠️ partial add-p2b-session-list
 - ⚠️ partial implement-p0a-skeleton
+
+### gate-c
+
+- ⚠️ partial defer-anthropic-from-gate-c
 
 ### hookable
 
@@ -364,6 +377,7 @@
 
 ### production-readiness
 
+- ⚠️ partial defer-anthropic-from-gate-c
 - 📋 proposed harden-agent-runtime-single-node-production
 
 ### progress
@@ -386,12 +400,14 @@
 ### provider-adapter
 
 - 📦 archived add-chatgpt-oauth-auth
+- ⚠️ partial defer-anthropic-from-gate-c
 - 📦 archived add-p3b-cost-and-router
 - ⚠️ partial add-p1a-provider-adapter
 
 ### qualification
 
 - 📦 archived add-chatgpt-oauth-auth
+- ⚠️ partial defer-anthropic-from-gate-c
 
 ### real-provider
 
@@ -526,9 +542,12 @@
 
 - Start Runtime parity only in a separate worktree and separate OpenSpec intake _(from add-chatgpt-oauth-auth)_
 - Do not implement Runtime parity until its proposal is independently reviewed and approved _(from add-chatgpt-oauth-auth)_
-- Continue local-only Tasks 9-12 with fake Provider servers and real local Java sandbox/MCP processes _(from harden-agent-runtime-single-node-production)_
+- Gate C still requires OpenAI-compatible real matrix required rows to PASS (timeout/retry/terminal_error/cancellation/reasoning remain evidence-gated) _(from defer-anthropic-from-gate-c)_
+- Keep Anthropic real matrix deferred; do not delete AnthropicAdapter or fake tests _(from defer-anthropic-from-gate-c)_
+- Archive defer-anthropic-from-gate-c only after Stage 0 closeout / user archive decision _(from defer-anthropic-from-gate-c)_
 - Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review _(from harden-agent-runtime-single-node-production)_
-- Do not begin production cutover, real credential tests, formal soak, or production promotion without their required human gates _(from harden-agent-runtime-single-node-production)_
+- Complete Gate C required real OpenAI-compatible Provider rows and retain Anthropic as deferred / post-Gate-C _(from harden-agent-runtime-single-node-production)_
+- Keep Gate D pending until a production-track formal report with start approval/preflight evidence and explicit post-result human promotion approval passes review _(from harden-agent-runtime-single-node-production)_
 - 真实 Java Gateway 联调与 trace tree 视图优化 _(from add-subagent-dispatcher)_
 - 按独立 OpenSpec 评估子智能体系统级隔离能力 _(from add-subagent-dispatcher)_
 - 如需更细粒度成本归因，扩展 token usage 聚合契约 _(from add-subagent-dispatcher)_
@@ -594,6 +613,10 @@
 - Java-side tool policy, approval, or execution _(from add-chatgpt-oauth-auth)_
 - Remote app-server transport _(from add-chatgpt-oauth-auth)_
 - Runtime parity beyond the approved pending-turn bridge _(from add-chatgpt-oauth-auth)_
+- Deleting AnthropicAdapter or local/fake Anthropic tests _(from defer-anthropic-from-gate-c)_
+- Treating OpenAI-compatible success as Anthropic qualification _(from defer-anthropic-from-gate-c)_
+- Auto-closing Gate C without OpenAI-compatible real matrix PASS _(from defer-anthropic-from-gate-c)_
+- Reopening the archived ChatGPT OAuth change _(from defer-anthropic-from-gate-c)_
 - Multi-node high availability or PostgreSQL deployment _(from harden-agent-runtime-single-node-production)_
 - User login, tenant administration, browser sessions, or platform UI _(from harden-agent-runtime-single-node-production)_
 - Model configuration UI or provider credentials in TypeScript Runtime/Frontend _(from harden-agent-runtime-single-node-production)_

@@ -1,0 +1,285 @@
+{
+  "track": "production",
+  "generatedAt": "2026-07-09T14:42:08.440Z",
+  "result": "blocked",
+  "rows": [
+    {
+      "id": "openai-zhipu-sync",
+      "required": true,
+      "track": "production",
+      "environment": {
+        "provider": "zhipu",
+        "providerType": "openai-compatible",
+        "model": "glm-4-flash",
+        "endpointKind": "chat-completions",
+        "transport": "real-provider",
+        "host": "open.bigmodel.cn"
+      },
+      "protocolVersion": "openai-chat-completions",
+      "capabilities": [
+        "sync"
+      ],
+      "requestHash": "f30b1fc5e94469066575392819280235338fcf001d827f37961115da0266d72e",
+      "observed": {
+        "httpStatus": 200,
+        "provider": "zhipu",
+        "content": "OH_SYNC_OK"
+      },
+      "oracle": {
+        "httpStatus": 200,
+        "contentContains": "OH_SYNC_OK"
+      },
+      "durationMs": 1711,
+      "result": "pass",
+      "usage": {
+        "promptTokens": 11,
+        "completionTokens": 5,
+        "totalTokens": 16
+      }
+    },
+    {
+      "id": "openai-zhipu-usage-cost",
+      "required": true,
+      "track": "production",
+      "environment": {
+        "provider": "zhipu",
+        "providerType": "openai-compatible",
+        "model": "glm-4-flash",
+        "endpointKind": "chat-completions",
+        "transport": "real-provider",
+        "host": "open.bigmodel.cn"
+      },
+      "protocolVersion": "openai-chat-completions",
+      "capabilities": [
+        "usage_cost"
+      ],
+      "requestHash": "55f8e4133b28c2a28155d524a744d94b4cfae49e290fabfa498cfb0b776c2e04",
+      "observed": {
+        "httpStatus": 200,
+        "provider": "zhipu",
+        "costUsdMicros": 1
+      },
+      "oracle": {
+        "httpStatus": 200,
+        "promptTokensPositive": true,
+        "completionTokensPositive": true,
+        "costUsdMicrosPresent": true
+      },
+      "durationMs": 375,
+      "result": "pass",
+      "usage": {
+        "promptTokens": 12,
+        "completionTokens": 4,
+        "totalTokens": 16
+      }
+    },
+    {
+      "id": "openai-zhipu-stream",
+      "required": true,
+      "track": "production",
+      "environment": {
+        "provider": "zhipu",
+        "providerType": "openai-compatible",
+        "model": "glm-4-flash",
+        "endpointKind": "chat-completions",
+        "transport": "real-provider",
+        "host": "open.bigmodel.cn"
+      },
+      "protocolVersion": "openai-chat-completions",
+      "capabilities": [
+        "stream"
+      ],
+      "requestHash": "6f3512a3070b01f7890d49644ae0833338ed42ae548974761c11146f9500d2e7",
+      "observed": {
+        "httpStatus": 200,
+        "provider": "zhipu",
+        "content": "OH_STREAM_OK"
+      },
+      "oracle": {
+        "httpStatus": 200,
+        "contentContains": "OH_STREAM_OK"
+      },
+      "durationMs": 1947,
+      "result": "pass",
+      "usage": {
+        "promptTokens": 11,
+        "completionTokens": 5,
+        "totalTokens": 16
+      }
+    },
+    {
+      "id": "openai-zhipu-structured-tool",
+      "required": true,
+      "track": "production",
+      "environment": {
+        "provider": "zhipu",
+        "providerType": "openai-compatible",
+        "model": "glm-4-flash",
+        "endpointKind": "chat-completions",
+        "transport": "real-provider",
+        "host": "open.bigmodel.cn"
+      },
+      "protocolVersion": "openai-chat-completions",
+      "capabilities": [
+        "tool_calls"
+      ],
+      "requestHash": "b2131ada687a6af512311de8c3ad202cbe081f8448de8ac67242f92c6e7ae7dc",
+      "observed": {
+        "httpStatus": 200,
+        "provider": "zhipu",
+        "toolCallCount": 1,
+        "toolName": "lookup",
+        "arguments": {
+          "id": 1
+        }
+      },
+      "oracle": {
+        "httpStatus": 200,
+        "toolCallName": "lookup",
+        "argumentsContainId": true
+      },
+      "durationMs": 1345,
+      "result": "pass",
+      "usage": {
+        "promptTokens": 156,
+        "completionTokens": 9,
+        "totalTokens": 165
+      }
+    },
+    {
+      "id": "openai-zhipu-timeout",
+      "required": true,
+      "track": "production",
+      "environment": {
+        "provider": "zhipu",
+        "providerType": "openai-compatible",
+        "model": "glm-4-flash",
+        "endpointKind": "chat-completions",
+        "transport": "real-provider",
+        "host": "open.bigmodel.cn"
+      },
+      "protocolVersion": "openai-chat-completions",
+      "capabilities": [
+        "timeout"
+      ],
+      "requestHash": "76b34672c868f5e845441b9d679f8354694be8df6b2d8df59f311342cf2b522b",
+      "observed": {
+        "httpStatus": 200,
+        "errorClass": "PROVIDER_TIMEOUT",
+        "structuredStatus": 504,
+        "timeoutSeen": true
+      },
+      "oracle": {
+        "boundedTimeoutMs": 1,
+        "structuredErrorClass": "PROVIDER_TIMEOUT",
+        "structuredHttpStatus": 504
+      },
+      "durationMs": 6,
+      "result": "pass"
+    },
+    {
+      "id": "openai-zhipu-retry",
+      "required": true,
+      "track": "production",
+      "environment": {
+        "provider": "zhipu",
+        "providerType": "openai-compatible",
+        "model": "glm-4-flash",
+        "endpointKind": "chat-completions",
+        "transport": "real-provider",
+        "host": "open.bigmodel.cn"
+      },
+      "protocolVersion": "openai-chat-completions",
+      "capabilities": [
+        "retry"
+      ],
+      "requestHash": "5ea96caf847c6d3307b8978399075c056f72cefa10666d0403bdcf231b2b4d27",
+      "observed": {
+        "blockedReason": "No safe real-provider 503 injection path exists in the current harness; fake-provider retry remains local evidence only."
+      },
+      "oracle": {
+        "provider503RetryMustBeObserved": true
+      },
+      "durationMs": 1,
+      "result": "blocked"
+    },
+    {
+      "id": "openai-zhipu-terminal-error",
+      "required": true,
+      "track": "production",
+      "environment": {
+        "provider": "zhipu",
+        "providerType": "openai-compatible",
+        "model": "glm-4-flash",
+        "endpointKind": "chat-completions",
+        "transport": "real-provider",
+        "host": "open.bigmodel.cn"
+      },
+      "protocolVersion": "openai-chat-completions",
+      "capabilities": [
+        "terminal_error"
+      ],
+      "requestHash": "d238af1193f4d763617f5d4c8ebf2ef0f322d266e253b9ce0587044a6e92bd58",
+      "observed": {
+        "blockedReason": "No safe real-provider invalid-request/auth mutation path was run; changing credentials or model routing would be outside this Zhipu smoke matrix."
+      },
+      "oracle": {
+        "structuredProviderTerminalErrorMustBeObserved": true
+      },
+      "durationMs": 1,
+      "result": "blocked"
+    },
+    {
+      "id": "openai-zhipu-cancellation",
+      "required": true,
+      "track": "production",
+      "environment": {
+        "provider": "zhipu",
+        "providerType": "openai-compatible",
+        "model": "glm-4-flash",
+        "endpointKind": "chat-completions",
+        "transport": "real-provider",
+        "host": "open.bigmodel.cn"
+      },
+      "protocolVersion": "openai-chat-completions",
+      "capabilities": [
+        "cancellation"
+      ],
+      "requestHash": "7d2c2ff2a1cabbcf5f6fec53b0ab4281d0781b6753b3ef1920041fc69f9aaf78",
+      "observed": {
+        "blockedReason": "Current public backend chat API has no cancel endpoint for an in-flight model request; adapter-level cancel requires an in-process real matrix harness."
+      },
+      "oracle": {
+        "providerCallCancellationMustBeObserved": true
+      },
+      "durationMs": 1,
+      "result": "blocked"
+    },
+    {
+      "id": "openai-zhipu-reasoning",
+      "required": true,
+      "track": "production",
+      "environment": {
+        "provider": "zhipu",
+        "providerType": "openai-compatible",
+        "model": "glm-4-flash",
+        "endpointKind": "chat-completions",
+        "transport": "real-provider",
+        "host": "open.bigmodel.cn"
+      },
+      "protocolVersion": "openai-chat-completions",
+      "capabilities": [
+        "reasoning"
+      ],
+      "requestHash": "ee1081d9bee31b346f1630696ac192e53f515f68efd399ae284f4b20e1cfae85",
+      "observed": {
+        "blockedReason": "glm-4-flash is not qualified here as a reasoning-capable required model; no reasoning block was requested as PASS evidence."
+      },
+      "oracle": {
+        "reasoningBlocksPreservedIfRequired": true
+      },
+      "durationMs": 1,
+      "result": "blocked"
+    }
+  ]
+}

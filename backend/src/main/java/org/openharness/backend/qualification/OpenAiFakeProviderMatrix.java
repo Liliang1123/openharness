@@ -17,7 +17,7 @@ public final class OpenAiFakeProviderMatrix {
     OpenAiCompatibleAdapter adapter = new OpenAiCompatibleAdapter();
     ProviderConfig config = new ProviderConfig(
         "fake-openai", "openai-compatible", baseUrl, apiKey,
-        List.of("matrix-sync", "matrix-tool", "matrix-retry", "matrix-terminal", "matrix-stream", "matrix-timeout", "matrix-cancellation", "matrix-reasoning"), Map.of());
+        List.of("matrix-sync", "matrix-usage", "matrix-tool", "matrix-retry", "matrix-terminal", "matrix-stream", "matrix-timeout", "matrix-cancellation", "matrix-reasoning"), Map.of());
     List<Map<String, Object>> rows = new ArrayList<>();
 
     // 1. sync
@@ -112,8 +112,11 @@ public final class OpenAiFakeProviderMatrix {
       Thread.sleep(100);
       adapter.cancel(cancelReqId);
       t.join(2000);
-      cancelResult = interruptedCaught.get() ? "pass" : "fail";
+      boolean threadCompleted = !t.isAlive();
+      cancelResult = interruptedCaught.get() && threadCompleted ? "pass" : "fail";
       cancelObserved.put("cancelled", true);
+      cancelObserved.put("interruptedCaught", interruptedCaught.get());
+      cancelObserved.put("threadCompleted", threadCompleted);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -208,6 +211,7 @@ public final class OpenAiFakeProviderMatrix {
         boolean terminalObserved = e.getMessage().contains("Provider error 400");
         result = terminalObserved ? "pass" : "fail";
         observed.put("status", 400);
+        observed.put("terminalErrorClass", "Provider error 400");
       } else {
         observed.put("error", e.getMessage());
       }

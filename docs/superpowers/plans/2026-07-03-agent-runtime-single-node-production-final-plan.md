@@ -457,6 +457,12 @@ Human approval was received on 2026-07-06 at 15:55 CST. Step 5 remains open beca
 - [ ] On completion, verify all thresholds, first/last two-hour RSS/FD median growth ≤10%, SQLite integrity, outbox/dead-letter state, event ordering, cross-scope isolation, and secret scan.
 - [ ] Obtain explicit human promotion approval.
 
+**Local supporting evidence (reviewed 2026-07-11):**
+
+- [x] A 24-hour local database/sampler baseline completed with 2,880 / 2,880 samples over 10,000 seeded conversation rows; its report carries the target concurrency/mix metadata and database close/reopen observations at 2h / 12h / 22h.
+- [x] The report is internally hash-consistent and records `track=local`, `result=local_verified`, no report-observed hard failures, RSS median growth `-6.04%`, and FD median growth `0%`.
+- Boundary: the matching local execution path seeds completed rows, performs sequential read probes, and closes/reopens the SQLite connection; report metadata does not prove 20 concurrent Runtime executions, real fixed-mix tool/approval execution, or TS Runtime process restarts. The report also lacks the formal runner's Gate D start approval/preflight/evidence-kind fields. Keep every formal Task 13 checkbox above open until those behaviors are observed in a production-track report and explicit post-result human promotion approval passes review.
+
 ### Task 14: Final Verification, Contract Freeze, And Closeout
 
 **Gate:** final-critical.

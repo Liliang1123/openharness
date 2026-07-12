@@ -967,6 +967,10 @@ public final class Contracts {
     }
   }
 
+  public record ModelCancelRequest(String requestId) {}
+
+  public record ModelCancelResponse(String requestId, boolean cancelled) {}
+
   public record ToolCallRequest(
       String requestId,
       String conversationId,

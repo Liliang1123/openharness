@@ -1,0 +1,336 @@
+{
+  "track" : "production",
+  "generatedAt" : "2026-07-10T09:37:05.132532Z",
+  "result" : "blocked",
+  "rows" : [ {
+    "id" : "openai-zhipu-sync",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4.7-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "sync" ],
+    "requestHash" : "30f4fe2af8a290b83775d62ef04f0a6f622f377d520e4d87e3ad78a727acc518",
+    "observed" : {
+      "httpStatus" : 200,
+      "provider" : "zhipu",
+      "content" : "ok",
+      "reasoningBlocks" : [ {
+        "type" : "thinking",
+        "text" : "1.  **Analyze the Request:** The user wants me to reply with the exact word \"ok\".\n\n2.  **Identify the Constraint:** The constraint is \"exactly ok\". This means no punctuation (unless implied as part of the word), no capitalization (unless part of the word), no extra spaces, and no conversational filler.\n\n3.  **Formulate the Response:**\n    *   Target string: \"ok\"\n\n4.  **Final Check:** Does \"ok\" match the request \"Reply exactly ok\"? Yes.\n\n5.  **Output Generation:** \"ok\""
+      } ],
+      "promptTokens" : 9,
+      "completionTokens" : 125,
+      "totalTokens" : 134
+    },
+    "oracle" : {
+      "contentPresent" : true
+    },
+    "usage" : {
+      "promptTokens" : 9,
+      "completionTokens" : 125,
+      "totalTokens" : 134
+    },
+    "durationMs" : 14596,
+    "result" : "pass"
+  }, {
+    "id" : "openai-zhipu-usage-cost",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4.7-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "usage" ],
+    "requestHash" : "7eda15da10656e9698de26a8db72a92b4c72296a1c51982a6591019fba5894c7",
+    "observed" : {
+      "httpStatus" : 200,
+      "provider" : "zhipu",
+      "content" : "ok\nUsage: 0 tokens",
+      "reasoningBlocks" : [ {
+        "type" : "thinking",
+        "text" : "1.  **Analyze the User's Request:**\n    *   **Instruction 1:** \"Reply exactly ok\".\n    *   **Instruction 2:** \"return usage.\"\n\n2.  **Interpret \"Usage\":**\n    *   *Ambiguity:* What does the user mean by \"usage\"?\n        *   Possibility A: API usage/Token usage (common in AI contexts).\n        *   Possibility B: How to use me (instructions).\n        *   Possibility C: Usage statistics (rarely asked this way without a system prompt).\n        *   Possibility D: Just a confirmation phrase (e.g., \"Usage: 0 tokens\").\n\n    *   *Context:* The prompt is very short and directive. It looks like a test of instruction following or a specific format requirement. The phrase \"return usage\" suggests a technical output.\n\n3.  **Evaluate Constraints:**\n    *   The first instruction is strict: \"Reply exactly ok\". This means I shouldn't add \"Sure\" or \"Here is the usage\".\n    *   The second instruction is to provide \"usage\".\n\n4.  **Formulate the Output:**\n    *   *Draft 1:* \"ok Usage: 0 tokens\" (Too verbose).\n    *   *Draft 2:* \"ok\" (Misses the \"return usage\" part).\n    *   *Draft 3:* \"ok\\nUsage: 0\" (Better).\n    *   *Draft 4:* \"ok\" (Simplest, but might ignore the second part).\n\n    *   *Refining based on typical AI behavior:* If a user asks for \"usage\", they usually want to see how many tokens were consumed. Since I haven't generated much text, the usage will be low.\n\n    *   *Refining based on \"Reply exactly ok\":* I must start with \"ok\".\n\n5.  **Final Decision:**\n    *   Start with \"ok\".\n    *   Append the usage information.\n\n    *   *Output:* \"ok\\nUsage: 0 tokens\" or just \"ok\\nUsage: 0\".\n\n    *   *Wait, let's look at the prompt again.* \"Reply exactly ok and return usage.\"\n    *   If I interpret \"return usage\" as a command to show the system's token count, I should do that.\n    *   However, sometimes \"usage\" in these types of prompt engineering tests refers to the usage of the *response itself* (e.g., \"Usage: 2 tokens\").\n\n    *   *Let's go with the most standard interpretation:* Acknowledge with \"ok\" and provide the token usage.\n\n    *   *Result:* \"ok\\nUsage: 0 tokens\"\n\n    *   *Alternative interpretation:* Maybe the user just wants the word \"usage\"?\n    *   No, \"Reply exactly ok\" usually overrides the second part in terms of the *first* word. The second part is an additional data point.\n\n    *   Let's stick to the most literal interpretation:\n    *   1. Reply: \"ok\"\n    *   2. Return: \"Usage: ...\"\n\n    *   Let's check the system prompt (implicit). Usually, usage is reported in JSON or plain text. Plain text is safer here.\n\n    *   *Final Polish:* \"ok\\nUsage: 0 tokens\"\n\n    *   *Self-Correction:* The prompt says \"Reply exactly ok\". This implies the *response* should be \"ok\". If I add \"Usage...\", I am not replying *exactly* \"ok\". I am replying \"ok Usage...\".\n\n    *   *Re-evaluating:* Is \"return usage\" a separate command or part of the sentence \"Reply exactly ok and return usage\"?\n    *   It acts as an imperative for the output content.\n    *   If I strictly follow \"Reply exactly ok\", I output \"ok\".\n    *   If I follow \"return usage\", I output \"Usage: 0\".\n    *   Combining them: \"ok\\nUsage: 0 tokens\".\n\n    *   *Let's try to be as compliant as possible.*\n    *   \"ok\\nUsage: 0 tokens\"\n\n    *   *Wait, is there a trick?* Maybe the user wants to know how to use me? No, \"return usage\" is technical jargon.\n\n    *   *Let's look at the simplest possible output.*\n    *   \"ok\\nUsage: 0 tokens\"\n\n    *   *Let's reconsider the \"exactly\" constraint.*\n    *   If the user says \"Reply exactly 'Hello' and say goodbye\", and I say \"Hello\\nGoodbye\", I followed the spirit.\n    *   If the user says \"Reply exactly 'Hello'\", and I say \"Hello\", I followed the letter.\n    *   The prompt is \"Reply exactly ok and return usage\".\n    *   I will output \"ok\" followed by the usage.\n\n    *   *Actually, often in these specific \"instruction following\" benchmarks, they want the exact string \"ok\" and then the usage stats.*\n\n    *   Let's provide the usage stats in a standard format.\n\n    *   \"ok\\nUsage: 0 tokens\""
+      } ],
+      "promptTokens" : 12,
+      "completionTokens" : 1089,
+      "totalTokens" : 1101
+    },
+    "oracle" : {
+      "usageNonNegative" : true
+    },
+    "usage" : {
+      "promptTokens" : 12,
+      "completionTokens" : 1089,
+      "totalTokens" : 1101
+    },
+    "durationMs" : 18904,
+    "result" : "pass"
+  }, {
+    "id" : "openai-zhipu-stream",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4.7-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "stream" ],
+    "requestHash" : "1ae9c04fbfac54205f57515c61199cdec7c62d504c6a08abd1217e356c09b552",
+    "observed" : {
+      "httpStatus" : 200,
+      "provider" : "zhipu",
+      "content" : "ok",
+      "promptTokens" : 9,
+      "completionTokens" : 216,
+      "totalTokens" : 225
+    },
+    "oracle" : {
+      "stream" : true,
+      "contentPresent" : true
+    },
+    "usage" : {
+      "promptTokens" : 9,
+      "completionTokens" : 216,
+      "totalTokens" : 225
+    },
+    "durationMs" : 38102,
+    "result" : "pass"
+  }, {
+    "id" : "openai-zhipu-structured-tool",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4.7-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "tool_calls" ],
+    "requestHash" : "062c0b960cda46ac4999f6c276dbef08b25781388f8c63a4bac0338d9d61cc76",
+    "observed" : {
+      "httpStatus" : 200,
+      "provider" : "zhipu",
+      "content" : "I'll use the lookup tool with id 1.",
+      "toolCallCount" : 1,
+      "toolName" : "lookup",
+      "arguments" : {
+        "id" : 1
+      },
+      "reasoningBlocks" : [ {
+        "type" : "thinking",
+        "text" : "The user is asking me to use the lookup tool with id 1. I have a lookup function available that takes an id parameter (integer type). The user has provided a specific id value of 1, so I should use that exact value."
+      } ],
+      "promptTokens" : 149,
+      "completionTokens" : 72,
+      "totalTokens" : 221
+    },
+    "oracle" : {
+      "toolCallCountAtLeast" : 1
+    },
+    "usage" : {
+      "promptTokens" : 149,
+      "completionTokens" : 72,
+      "totalTokens" : 221
+    },
+    "durationMs" : 23956,
+    "result" : "pass"
+  }, {
+    "id" : "openai-zhipu-timeout",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4.7-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "timeout" ],
+    "requestHash" : "5d1f08746685eeee3479d8a76346d9b6852b34d420ff8a981b0159067568ba8f",
+    "observed" : {
+      "httpStatus" : 200,
+      "errorClass" : "PROVIDER_TIMEOUT",
+      "structuredStatus" : 504,
+      "timeoutSeen" : true
+    },
+    "oracle" : {
+      "errorClass" : "PROVIDER_TIMEOUT",
+      "httpStatus" : 504
+    },
+    "durationMs" : 9,
+    "result" : "pass"
+  }, {
+    "id" : "openai-zhipu-retry",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4.7-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "retry" ],
+    "requestHash" : "9bfc07f9d0abfeec0e4122ae4d5c5854ce62f745ffbcf46df1a594db710153cd",
+    "observed" : {
+      "requestSent" : false,
+      "blockedReason" : "No safe production 503 injection path is available for the real provider; mock/proxy PASS is forbidden. Batch 03 keeps retry blocked until a provider-natural or officially supported safe 503 path exists.",
+      "unsafeRealErrorInjectionAllowed" : false
+    },
+    "oracle" : {
+      "realEvidenceRequired" : true,
+      "mustNotMockPass" : true
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-zhipu-terminal-error",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4.7-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "terminal_error" ],
+    "requestHash" : "22984aeea8e64a3744eb0736e4865a8340fcdd3db1fa4528f78a7ea1af6feb57",
+    "observed" : {
+      "requestSent" : false,
+      "blockedReason" : "No adapter API key was available for the bounded invalid-model terminal probe. Backend remaps unknown models to the configured real model, so invalid-model must use adapter-real-provider with the invalid id listed in ProviderConfig.models. Invalid credentials are forbidden by the Batch 03 brief.",
+      "unsafeRealErrorInjectionAllowed" : false
+    },
+    "oracle" : {
+      "realEvidenceRequired" : true,
+      "mustNotMockPass" : true
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-zhipu-cancellation",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4.7-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible",
+      "cancellationEndpoint" : "/api/v1/model/cancel"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "cancellation" ],
+    "requestHash" : "733582f0366fff7ff5b9c3415c3feffbb3b66182c1bb51a3b66933f0141482b7",
+    "observed" : {
+      "requestId" : "req-production-cancellation",
+      "requestSent" : true,
+      "cancellationProbe" : "public-cancel-endpoint",
+      "chatHttpStatus" : 200,
+      "chatCompleted" : true,
+      "errorClass" : "PROVIDER_CANCELLED",
+      "structuredStatus" : 409,
+      "cancelRequestHash" : "871c17292476e89b818788c0e6774bcfcb594a0da17718a57959f93f661f6557",
+      "cancelRequestId" : "req-production-cancellation",
+      "cancelRequestSent" : true,
+      "cancelHttpStatus" : 200,
+      "cancelled" : true,
+      "cancelResponseRequestId" : "req-production-cancellation",
+      "unsafeRealErrorInjectionAllowed" : false
+    },
+    "oracle" : {
+      "realEvidenceRequired" : true,
+      "mustNotMockPass" : true
+    },
+    "durationMs" : 171,
+    "result" : "pass"
+  }, {
+    "id" : "openai-zhipu-reasoning",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "transport" : "backend-api",
+      "backendUrl" : "http://127.0.0.1:18084",
+      "providerFamily" : "openai-compatible",
+      "providerName" : "zhipu",
+      "model" : "glm-4.7-flash",
+      "harness" : "OpenAiCompatibleFormalMatrix",
+      "javaVersion" : "21.0.8",
+      "osName" : "Mac OS X",
+      "unsafeRealErrorInjectionAllowed" : false,
+      "providerType" : "openai-compatible"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "reasoning" ],
+    "requestHash" : "cd2f61c6a3238f330a57863ae2da27f49fd7cbf659bdf372a1f19e15f3f7bedf",
+    "observed" : {
+      "httpStatus" : 500,
+      "errorClass" : null,
+      "structuredStatus" : null,
+      "requestSent" : true,
+      "blockedReason" : "Reasoning model call completed without preserved reasoning blocks."
+    },
+    "oracle" : {
+      "reasoningPreserved" : true
+    },
+    "durationMs" : 117,
+    "result" : "blocked"
+  } ]
+}

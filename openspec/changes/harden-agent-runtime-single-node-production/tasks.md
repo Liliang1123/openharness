@@ -29,9 +29,10 @@
 ## 4. Stage 3 — Capacity, Soak, And Contract Freeze
 
 - [x] 4.0 Run a deterministic local short baseline as supporting `local_verified` evidence; do not represent it as the formal 24-hour soak or production promotion.
+- [x] 4.0a Record the extended 24-hour **local database/sampler baseline** (`local_verified`): 2,880 samples at 30-second intervals over 10,000 seeded conversation rows, with scheduled database close/reopen observations at hours 2, 12, and 22. This is supporting evidence only; it does not prove 20 concurrent Runtime executions, fixed-mix tool execution, or TS Runtime process restarts.
 - [x] 4.1 Add a reproducible harness for 20 concurrent executions and 10,000 persisted conversations.
-- [ ] 4.2 Run the fixed 60/20/15/5 workload for 24 hours with 30-second sampling and TS-only restarts at hours 2, 12, and 22.
-- [ ] 4.3 Verify zero cross-tenant leakage, duplicate Runtime-caused side effects, store corruption, event-order corruption, and unbounded resource growth.
+- [ ] 4.2 Run the formal production Gate D fixed 60/20/15/5 workload for 24 hours with 30-second sampling and TS-only restarts at hours 2, 12, and 22; require the formal runner's start approval/preflight evidence and explicit post-result human promotion approval.
+- [ ] 4.3 Verify on formal production evidence zero cross-tenant leakage, duplicate Runtime-caused side effects, store corruption, event-order corruption, and unbounded resource growth.
 - [ ] 4.4 Document database backup/restore, migration, recovery, provider/tool qualification, and private-service deployment procedures.
 - [ ] 4.5 Run full TypeScript, Java, integration, OpenSpec, dashboard, security, and production qualification gates.
 - [ ] 4.6 Freeze and document Agent Runtime v1 service/persistence contracts.

@@ -2,7 +2,7 @@
 
 ## Task 3 — Schema, Singleton Fence, And Disk Guard
 
-Status: focused implementation verification passed; Gate B remains pending until all Stage 1 tasks are complete.
+Status: focused implementation verification passed for the local SQLite boundary. Gate B remains pending until the production backup/import/quarantine/restore and measured RPO/RTO evidence bundle passes review.
 
 Observed on 2026-07-06:
 
@@ -47,7 +47,7 @@ Behavior evidence:
 
 ## Task 5 — Lifecycle Unit Of Work And Crash Matrix
 
-Status: focused implementation verification passed for the SQLite lifecycle command boundary; Stage 1 Gate B remains pending because later Stage 1 recovery, import, cursor, IDOR, WAL, low-disk, migration, and outbox tests are still open.
+Status: focused implementation verification passed for the SQLite lifecycle command boundary. Later local recovery/import/cursor/IDOR/WAL/low-disk/migration/outbox tests have since been added; Stage 1 Gate B still remains pending because production migration evidence is not attached.
 
 Observed on 2026-07-06:
 
@@ -74,7 +74,7 @@ Behavior evidence:
 
 ## Task 6 — Restart Reconciliation, ApprovalId, And Private Service Auth
 
-Status: focused implementation verification passed for startup reconciliation, service authentication, scoped approval/session/event/memory access, and public approval-token redaction. Stage 1 Gate B remains pending because JSON import/quarantine, WAL/low-disk, outbox, and later Stage 1 gates are still open.
+Status: focused implementation verification passed for startup reconciliation, service authentication, scoped approval/session/event/memory access, and public approval-token redaction. Stage 1 Gate B remains pending because production backup/import/quarantine/restore and measured RPO/RTO evidence are still absent.
 
 Observed on 2026-07-06:
 
@@ -99,7 +99,7 @@ Behavior evidence:
 
 ## Task 7 — Durable Trace Outbox
 
-Status: focused implementation verification passed for durable Runtime trace outbox dispatch and Java trace-ingestion deduplication. Stage 1 Gate B remains pending because JSON import/quarantine, WAL/low-disk, final migration and cutover validation are still open.
+Status: focused implementation verification passed for durable Runtime trace outbox dispatch and Java trace-ingestion deduplication. Stage 1 Gate B remains pending because production migration and cutover validation evidence are still absent.
 
 Observed on 2026-07-06:
 
