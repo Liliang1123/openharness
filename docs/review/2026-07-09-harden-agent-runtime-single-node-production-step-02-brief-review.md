@@ -13,11 +13,11 @@ Governor：Grok
 | 制品 | 路径 |
 |---|---|
 | Batch 02 Brief | [02-brief.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/02-brief.md) |
-| Worktree Brief | [02-brief.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/02-brief.md) |
+| Worktree Brief | [02-brief.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/02-brief.md) |
 | Status | [status.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/status.md) |
 | Batch 01 Review | [step-01-review.md](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-09-harden-agent-runtime-single-node-production-step-01-review.md) |
 | Batch 01 Report | [01-report.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/01-report.md) |
-| Tasks boundary | [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) |
+| Tasks boundary | [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) |
 
 ## 核对结果
 

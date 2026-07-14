@@ -5,16 +5,16 @@
 通过实施，等待 Grok Review。Batch 01 已完成 OpenAI-compatible formal matrix harness 的 TDD 实现与本地证据落盘；未关闭 Gate C，未勾选 tasks，未 commit / archive / promotion。
 
 本报告同步目标：
-- Worktree: [01-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/01-report.md)
+- Worktree: [01-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/01-report.md)
 - Main repo: [01-report.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/01-report.md)
 
 ## 变更范围
 
-- 新增 formal harness: [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java)
-- 增强 fake matrix 证据字段: [OpenAiFakeProviderMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrix.java)
-- 增加 TDD 覆盖: [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java)
-- 新增 local formal evidence: [2026-07-09-openai-compatible-formal-local.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-openai-compatible-formal-local.json)
-- 复用既有真实 Zhipu evidence 输入: [2026-07-09-zhipu-openai-compatible-production.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json)
+- 新增 formal harness: [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java)
+- 增强 fake matrix 证据字段: [OpenAiFakeProviderMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrix.java)
+- 增加 TDD 覆盖: [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java)
+- 新增 local formal evidence: [2026-07-09-openai-compatible-formal-local.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-openai-compatible-formal-local.json)
+- 复用既有真实 Zhipu evidence 输入: [2026-07-09-zhipu-openai-compatible-production.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json)
 
 ## 实施内容
 
@@ -45,7 +45,7 @@
 ## Evidence
 
 Local formal report:
-- [2026-07-09-openai-compatible-formal-local.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-openai-compatible-formal-local.json)
+- [2026-07-09-openai-compatible-formal-local.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-openai-compatible-formal-local.json)
 - `track=local`
 - `result=local_verified`
 - `rows=9`
@@ -61,7 +61,7 @@ Local formal report:
 
 Real provider 调用：
 - 本批未新增真实 provider 调用。
-- 既有 Zhipu production evidence 保留为输入，不改写、不提升 Gate C: [2026-07-09-zhipu-openai-compatible-production.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json)
+- 既有 Zhipu production evidence 保留为输入，不改写、不提升 Gate C: [2026-07-09-zhipu-openai-compatible-production.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json)
 - Anthropic 仍 deferred/post-Gate-C，未当作 Gate C required，未 fake PASS。
 
 Harness 使用命令：
@@ -78,7 +78,7 @@ mvn -f backend/pom.xml -DskipTests spring-boot:run -Dspring-boot.run.main-class=
 
 ## Step Critical
 
-Workdir: [stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout)
+Workdir: [stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap)
 
 | Command | Exit | Result |
 |---|---:|---|
@@ -98,7 +98,7 @@ Result: exit 1, no matches.
 
 ## 边界确认
 
-- 未勾选 [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 的 3.1 / 3.2 / 3.5 / 3.6；复核输出仍为 `[ ]`。
+- 未勾选 [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 的 3.1 / 3.2 / 3.5 / 3.6；复核输出仍为 `[ ]`。
 - 未关闭 Gate C，未 promotion，未 archive，未 freeze。
 - 未实施 ChatGPT OAuth。
 - 未把 Anthropic 当 Gate C required；缺 key 不阻塞 OpenAI-compatible required family，也不 fake PASS。

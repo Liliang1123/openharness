@@ -3,11 +3,11 @@
 ## 项目与必读材料
 
 - 项目：[OpenHarness](file:///Users/elvis/file/develop/opensource/openharness)
-- 执行 worktree：[gate-b-real-provider-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout)
-- 必读 Review：[Attempt 04 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-04-review.md)
-- 必读计划：[Task 10 plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- 必读规则：[AGENTS.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/AGENTS.md)、[OpenSpec AGENTS.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/openspec/AGENTS.md)
-- 批准合同：[harden-agent-runtime-single-node-production](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/openspec/changes/harden-agent-runtime-single-node-production)
+- 执行 worktree：[gate-b-real-provider-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap)
+- 必读 Review：[Attempt 04 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-04-review.md)
+- 必读计划：[Task 10 plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- 必读规则：[AGENTS.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/AGENTS.md)、[OpenSpec AGENTS.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/AGENTS.md)
+- 批准合同：[harden-agent-runtime-single-node-production](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production)
 
 ## 任务目标
 
@@ -25,13 +25,13 @@
 
 ## 允许范围
 
-- [Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java)
-- [Matrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java)
-- [Exchange capture](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java)
-- [Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java)
-- [OpenAI-compatible adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java)
-- [Anthropic adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/service/provider/AnthropicAdapter.java)
-- [对应 qualification/provider tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/test/java/org/openharness/backend)
+- [Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java)
+- [Matrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java)
+- [Exchange capture](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java)
+- [Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java)
+- [OpenAI-compatible adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java)
+- [Anthropic adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/AnthropicAdapter.java)
+- [对应 qualification/provider tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend)
 
 ## 禁止事项
 

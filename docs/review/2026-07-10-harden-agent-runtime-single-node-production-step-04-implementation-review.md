@@ -7,10 +7,10 @@
 ## Review 范围
 
 - 主要修改文件：
-  - [OpenAiFakeProviderMatrixTest](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java)
-  - [OpenAiCompatibleFormalMatrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java)
+  - [OpenAiFakeProviderMatrixTest](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java)
+  - [OpenAiCompatibleFormalMatrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java)
 - 关键验证命令：
-  - [mvn -f backend/pom.xml -Dtest=OpenAiFakeProviderMatrixTest,QualificationReportPromoterTest,ModelControllerTest test](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/target/surefire-reports/org.openharness.backend.qualification.OpenAiFakeProviderMatrixTest.txt)
+  - [mvn -f backend/pom.xml -Dtest=OpenAiFakeProviderMatrixTest,QualificationReportPromoterTest,ModelControllerTest test](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/target/surefire-reports/org.openharness.backend.qualification.OpenAiFakeProviderMatrixTest.txt)
   - [pnpm --filter @openharness/shared-schema test -- schema](file:///Users/elvis/file/develop/opensource/openharness/packages/shared-schema)
   - openspec validate（harden/defer）
 

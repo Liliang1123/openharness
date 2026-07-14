@@ -9,16 +9,16 @@ safe rows 不回归；`terminal_error` 通过 **adapter-real-provider** 真实 i
 
 本报告同步：
 
-- Worktree: [03-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/03-report.md)
+- Worktree: [03-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/03-report.md)
 - Main: [03-report.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/03-report.md)
 
 ## 修改文件
 
 | 文件 | 说明 |
 |---|---|
-| [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | Batch 03：retry/terminal/cancel/reasoning 解析；bounded invalid-model terminal probe；CLI `--adapter-*` / env 注入（密钥不写 report） |
-| [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java) | RED/GREEN：terminal probe 400 → pass；无 adapter key → blocked |
-| [batch03.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch03.json) | 新增 production evidence |
+| [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | Batch 03：retry/terminal/cancel/reasoning 解析；bounded invalid-model terminal probe；CLI `--adapter-*` / env 注入（密钥不写 report） |
+| [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java) | RED/GREEN：terminal probe 400 → pass；无 adapter key → blocked |
+| [batch03.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch03.json) | 新增 production evidence |
 | 本 report | worktree + main 副本 |
 
 未改：tasks 勾选、Frontend、Agent Runtime、OAuth、Anthropic Gate C 合同、dashboard verified。
@@ -33,7 +33,7 @@ safe rows 不回归；`terminal_error` 通过 **adapter-real-provider** 真实 i
 
 Primary:
 
-[2026-07-09-zhipu-openai-compatible-production-formal-batch03.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch03.json)
+[2026-07-09-zhipu-openai-compatible-production-formal-batch03.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch03.json)
 
 | Field | Value |
 |---|---|

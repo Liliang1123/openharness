@@ -6,32 +6,32 @@
 
 ## Review 范围
 
-- [Task 10 plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- [Attempt 01 Implementation Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-real-provider-runner-step8-16-implementation-review.md)
-- [Attempt 02 Correction Brief](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-real-provider-runner-step8-16-correction-brief.md)
-- [Runtime production OpenSpec change](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/openspec/changes/harden-agent-runtime-single-node-production)
-- [Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java)
-- [Config](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationConfig.java)
-- [Matrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java)
-- [Exchange capture](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java)
-- [Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java)
-- [OpenAI-compatible adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java)
-- [Anthropic adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/service/provider/AnthropicAdapter.java)
-- [qualification tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/test/java/org/openharness/backend/qualification)
+- [Task 10 plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- [Attempt 01 Implementation Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-real-provider-runner-step8-16-implementation-review.md)
+- [Attempt 02 Correction Brief](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-real-provider-runner-step8-16-correction-brief.md)
+- [Runtime production OpenSpec change](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production)
+- [Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java)
+- [Config](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationConfig.java)
+- [Matrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java)
+- [Exchange capture](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java)
+- [Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java)
+- [OpenAI-compatible adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java)
+- [Anthropic adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/AnthropicAdapter.java)
+- [qualification tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification)
 
 ## 主要发现
 
 ### 高：通用 status/usage 可让全部 13 个 production rows 伪 PASS
 
-[RealProviderQualificationMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java) 第 33–45 行允许 transport 直接声明任意 row 为 `pass`；第 73–90 行只验证 raw/adapter usage 相等和 cost/budget，没有按 row id 验证 capability-specific observed sequence 或 oracle。第 168–188 行的 writer validation 同样只复核 usage/cost/budget。
+[RealProviderQualificationMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java) 第 33–45 行允许 transport 直接声明任意 row 为 `pass`；第 73–90 行只验证 raw/adapter usage 相等和 cost/budget，没有按 row id 验证 capability-specific observed sequence 或 oracle。第 168–188 行的 writer validation 同样只复核 usage/cost/budget。
 
 High 独立 probe 对每个 row 返回同一个 `status=generic-only` 和相同 usage，实际观察 `exit=0`、`calls=13`、`overallPass=true`；报告中 `containsCanary=false`、`containsRowOracle=false`、`containsObservedSequence=false`。因此 `single-tool-call`、`multi-step-tool-call`、`structured-arguments`、`reasoning`、`503-retry`、`timeout`、`cancellation`、`terminal-error`、`redaction` 等 required rows 都可以在没有业务证据时被 injected transport 伪造为 PASS。
 
-生产默认 transport 虽然把其中八行 fail closed 为 blocked，但 [Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java) 第 66–78 行会把 `sync`、`stream`、`usage`、`cost`、`redaction` 的任意成功响应直接标为 PASS；所有行共用普通 prompt。特别是 `redaction` 没有 canary、负扫描或泄漏 oracle，却可 PASS。修复必须让 PASS 由 row-specific oracle 产生并在写前再次验证；未实现或未授权的 row 必须 blocked，不能依赖 transport 自报结果。
+生产默认 transport 虽然把其中八行 fail closed 为 blocked，但 [Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java) 第 66–78 行会把 `sync`、`stream`、`usage`、`cost`、`redaction` 的任意成功响应直接标为 PASS；所有行共用普通 prompt。特别是 `redaction` 没有 canary、负扫描或泄漏 oracle，却可 PASS。修复必须让 PASS 由 row-specific oracle 产生并在写前再次验证；未实现或未授权的 row 必须 blocked，不能依赖 transport 自报结果。
 
 ### 高：`rawProviderUsage` 是 adapter usage 的同源副本，不是原始 Provider 证据
 
-[OpenAI-compatible adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java) 第 96–105 行先把 Provider response 转为 `Contracts.Usage`，再从该 `usage` 构造 `rawProviderUsage`。[Anthropic adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/service/provider/AnthropicAdapter.java) 第 71–80 行也从 `modelResponse.usage()` 反向构造所谓 raw usage。
+[OpenAI-compatible adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java) 第 96–105 行先把 Provider response 转为 `Contracts.Usage`，再从该 `usage` 构造 `rawProviderUsage`。[Anthropic adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/AnthropicAdapter.java) 第 71–80 行也从 `modelResponse.usage()` 反向构造所谓 raw usage。
 
 因此 matrix 中的 `rawProviderUsage == adapterUsage` 是同一转换结果与自身比较，无法发现字段映射、cache usage、stream aggregation 或 adapter conversion 错误。修复必须在转换前从解析后的原始 Provider response/stream usage 采集 sanitized raw counters，再与最终 `ModelChatResponse.usage` 独立对账；测试必须人为制造 raw/adapter conversion mismatch 并证明 production row FAIL。
 

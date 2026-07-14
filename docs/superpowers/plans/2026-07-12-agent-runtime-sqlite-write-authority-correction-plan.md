@@ -421,9 +421,40 @@ Result must be `PASS` or `FAIL/BLOCKED`. Any finding returns to Tasks 1–5 and 
 
 **Gate:** Task 6 Review PASS; creating the wrapper does not authorize execution.
 
-**Files:** create `agent-runtime/scripts/start-production-runtime.sh`; add shell/static tests if the repository has an established harness.
+**Files:** create [start-production-runtime.sh](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/scripts/start-production-runtime.sh) and [productionStartupScript.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/test/productionStartupScript.test.ts).
 
-- [ ] **Step 1: Create the fail-closed wrapper**
+- [ ] **Step 1: Write and run the static RED contract test**
+
+```ts
+import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+const scriptPath = fileURLToPath(new URL("../scripts/start-production-runtime.sh", import.meta.url));
+
+describe("production Runtime startup wrapper", () => {
+  it("establishes the fail-closed production boundary before launching the reviewed entrypoint", () => {
+    expect(existsSync(scriptPath)).toBe(true);
+    const script = readFileSync(scriptPath, "utf8");
+
+    expect(script).toContain("set -eu");
+    expect(script).toContain("umask 077");
+    expect(script).toContain("AGENT_RUNTIME_SQLITE_PATH is required");
+    expect(script).toContain("OPENHARNESS_SERVICE_TOKEN is required");
+    expect(script).toContain("export AGENT_RUNTIME_PROFILE=production");
+    expect(script).toContain("exec pnpm --filter @openharness/agent-runtime exec node --import tsx src/index.ts");
+    expect(script.indexOf("umask 077")).toBeLessThan(script.indexOf("exec pnpm"));
+  });
+});
+```
+
+```bash
+pnpm --filter @openharness/agent-runtime test -- productionStartupScript
+```
+
+Expected: FAIL because the reviewed wrapper does not exist yet.
+
+- [ ] **Step 2: Create the fail-closed wrapper**
 
 ```sh
 #!/bin/sh
@@ -432,41 +463,43 @@ umask 077
 : "${AGENT_RUNTIME_SQLITE_PATH:?AGENT_RUNTIME_SQLITE_PATH is required}"
 : "${OPENHARNESS_SERVICE_TOKEN:?OPENHARNESS_SERVICE_TOKEN is required}"
 export AGENT_RUNTIME_PROFILE=production
-exec pnpm --filter @openharness/agent-runtime start
+exec pnpm --filter @openharness/agent-runtime exec node --import tsx src/index.ts
 ```
 
-Do not embed credentials, database contents, or a mutable default path. The reviewed operator command supplies the already-approved absolute live path externally.
+Make the wrapper executable. Do not embed credentials, database contents, or a mutable default path. The reviewed operator command supplies the already-approved absolute live path externally. Do not use `pnpm --filter @openharness/agent-runtime start`: that package has no `start` script and pnpm returns success without launching a process when the selected package lacks that script. Do not invoke the `tsx` CLI directly: it creates an IPC pipe before loading the entrypoint and can fail under the production sandbox. `node --import tsx` uses the installed loader without that CLI IPC boundary.
 
-- [ ] **Step 2: Verify without starting Runtime**
+- [ ] **Step 3: Run GREEN and verify without starting Runtime**
 
 ```bash
+pnpm --filter @openharness/agent-runtime test -- productionStartupScript productionEntrypoint productionServerLifecycle serviceAuth
 sh -n agent-runtime/scripts/start-production-runtime.sh
-rg -n 'umask 077|AGENT_RUNTIME_PROFILE=production|AGENT_RUNTIME_SQLITE_PATH|OPENHARNESS_SERVICE_TOKEN' agent-runtime/scripts/start-production-runtime.sh
+test -x agent-runtime/scripts/start-production-runtime.sh
+rg -n 'umask 077|AGENT_RUNTIME_PROFILE=production|AGENT_RUNTIME_SQLITE_PATH|OPENHARNESS_SERVICE_TOKEN|exec node --import tsx src/index.ts' agent-runtime/scripts/start-production-runtime.sh
 ```
 
-Expected: syntax PASS and all four fail-closed anchors present. Do not execute the wrapper.
+Expected: focused tests and syntax PASS, executable bit present, and all five fail-closed/entrypoint anchors present. Do not execute the wrapper.
 
-- [ ] **Step 3: Review the wrapper and refreshed diff**
+- [ ] **Step 4: Review the wrapper and refreshed diff**
 
-Confirm no secret/default live path, `umask 077` precedes Node/pnpm, and no alternate production entrypoint bypasses it. Any finding returns to correction and refreshes verification/Review.
+Confirm no secret/default live path, `umask 077` precedes Node/pnpm, the command cannot silently succeed without launching the reviewed `src/index.ts` entrypoint, and no alternate production entrypoint bypasses it. Any finding returns to correction and refreshes verification/Review.
 
 ## Task 8: Controlled Production Probe — Separate Authorization Required
 
 **Gate:** Task 6 implementation Review PASS, Task 7 wrapper Review PASS, and explicit user authorization for the exact command/time/evidence path. Until then this task is `BLOCKED` by design.
 
-- [ ] **Step 1: Pre-probe immutable checks**
+- [x] **Step 1: Pre-probe immutable checks**
 
 Confirm Runtime stopped/port 3001 unbound, live DB path unchanged, main/WAL/SHM owner modes, `PRAGMA integrity_check`, counts, production cutover state `forward_fix_only`, evidence output no-overwrite path, and process environment secret redaction. Do not rerun import/cutover.
 
-- [ ] **Step 2: Run one controlled startup/readiness/scoped read-write probe**
+- [x] **Step 2: Run one controlled startup/readiness/scoped read-write probe**
 
 Use the reviewed wrapper under `umask 077`. Prove readiness follows reconciliation, a second instance is refused, one authorized tenant/user write is present only in SQLite, a cross-user read returns no data/existence signal, and graceful close releases the lock. Do not expose raw rows/message content in evidence.
 
-- [ ] **Step 3: Stop and reconcile evidence**
+- [x] **Step 3: Stop and reconcile evidence**
 
 Stop Runtime immediately after the bounded probe. Verify port unbound, lock released, SQLite integrity `ok`, expected count delta only, main/WAL/SHM remain `0600`, no JSON file mtime/hash changed, and no raw secret/content appears in logs/evidence.
 
-- [ ] **Step 4: Gate B reconciliation**
+- [x] **Step 4: Gate B reconciliation**
 
 Only after controlled probe evidence and independent production Review PASS may a later authorized closeout reconcile Stage 0 tasks 2.6/2.7 and dashboard. This plan does not perform that closeout.
 

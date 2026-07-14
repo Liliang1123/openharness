@@ -18,14 +18,14 @@ Executor：Codex
 | Brief | [02-brief.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/02-brief.md) |
 | Brief review | [step-02-brief-review.md](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-09-harden-agent-runtime-single-node-production-step-02-brief-review.md) |
 | Report | [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md) |
-| Worktree Report | [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md) |
-| Primary production JSON | [batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json) |
-| Sandbox-fail retained JSON | [batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json) |
-| Tasks | [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) |
+| Worktree Report | [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md) |
+| Primary production JSON | [batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json) |
+| Sandbox-fail retained JSON | [batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json) |
+| Tasks | [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) |
 
 ## Governor 重跑 step_critical
 
-Workdir: [stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout)
+Workdir: [stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap)
 
 | 检查 | 结果 |
 |---|---|
@@ -64,7 +64,7 @@ Workdir: [stage0-runtime-production-closeout](file:///Users/elvis/file/develop/o
 
 ## Sandbox-fail 产物处理
 
-- [batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json)：`result=fail`，safe rows 为 `ConnectException: Operation not permitted`。
+- [batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json)：`result=fail`，safe rows 为 `ConnectException: Operation not permitted`。
 - Report 正确声明：**非 provider 证据**；保留半成品、换名 rerun01 重跑 — **符合 Brief 不覆盖证据** 要求。
 - Primary 仅接受 **rerun01**。
 

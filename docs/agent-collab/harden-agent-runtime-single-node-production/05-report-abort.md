@@ -25,10 +25,10 @@
 
 ## 修改文件列表
 
-- 新增不可变 raw artifact：[Batch 05 reasoning JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning.json)
-- 更新本报告：[05-report-abort.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/05-report-abort.md)
+- 新增不可变 raw artifact：[Batch 05 reasoning JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning.json)
+- 更新本报告：[05-report-abort.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/05-report-abort.md)
 
-前置、用户授权的模型路由配置已经在本次 formal execution 之前存在：[application.yml](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/resources/application.yml)。本次 executor 未再修改该文件。
+前置、用户授权的模型路由配置已经在本次 formal execution 之前存在：[application.yml](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/resources/application.yml)。本次 executor 未再修改该文件。
 
 未修改 source、tests、OpenSpec、tasks、plan、dashboard 或项目规则。
 
@@ -69,7 +69,7 @@
 
 ### Batch 05 JSON 摘要
 
-主证据：[2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning.json)
+主证据：[2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning.json)
 
 | 字段 | 实际 |
 |---|---|
@@ -92,10 +92,10 @@ Supporting rows：`sync=pass`、`timeout=pass`；`usage-cost/stream/structured-t
 
 | 代码事实 | 证据 | 影响 |
 |---|---|---|
-| `resolveReasoningRow` 只检查 `observed.reasoningBlocks` | [OpenAiCompatibleFormalMatrix.java L376-L412](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | blocks 缺失即强制 `blocked` |
-| `evaluateProductionResponse` 只提取 content、toolCalls、usage，未读取 `message.reasoningBlocks` | [OpenAiCompatibleFormalMatrix.java L517-L575](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | 后端 reasoning 结构无法进入 evidence |
-| PASS switch 仅覆盖 sync/stream/usage-cost/structured-tool | [OpenAiCompatibleFormalMatrix.java L577-L583](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | `reasoning` 默认恒为 false |
-| Adapter 已具备 `reasoning_content -> reasoningBlocks` 映射 | [OpenAiCompatibleAdapter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java) | 缺口位于 formal response evaluator，而非 DTO 目标合同 |
+| `resolveReasoningRow` 只检查 `observed.reasoningBlocks` | [OpenAiCompatibleFormalMatrix.java L376-L412](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | blocks 缺失即强制 `blocked` |
+| `evaluateProductionResponse` 只提取 content、toolCalls、usage，未读取 `message.reasoningBlocks` | [OpenAiCompatibleFormalMatrix.java L517-L575](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | 后端 reasoning 结构无法进入 evidence |
+| PASS switch 仅覆盖 sync/stream/usage-cost/structured-tool | [OpenAiCompatibleFormalMatrix.java L577-L583](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | `reasoning` 默认恒为 false |
+| Adapter 已具备 `reasoning_content -> reasoningBlocks` 映射 | [OpenAiCompatibleAdapter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java) | 缺口位于 formal response evaluator，而非 DTO 目标合同 |
 
 因此当前 harness 的 reasoning PASS 路径在逻辑上不可达。按 Brief 禁止在本批修源码，不能通过重复 Provider 调用解决。
 

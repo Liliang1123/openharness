@@ -2,16 +2,16 @@
 
 ## 结论
 
-通过：已处理 [independent checkbox and gate boundary review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-task-checkbox-and-gate-boundary-review.md) 中可直接收口的 Important/Medium 反馈。五个 checkbox 保留；Gate B/C/D、Runtime v1 freeze、archive 和 OpenClacky parity Stage 1-9 仍未完成且不得推进。
+通过：已处理 [independent checkbox and gate boundary review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-task-checkbox-and-gate-boundary-review.md) 中可直接收口的 Important/Medium 反馈。五个 checkbox 保留；Gate B/C/D、Runtime v1 freeze、archive 和 OpenClacky parity Stage 1-9 仍未完成且不得推进。
 
 ## Review 范围
 
-- [independent checkbox and gate boundary review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-task-checkbox-and-gate-boundary-review.md)
-- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts)
-- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/test/formalSoakRunner.test.ts)
-- [task13-formal-soak-preflight-harness.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
-- [agent-runtime-v1-production-runbook.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md)
-- [stage1-gate-b.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/stage1-gate-b.md)
+- [independent checkbox and gate boundary review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-task-checkbox-and-gate-boundary-review.md)
+- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts)
+- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/test/formalSoakRunner.test.ts)
+- [task13-formal-soak-preflight-harness.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
+- [agent-runtime-v1-production-runbook.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md)
+- [stage1-gate-b.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/stage1-gate-b.md)
 
 ## 主要发现
 
@@ -33,7 +33,7 @@ Runbook now states that a `GateDApproval` object is a runtime guard only; the ac
 
 ### Pass — M-3 stale Gate B status text refreshed
 
-Early [stage1-gate-b.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/stage1-gate-b.md) section headers no longer imply local Stage 1 tests remain open. They now point to the actual blocker: missing production migration/cutover/RPO/RTO evidence.
+Early [stage1-gate-b.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/stage1-gate-b.md) section headers no longer imply local Stage 1 tests remain open. They now point to the actual blocker: missing production migration/cutover/RPO/RTO evidence.
 
 ## 验证记录
 

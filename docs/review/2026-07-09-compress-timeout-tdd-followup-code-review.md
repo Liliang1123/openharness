@@ -8,18 +8,18 @@
 
 | 文件 | 角色 |
 |---|---|
-| [ModelController.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java) | 被修改——`/compress` 增加 try-catch、`response.error()` 检查、提取共享方法 |
-| [ModelControllerTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java) | 被修改——新增 2 个 timeout 测试（chat + compress） |
-| [StructuredErrorHandler.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/StructuredErrorHandler.java) | 未修改——确认 `AppException` → `ErrorResponse` 映射链完整 |
-| [Contracts.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/model/Contracts.java) | 未修改——确认 `StructuredError` / `ModelChatResponse` record 定义 |
-| [gate-c-compress-timeout-followup-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-gate-c-compress-timeout-followup-review.md) | 被修改——用户自撰 follow-up review |
-| [gate-c-zhipu-timeout-structured-error-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-gate-c-zhipu-timeout-structured-error-review.md) | 前序 review——原始指出 `/compress` 缺保护的文档 |
+| [ModelController.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java) | 被修改——`/compress` 增加 try-catch、`response.error()` 检查、提取共享方法 |
+| [ModelControllerTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java) | 被修改——新增 2 个 timeout 测试（chat + compress） |
+| [StructuredErrorHandler.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/StructuredErrorHandler.java) | 未修改——确认 `AppException` → `ErrorResponse` 映射链完整 |
+| [Contracts.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/model/Contracts.java) | 未修改——确认 `StructuredError` / `ModelChatResponse` record 定义 |
+| [gate-c-compress-timeout-followup-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-gate-c-compress-timeout-followup-review.md) | 被修改——用户自撰 follow-up review |
+| [gate-c-zhipu-timeout-structured-error-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-gate-c-zhipu-timeout-structured-error-review.md) | 前序 review——原始指出 `/compress` 缺保护的文档 |
 
 ## 主要发现
 
 ### ✅ 核心修复——`/compress` timeout 保护正确
 
-[ModelController.java L139-148](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L139-L148)：
+[ModelController.java L139-148](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L139-L148)：
 
 ```java
 try {
@@ -43,7 +43,7 @@ try {
 
 ### ✅ `response.error()` 防伪摘要——正确
 
-[ModelController.java L149-151](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L149-L151)：
+[ModelController.java L149-151](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L149-L151)：
 
 ```java
 if (response.error() != null) {
@@ -59,23 +59,23 @@ if (response.error() != null) {
 
 | 方法 | 位置 | 调用者 |
 |---|---|---|
-| `providerUnavailableError()` | [L195-197](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L195-L197) | `/chat` + `/compress` |
-| `providerTimeoutError()` | [L199-201](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L199-L201) | `/chat` + `/compress` |
-| `providerErrorResponse()` | [L185-193](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L185-L193) | 仅 `/chat`（返回 `ModelChatResponse`） |
-| `appException()` | [L203-206](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L203-L206) | 仅 `/compress`（需要 throw） |
-| `isProviderTimeout()` | [L208-224](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L208-L224) | `/chat` + `/compress` |
+| `providerUnavailableError()` | [L195-197](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L195-L197) | `/chat` + `/compress` |
+| `providerTimeoutError()` | [L199-201](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L199-L201) | `/chat` + `/compress` |
+| `providerErrorResponse()` | [L185-193](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L185-L193) | 仅 `/chat`（返回 `ModelChatResponse`） |
+| `appException()` | [L203-206](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L203-L206) | 仅 `/compress`（需要 throw） |
+| `isProviderTimeout()` | [L208-224](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L208-L224) | `/chat` + `/compress` |
 
 **评估**：提取合理，重构不改变 `/chat` 的外在行为——原来的 inline `new StructuredError(...)` 与提取后 `providerUnavailableError(e)` 参数完全一致（diff 可验证）。`/chat` 原来没有 timeout catch，新增的逻辑也是对称的。
 
 ### ✅ TDD 测试——覆盖充分但有扩展空间
 
-**新增测试 1**：[chatReturnsStructuredProviderTimeoutWhenProviderConnectTimesOut](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java#L72-L117)
+**新增测试 1**：[chatReturnsStructuredProviderTimeoutWhenProviderConnectTimesOut](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java#L72-L117)
 
 - 验证 `/chat` timeout → `ModelChatResponse` 带 `PROVIDER_TIMEOUT` error
 - 断言覆盖 `errorClass`、`httpStatus`、`retriable`、`retryOwner`、`maxRetries`、`fallbackAllowed` 全部 6 个业务字段
 - 同时断言 `message() == null`、`rawProvider()` 保留、`usage.totalTokens() == 0`
 
-**新增测试 2**：[compressReturnsStructuredProviderTimeoutWhenProviderConnectTimesOut](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java#L119-L157)
+**新增测试 2**：[compressReturnsStructuredProviderTimeoutWhenProviderConnectTimesOut](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java#L119-L157)
 
 - 验证 `/compress` timeout → `AppException`（而非裸 `RuntimeException`）
 - 断言 `exception.status() == GATEWAY_TIMEOUT`
@@ -87,14 +87,14 @@ if (response.error() != null) {
 
 当前测试只覆盖了 timeout 路径。以下两条路径有代码实现但无测试覆盖：
 
-1. **`ProviderUnavailableException` → `PROVIDER_UNAVAILABLE`**（[L141-142](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L141-L142)）
-2. **`response.error() != null` → `AppException`**（[L149-151](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L149-L151)）
+1. **`ProviderUnavailableException` → `PROVIDER_UNAVAILABLE`**（[L141-142](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L141-L142)）
+2. **`response.error() != null` → `AppException`**（[L149-151](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L149-L151)）
 
 **严重度**：低。代码逻辑简单且与 `/chat` 对称，本轮 TDD 的核心目标是修复 timeout 裸抛，已达成。后续若有 provider matrix 扩展可顺带补充。
 
 ### ⚠️ 非阻塞 Observation 2——`appException()` 的 `httpStatus` 为 null 时 fallback 500
 
-[ModelController.java L204](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L204)：
+[ModelController.java L204](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L204)：
 
 ```java
 int status = error.httpStatus() != null ? error.httpStatus() : 500;
@@ -115,7 +115,7 @@ int status = error.httpStatus() != null ? error.httpStatus() : 500;
 
 ### ✅ 用户自撰 follow-up review 文档——准确
 
-[gate-c-compress-timeout-followup-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-gate-c-compress-timeout-followup-review.md) 中的描述与实际 diff 一致，验证记录（RED→GREEN→focused→full→OpenSpec→whitespace）与声称匹配，结论和边界声明准确。
+[gate-c-compress-timeout-followup-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-gate-c-compress-timeout-followup-review.md) 中的描述与实际 diff 一致，验证记录（RED→GREEN→focused→full→OpenSpec→whitespace）与声称匹配，结论和边界声明准确。
 
 ## 最终建议
 

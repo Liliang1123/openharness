@@ -1,0 +1,519 @@
+{
+  "track" : "production",
+  "generatedAt" : "2026-07-14T10:32:32.961735Z",
+  "result" : "blocked",
+  "rows" : [ {
+    "id" : "openai-compatible-sync",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "sync" ],
+    "requestHash" : "73b211c63ec74fb04ad5c8d09e2e3b63960ea010cbe2a18469f919d6e08049f9",
+    "observed" : {
+      "protocol" : "openai-chat-completions",
+      "status" : "http-200",
+      "observedSequence" : [ "request", "response" ],
+      "responseReceived" : true,
+      "contentPresent" : true,
+      "rawProviderUsage" : {
+        "promptTokens" : 18,
+        "completionTokens" : 64
+      },
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "24a86d26-e7fc-478a-b66e-ab81361ac226",
+      "expectedStreamParser" : "openai-sse",
+      "adapterUsage" : {
+        "promptTokens" : 18,
+        "completionTokens" : 64
+      }
+    },
+    "oracle" : {
+      "rowId" : "sync",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "responseReceived", "contentPresent", "observedSequence=request,response" ]
+    },
+    "usage" : {
+      "promptTokens" : 18,
+      "completionTokens" : 64
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 8160,
+    "result" : "pass"
+  }, {
+    "id" : "openai-compatible-stream",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "stream" ],
+    "requestHash" : "bea317e484bdebea59808875369a794f401fcf0e6630a941c5671eeb10841be5",
+    "observed" : {
+      "status" : "http-200",
+      "parserRequestId" : "e6d8ccb7-40ec-4461-b3a2-7e1178d92431",
+      "streamMergeComplete" : true,
+      "parserStreamEvents" : [ "stream-start", "delta", "stream-end" ],
+      "rawProviderUsage" : {
+        "promptTokens" : 18,
+        "completionTokens" : 64
+      },
+      "protocol" : "openai-chat-completions",
+      "contentPresent" : true,
+      "streamParser" : "openai-sse",
+      "streamDeltaCount" : 63,
+      "adapterCapturePresent" : true,
+      "captureRequestId" : "e6d8ccb7-40ec-4461-b3a2-7e1178d92431",
+      "expectedStreamParser" : "openai-sse",
+      "adapterUsage" : {
+        "promptTokens" : 18,
+        "completionTokens" : 64
+      }
+    },
+    "oracle" : {
+      "rowId" : "stream",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "adapterCapturePresent", "SSE parser events=stream-start,delta,stream-end", "streamDeltaCount>0", "streamMergeComplete" ]
+    },
+    "usage" : {
+      "promptTokens" : 18,
+      "completionTokens" : 64
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 4348,
+    "result" : "pass"
+  }, {
+    "id" : "openai-compatible-single-tool-call",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "single-tool-call" ],
+    "requestHash" : "7ae89cc217186eae1bd055461ed87e1bfb12267144508472a8e9b5d25e743f2a",
+    "observed" : {
+      "status" : "blocked",
+      "reason" : "required provider-backed qualification fixture is not authorized",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "f0fe13b9-331c-4ca8-a547-28058006a6ed",
+      "expectedStreamParser" : "openai-sse",
+      "rawProviderUsage" : { },
+      "adapterUsage" : { }
+    },
+    "oracle" : {
+      "rowId" : "single-tool-call",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "one structured tool call", "tool name", "arguments oracle" ]
+    },
+    "usage" : {
+      "promptTokens" : 0,
+      "completionTokens" : 0
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-compatible-multi-step-tool-call",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "multi-step-tool-call" ],
+    "requestHash" : "d4cb65c7de379236756005c358a2132fb6e8c6e0130ad72692dbf5d1e9729716",
+    "observed" : {
+      "status" : "blocked",
+      "reason" : "required provider-backed qualification fixture is not authorized",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "5ee94b74-6dcb-49ec-a25b-40f11f34cdca",
+      "expectedStreamParser" : "openai-sse",
+      "rawProviderUsage" : { },
+      "adapterUsage" : { }
+    },
+    "oracle" : {
+      "rowId" : "multi-step-tool-call",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "two provider calls", "tool result continuation", "final response" ]
+    },
+    "usage" : {
+      "promptTokens" : 0,
+      "completionTokens" : 0
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-compatible-structured-arguments",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "structured-arguments" ],
+    "requestHash" : "8f3b9c7a5d858e9f842a35fa2761a0fd49355b6f17296cdcf701b2b42224945f",
+    "observed" : {
+      "status" : "blocked",
+      "reason" : "required provider-backed qualification fixture is not authorized",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "c6f3a4f8-9cd2-461d-bba3-454d0381a8ee",
+      "expectedStreamParser" : "openai-sse",
+      "rawProviderUsage" : { },
+      "adapterUsage" : { }
+    },
+    "oracle" : {
+      "rowId" : "structured-arguments",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "parsed JSON arguments", "schema equality" ]
+    },
+    "usage" : {
+      "promptTokens" : 0,
+      "completionTokens" : 0
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-compatible-reasoning",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "reasoning" ],
+    "requestHash" : "759e87873c1a81d32f054a9014eb3506cdc9dc3edfa7a2059c1a586da516084d",
+    "observed" : {
+      "status" : "blocked",
+      "reason" : "required provider-backed qualification fixture is not authorized",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "784a230d-7a15-4601-b475-e75d4041eaa9",
+      "expectedStreamParser" : "openai-sse",
+      "rawProviderUsage" : { },
+      "adapterUsage" : { }
+    },
+    "oracle" : {
+      "rowId" : "reasoning",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "provider reasoning capability", "reasoning block evidence" ]
+    },
+    "usage" : {
+      "promptTokens" : 0,
+      "completionTokens" : 0
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-compatible-usage",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "usage" ],
+    "requestHash" : "654061f51886486872e84e42496bdf8988563f54e6f7bc652ec0007ec0de1b32",
+    "observed" : {
+      "usageObserved" : true,
+      "status" : "http-200",
+      "rawProviderUsage" : {
+        "promptTokens" : 18,
+        "completionTokens" : 64
+      },
+      "protocol" : "openai-chat-completions",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "fba6651b-405e-4cfd-a163-42fa89261fa4",
+      "expectedStreamParser" : "openai-sse",
+      "adapterUsage" : {
+        "promptTokens" : 18,
+        "completionTokens" : 64
+      }
+    },
+    "oracle" : {
+      "rowId" : "usage",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "usageObserved", "rawProviderUsage=adapterUsage", "usagePresent" ]
+    },
+    "usage" : {
+      "promptTokens" : 18,
+      "completionTokens" : 64
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 7914,
+    "result" : "pass"
+  }, {
+    "id" : "openai-compatible-cost",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "cost" ],
+    "requestHash" : "def89113527daf7483d468c9447abf09f9d9987f97a62da826201981ca504369",
+    "observed" : {
+      "costObserved" : true,
+      "status" : "http-200",
+      "rawProviderUsage" : {
+        "promptTokens" : 18,
+        "completionTokens" : 64
+      },
+      "protocol" : "openai-chat-completions",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "c86beb29-c511-4f34-a773-ef71afdda33c",
+      "expectedStreamParser" : "openai-sse",
+      "adapterUsage" : {
+        "promptTokens" : 18,
+        "completionTokens" : 64
+      }
+    },
+    "oracle" : {
+      "rowId" : "cost",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "costObserved", "configuredPricingRecomputed", "withinBudget" ]
+    },
+    "usage" : {
+      "promptTokens" : 18,
+      "completionTokens" : 64
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 4118,
+    "result" : "pass"
+  }, {
+    "id" : "openai-compatible-503-retry",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "503-retry" ],
+    "requestHash" : "a734f9ca65f13a9b6c51405d105bbb5479f1dfea2534bf2dab77780739028109",
+    "observed" : {
+      "status" : "blocked",
+      "reason" : "required provider-backed qualification fixture is not authorized",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "58383b06-1f4a-4255-abad-d07307bd95de",
+      "expectedStreamParser" : "openai-sse",
+      "rawProviderUsage" : { },
+      "adapterUsage" : { }
+    },
+    "oracle" : {
+      "rowId" : "503-retry",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "authorized provider-backed 503", "retry sequence" ]
+    },
+    "usage" : {
+      "promptTokens" : 0,
+      "completionTokens" : 0
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-compatible-timeout",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "timeout" ],
+    "requestHash" : "1ff98f5988edadab0e509034cdff101470031b8b3c1eeafd0e429513a2b6b1ff",
+    "observed" : {
+      "status" : "blocked",
+      "reason" : "required provider-backed qualification fixture is not authorized",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "47779283-fcfc-4b4e-b049-efe3998de88d",
+      "expectedStreamParser" : "openai-sse",
+      "rawProviderUsage" : { },
+      "adapterUsage" : { }
+    },
+    "oracle" : {
+      "rowId" : "timeout",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "shared deadline", "no late success", "request cleanup" ]
+    },
+    "usage" : {
+      "promptTokens" : 0,
+      "completionTokens" : 0
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-compatible-cancellation",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "cancellation" ],
+    "requestHash" : "6f47dda063eb0ed0b77cb3aadb68e8cc2704fae0d4da3c9e5a5cd5af73ac6a60",
+    "observed" : {
+      "status" : "blocked",
+      "reason" : "required provider-backed qualification fixture is not authorized",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "1771f8ef-d2ca-40b7-be26-f0bb79f8a450",
+      "expectedStreamParser" : "openai-sse",
+      "rawProviderUsage" : { },
+      "adapterUsage" : { }
+    },
+    "oracle" : {
+      "rowId" : "cancellation",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "cancel acknowledged", "worker joined", "request cleanup" ]
+    },
+    "usage" : {
+      "promptTokens" : 0,
+      "completionTokens" : 0
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-compatible-terminal-error",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "terminal-error" ],
+    "requestHash" : "decba1addb135bebfee961bc1f120b081913e56a2487a66a470525b8427a5258",
+    "observed" : {
+      "status" : "blocked",
+      "reason" : "required provider-backed qualification fixture is not authorized",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "ce229bb4-6d7f-496f-b414-bbd200e63e03",
+      "expectedStreamParser" : "openai-sse",
+      "rawProviderUsage" : { },
+      "adapterUsage" : { }
+    },
+    "oracle" : {
+      "rowId" : "terminal-error",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "provider terminal error", "no fallback", "sanitized error" ]
+    },
+    "usage" : {
+      "promptTokens" : 0,
+      "completionTokens" : 0
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 0,
+    "result" : "blocked"
+  }, {
+    "id" : "openai-compatible-redaction",
+    "required" : true,
+    "track" : "production",
+    "environment" : {
+      "model" : "glm-4-flash",
+      "endpointHost" : "open.bigmodel.cn"
+    },
+    "protocolVersion" : "openai-chat-completions",
+    "capabilities" : [ "redaction" ],
+    "requestHash" : "b8d2298e83e4b4fc195f80001852d7af30eab1f57a274e261fc77800225f974d",
+    "observed" : {
+      "rawProviderUsage" : {
+        "promptTokens" : 22,
+        "completionTokens" : 30
+      },
+      "protocol" : "openai-chat-completions",
+      "status" : "http-200",
+      "adapterCapturePresent" : false,
+      "captureRequestId" : "07ed9456-9142-4dcb-b5e7-f34ea44d3043",
+      "expectedStreamParser" : "openai-sse",
+      "adapterUsage" : {
+        "promptTokens" : 22,
+        "completionTokens" : 30
+      },
+      "canaryHash" : "66290a27cd2bc4680efe552ff87791e3e775bf4aaaaeae0b31b0973e586f26be",
+      "negativeScan" : true,
+      "writerCloseout" : true,
+      "scanSurfaces" : [ "response", "capture", "stdout", "stderr", "report" ]
+    },
+    "oracle" : {
+      "rowId" : "redaction",
+      "rawAdapterUsageEqual" : true,
+      "deadlineMs" : 65000,
+      "requiredEvidence" : [ "fixed canary hash", "writer closeout negativeScan", "all actual output surfaces" ]
+    },
+    "usage" : {
+      "promptTokens" : 22,
+      "completionTokens" : 30
+    },
+    "cost" : {
+      "currency" : "USD",
+      "micros" : 0
+    },
+    "durationMs" : 2433,
+    "result" : "pass"
+  } ]
+}

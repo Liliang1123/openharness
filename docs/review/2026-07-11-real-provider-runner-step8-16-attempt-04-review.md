@@ -6,36 +6,36 @@
 
 ## Review 范围
 
-- [Task 10 plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- [Attempt 03 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-03-review.md)
-- [Attempt 04 Correction Brief](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-04-correction-brief.md)
-- [Runtime production OpenSpec change](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/openspec/changes/harden-agent-runtime-single-node-production)
-- [Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java)
-- [Config](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationConfig.java)
-- [Matrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java)
-- [Exchange capture](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java)
-- [Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java)
-- [OpenAI-compatible adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java)
-- [Anthropic adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/service/provider/AnthropicAdapter.java)
-- [qualification tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/test/java/org/openharness/backend/qualification)
+- [Task 10 plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- [Attempt 03 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-03-review.md)
+- [Attempt 04 Correction Brief](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-04-correction-brief.md)
+- [Runtime production OpenSpec change](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production)
+- [Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java)
+- [Config](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationConfig.java)
+- [Matrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java)
+- [Exchange capture](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java)
+- [Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java)
+- [OpenAI-compatible adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java)
+- [Anthropic adapter](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/AnthropicAdapter.java)
+- [qualification tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification)
 
 ## 主要发现
 
 ### 高：capture map 存在即可伪造 stream parser provenance
 
-[Matrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java) 的 stream oracle 要求 `adapterCapturePresent`、固定事件序列、正 delta count 与 merge complete，但不检查实际 adapter 写入的 `streamParser=openai-sse/anthropic-sse`，也不把 parser identity 与当前 Provider 对账。[Exchange capture](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java) 的公开 `merge` 可由 injected transport 写入同形 map。
+[Matrix](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java) 的 stream oracle 要求 `adapterCapturePresent`、固定事件序列、正 delta count 与 merge complete，但不检查实际 adapter 写入的 `streamParser=openai-sse/anthropic-sse`，也不把 parser identity 与当前 Provider 对账。[Exchange capture](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java) 的公开 `merge` 可由 injected transport 写入同形 map。
 
 High probe 使用 synthetic credential 与 injected transport，未构造 adapter、未解析 SSE、未执行网络，仅向 capture 写入三个声明字段。结果 `stream=pass`，且已发布 observed 中 `streamParser=null`。因此当前 PASS 仍只能证明“存在一张满足形状的 capture map”，不能证明 evidence 来自 OpenAI/Anthropic SSE parser。
 
 ### 高：writer 把 transport outcome 普通字段当作真实 redaction surface
 
-[Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java) 把 response/capture 以 `_actualResponseSurface`、`_actualCaptureSurface` 放回普通 observed map。[Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java) 只检查这两个键非 null，随后扫描其字符串并晋升 redaction PASS，没有独立 provenance 或只允许内部生产 transport 提供的边界。
+[Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java) 把 response/capture 以 `_actualResponseSurface`、`_actualCaptureSurface` 放回普通 observed map。[Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java) 只检查这两个键非 null，随后扫描其字符串并晋升 redaction PASS，没有独立 provenance 或只允许内部生产 transport 提供的边界。
 
 同一 High probe 的 injected transport 从未获得 Provider response/capture，仅提交两个安全字符串；writer 仍发布 `redaction=pass`。这修复了“canary 明文仍发布”的泄漏漏洞，但没有修复“未执行真实扫描却声称 PASS”的 evidence-integrity 漏洞。
 
 ### 中：runner 在 writer closeout 前缓存 result，未来可与发布报告不一致
 
-[Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java) 在 writer 调用前读取 report result、构造 stdout prefix，并在 writer 返回后继续用旧 result 决定 exit code。[Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java) 会在副本中晋升 redaction row 并重算 report result。当前八个 BLOCKED rows 掩盖了差异；后续 rows 解锁后，发布 JSON 可能为 PASS，而 stdout/exit 仍为 BLOCKED/3。最终结果必须由 closeout 后的唯一不可变候选决定。
+[Runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java) 在 writer 调用前读取 report result、构造 stdout prefix，并在 writer 返回后继续用旧 result 决定 exit code。[Report writer](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java) 会在副本中晋升 redaction row 并重算 report result。当前八个 BLOCKED rows 掩盖了差异；后续 rows 解锁后，发布 JSON 可能为 PASS，而 stdout/exit 仍为 BLOCKED/3。最终结果必须由 closeout 后的唯一不可变候选决定。
 
 ## 已确认修复
 

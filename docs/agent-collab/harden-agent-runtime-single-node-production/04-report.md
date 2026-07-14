@@ -21,11 +21,11 @@ PASS（审计产出完成；Gate C 仍整体 `blocked`，不得 promotion）。
 - [status.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/status.md)
 - [03-report.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/03-report.md)
 - [step-03-review.md](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-10-harden-agent-runtime-single-node-production-step-03-review.md)
-- [batch03 JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch03.json)
+- [batch03 JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch03.json)
 
 ## 修改文件
 
-- [04-report.md（worktree）](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/04-report.md)
+- [04-report.md（worktree）](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/04-report.md)
 - [04-report.md（main）](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/04-report.md)
 
 ## 执行前后 Git 状态
@@ -38,7 +38,7 @@ PASS（审计产出完成；Gate C 仍整体 `blocked`，不得 promotion）。
 
 ### 执行后
 
-仅新增/同步了 [04-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/04-report.md) 与主仓对应副本；未新增任何代码或源码变更。
+仅新增/同步了 [04-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/04-report.md) 与主仓对应副本；未新增任何代码或源码变更。
 Staging 依然为空。
 
 `git -C /Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout diff --cached --name-only`
@@ -49,7 +49,7 @@ Staging 依然为空。
 
 ## 依赖 evidence（batch03）
 
-`batch03` 主证据文件：[2026-07-09-zhipu-openai-compatible-production-formal-batch03.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch03.json)
+`batch03` 主证据文件：[2026-07-09-zhipu-openai-compatible-production-formal-batch03.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch03.json)
 
 - `track=production`
 - `result=blocked`

@@ -28,8 +28,8 @@
 
 - OAuth branch：`add-chatgpt-oauth-auth-task4`，远端、本地均指向 `26f4ebb68de83468b5ee068fbbb7596e07c89014`，无 worktree。
 - Parity worktree：HEAD `98d52c8`，尚未整合 OAuth commit；其 `openspec list` 仍显示旧 OAuth 13/23 active，属于过期视图，不可作为状态结论。
-- Stage 0 worktree：[stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/)；HEAD `9b3b404`，存在大量已审计但未提交的实现、证据、Review 与 OpenSpec 修改。
-- Gate B worktree：[gate-b-real-provider-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/)；HEAD `9b3b404`，存在真实 Provider qualification runner 及 Attempt-05 correction 的未提交内容。
+- Stage 0 worktree：[stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/)；HEAD `9b3b404`，存在大量已审计但未提交的实现、证据、Review 与 OpenSpec 修改。
+- Gate B worktree：[gate-b-real-provider-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/)；HEAD `9b3b404`，存在真实 Provider qualification runner 及 Attempt-05 correction 的未提交内容。
 - Stage 0 与 Gate B 均修改 provider qualification/plan 范围，禁止直接互相覆盖或批量复制。
 
 ### OpenSpec
@@ -72,11 +72,11 @@
 - [OpenSpec AGENTS.md](file:///Users/elvis/file/develop/opensource/openharness/openspec/AGENTS.md)
 - [本 handoff](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/handoffs/2026-07-12-1252-runtime-production-closeout-to-parity.md)
 - [Parity intake Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-12-openclacky-runtime-parity-worktree-intake-review.md)
-- [Stage 0 tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
-- [Stage 0 approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- [24h local soak closeout Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-11-agent-runtime-formal-24h-local-soak-closeout-review.md)
-- [Gate B evidence audit](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-gate-b-real-provider-evidence-review.md)
-- [Real Provider runner Attempt-05 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-05-review.md)
+- [Stage 0 tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [Stage 0 approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- [24h local soak closeout Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-agent-runtime-formal-24h-local-soak-closeout-review.md)
+- [Gate B evidence audit](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-gate-b-real-provider-evidence-review.md)
+- [Real Provider runner Attempt-05 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-05-review.md)
 - [Parity backlog final plan](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-09-openclacky-runtime-parity-development-backlog-final-plan.md)
 - [Parity backlog plan Review](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-09-openclacky-runtime-parity-development-backlog-final-plan-review.md)
 

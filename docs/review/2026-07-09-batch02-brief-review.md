@@ -9,12 +9,12 @@
 | 文件 | 角色 |
 |---|---|
 | [02-brief.md (main)](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/02-brief.md) | 被 review 的 Batch 02 实施 brief |
-| [02-brief.md (worktree)](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/02-brief.md) | worktree 副本 |
+| [02-brief.md (worktree)](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/02-brief.md) | worktree 副本 |
 | [status.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/status.md) | handoff contract 权威状态 |
 | [01-report.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/01-report.md) | 前序 Batch 01 执行报告 |
 | [step-01-review.md](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-09-harden-agent-runtime-single-node-production-step-01-review.md) | 前序 Batch 01 Governor review |
-| [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) | OpenSpec 任务勾选状态 |
-| [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | formal harness 入口 + CLI 参数解析 |
+| [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) | OpenSpec 任务勾选状态 |
+| [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | formal harness 入口 + CLI 参数解析 |
 
 ## 主要发现
 
@@ -47,11 +47,11 @@ Brief §2.1 与 status.md 中的 `COOP_HANDOFF_CONTRACT` YAML 块逐字段对比
 
 - [01-report.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/01-report.md)
 - [step-01-review.md](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-09-harden-agent-runtime-single-node-production-step-01-review.md)
-- [provider-adapter spec.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/specs/provider-adapter/spec.md)
-- [defer-anthropic design.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/defer-anthropic-from-gate-c/design.md)
-- [previous production JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json)
-- [formal local JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-openai-compatible-formal-local.json)
-- [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [provider-adapter spec.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/specs/provider-adapter/spec.md)
+- [defer-anthropic design.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/defer-anthropic-from-gate-c/design.md)
+- [previous production JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json)
+- [formal local JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-openai-compatible-formal-local.json)
+- [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
 
 ### ✅ Tasks 边界——未勾选
 
@@ -90,7 +90,7 @@ Brief §2 明确唯一目标：使用 formal harness 重跑 Zhipu production mat
 3. **Production formal matrix**：`spring-boot:run` with `--track=production --backend-url=... --provider-name=zhipu --model=glm-4-flash --output=../$REPORT`
 4. **Critical commands**：Maven focused tests + shared-schema tests + 2x OpenSpec validate + production JSON 结构校验 + secret scan + `git diff --check`
 
-CLI 参数与 [CliOptions.parse()](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java#L581-L629) 逐字段匹配，包括 `--track=`、`--backend-url=`、`--provider-name=`、`--model=`、`--output=`。`../` 相对路径在 `backend/` 子目录执行时正确回到 worktree root。
+CLI 参数与 [CliOptions.parse()](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java#L581-L629) 逐字段匹配，包括 `--track=`、`--backend-url=`、`--provider-name=`、`--model=`、`--output=`。`../` 相对路径在 `backend/` 子目录执行时正确回到 worktree root。
 
 ### ✅ 数据合同——与 shared-schema 对齐
 
@@ -162,6 +162,6 @@ CLI 参数与 [CliOptions.parse()](file:///Users/elvis/file/develop/opensource/o
 
 ## Review Closeout
 
-- 落盘文件：[2026-07-09-batch02-brief-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-batch02-brief-review.md)
+- 落盘文件：[2026-07-09-batch02-brief-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-batch02-brief-review.md)
 - 是否修改项目规则：否
 - 是否仍需 OpenSpec：active change 仍 open，不新增 proposal

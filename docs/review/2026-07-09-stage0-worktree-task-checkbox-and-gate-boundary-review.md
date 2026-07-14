@@ -4,7 +4,7 @@
 
 有风险。
 
-在 [Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout) 内，将 OpenSpec tasks **2.1、2.3、2.4、2.5、4.4** 勾选为完成，**就「本地实现 + local_verified 测试/文档证据」而言基本成立**；**未发现** formal soak preflight 勾选关闭 Gate D / 4.2 / 4.3，也**未发现** production runbook 单独授权 production promotion。
+在 [Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap) 内，将 OpenSpec tasks **2.1、2.3、2.4、2.5、4.4** 勾选为完成，**就「本地实现 + local_verified 测试/文档证据」而言基本成立**；**未发现** formal soak preflight 勾选关闭 Gate D / 4.2 / 4.3，也**未发现** production runbook 单独授权 production promotion。
 
 但存在若干 **Important** 边界风险：preflight 是调用方自证布尔量、formal runner 可用 no-op delay 瞬间产出 `track: "production"` 且 `result: "pass"` 的报告、Gate D「start」与「promotion」在 runbook 表格中措辞略糊。这些不要求回滚五个 checkbox，但**禁止**把本 worktree 表述为 Stage 0 完成、Gate B/C/D 关闭或可 archive。
 
@@ -24,35 +24,35 @@
 
 ### Worktree 与 diff
 
-- Worktree 根：[.worktrees/stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout)
+- Worktree 根：[.worktrees/stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap)
 - 分支：`stage0-runtime-production-closeout`（base `9b3b404`）
 - 本轮相对 base 的变更：
-  - 修改：[tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)（勾选 2.1、2.3、2.4、2.5、4.4）
-  - 新增：[formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts)
-  - 新增：[formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/test/formalSoakRunner.test.ts)
-  - 新增：[agent-runtime-v1-production-runbook.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md)
+  - 修改：[tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)（勾选 2.1、2.3、2.4、2.5、4.4）
+  - 新增：[formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts)
+  - 新增：[formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/test/formalSoakRunner.test.ts)
+  - 新增：[agent-runtime-v1-production-runbook.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md)
   - 新增若干 verification / review 文档
 
 ### 必读与对照
 
-- [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
-- [2026-07-09-stage0-local-evidence-task-status-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-local-evidence-task-status-review.md)
-- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts)
-- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/test/formalSoakRunner.test.ts)
-- [task13-formal-soak-preflight-harness.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
-- [agent-runtime-v1-production-runbook.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md)
-- [stage1-gate-b.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/stage1-gate-b.md)
+- [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [2026-07-09-stage0-local-evidence-task-status-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-local-evidence-task-status-review.md)
+- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts)
+- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/test/formalSoakRunner.test.ts)
+- [task13-formal-soak-preflight-harness.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
+- [agent-runtime-v1-production-runbook.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md)
+- [stage1-gate-b.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/stage1-gate-b.md)
 - 既有 storage / test 实现目录：`agent-runtime/src/storage`、`agent-runtime/test`
 
 ## 勾选任务逐项判定
 
 | Task | 勾选 | 判定 | 依据摘要 |
 | --- | --- | --- | --- |
-| **2.1** SQLite boundary / UoW / migration / readiness / busy retry / WAL / low-disk | `[x]` | **Pass（local）** | [`runtimeStorage.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/storage/runtimeStorage.ts)、[`singletonLock.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/storage/singletonLock.ts)、[`diskGuard.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/storage/diskGuard.ts)、[`lifecycleCommands.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/storage/lifecycleCommands.ts) + 对应 tests + stage1-gate-b Task 3–5 |
-| **2.3** JSON import / quarantine / backup hash / forward-only | `[x]` | **Pass（local）** | [`jsonImporter.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/storage/jsonImporter.ts)、`jsonImporter.test.ts`、task8 rehearsal、stage1-gate-b Task 8。**不等于** Gate B production bundle |
-| **2.4** startup reconcile → `EXECUTION_INTERRUPTED` / invalidate approvals / no runner rebuild | `[x]` | **Pass（local）** | [`reconcile.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/storage/reconcile.ts)、`restartReconciliation.test.ts`、`approvalRecovery.test.ts`、stage1-gate-b Task 6 |
+| **2.1** SQLite boundary / UoW / migration / readiness / busy retry / WAL / low-disk | `[x]` | **Pass（local）** | [`runtimeStorage.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/runtimeStorage.ts)、[`singletonLock.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/singletonLock.ts)、[`diskGuard.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/diskGuard.ts)、[`lifecycleCommands.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/lifecycleCommands.ts) + 对应 tests + stage1-gate-b Task 3–5 |
+| **2.3** JSON import / quarantine / backup hash / forward-only | `[x]` | **Pass（local）** | [`jsonImporter.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/jsonImporter.ts)、`jsonImporter.test.ts`、task8 rehearsal、stage1-gate-b Task 8。**不等于** Gate B production bundle |
+| **2.4** startup reconcile → `EXECUTION_INTERRUPTED` / invalidate approvals / no runner rebuild | `[x]` | **Pass（local）** | [`reconcile.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/reconcile.ts)、`restartReconciliation.test.ts`、`approvalRecovery.test.ts`、stage1-gate-b Task 6 |
 | **2.5** crash matrix / fencing / provisional / cursor / IDOR / WAL / low-disk / migration / outbox / restart tests | `[x]` | **Pass with boundary（local）** | 能力分散在 `crashMatrix`、`lifecycleUnitOfWork`、`singletonLock`、`traceOutbox`、`sessionEventsApi`、`sqliteRuntimeEventStore`、`diskGuard`、`storageDriverSpike`、`runtimeStorage`、IDOR 相关 API tests 等；**是本地测试面，不是 2.6/2.7 production evidence** |
-| **4.4** Document backup/restore/migration/recovery/qualification/private-service procedures | `[x]` | **Pass（docs）** | 新增 [production runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md) 覆盖要求主题；**文档交付 ≠ 执行证据** |
+| **4.4** Document backup/restore/migration/recovery/qualification/private-service procedures | `[x]` | **Pass（docs）** | 新增 [production runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md) 覆盖要求主题；**文档交付 ≠ 执行证据** |
 
 ### 未过度勾选（相对本 diff）
 
@@ -79,7 +79,7 @@
 
 证据：
 
-- [`assertFixedTwentyFourHourSoakStartAllowed`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts) 在缺 approval / preflight / blocked preflight 时拒绝启动 — **正确加强启动门闩**。
+- [`assertFixedTwentyFourHourSoakStartAllowed`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts) 在缺 approval / preflight / blocked preflight 时拒绝启动 — **正确加强启动门闩**。
 - 文档明确 `preflight_ready`、不关闭 Gate D、不勾选 4.2/4.3 — **正确**。
 - 单元测试使用 `delayMs: async () => undefined` 可在毫秒级“跑完”固定 24h 采样循环，并得到 `report.track === "production"` 且 `report.result === "pass"`（本轮 focused 测试已复现通过）。
 
@@ -104,7 +104,7 @@
 
 #### I-3：Runbook **未**误授权 promotion（合格），Gate D 表格措辞略糊
 
-[runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md) 文首与多处写明：不批准 cutover、real Provider、formal soak。
+[runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md) 文首与多处写明：不批准 cutover、real Provider、formal soak。
 
 合格点：
 
@@ -140,7 +140,7 @@
 
 #### I-5：stage0-local-evidence review 总判断可用，但不能替代独立 Gate 关闭
 
-[stage0-local-evidence-task-status-review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-local-evidence-task-status-review.md) 结论为「有风险」、明确 Gate B/C/D 未关 — 与本 review 一致。其「2.1/2.3/2.4/2.5/4.4 可勾选」在 local 口径下 **通过**。
+[stage0-local-evidence-task-status-review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-local-evidence-task-status-review.md) 结论为「有风险」、明确 Gate B/C/D 未关 — 与本 review 一致。其「2.1/2.3/2.4/2.5/4.4 可勾选」在 local 口径下 **通过**。
 
 ### Medium
 

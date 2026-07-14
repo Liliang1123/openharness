@@ -14,7 +14,7 @@
 - [harden tasks](file:///Users/elvis/file/develop/opensource/openharness/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
 - [harden provider-adapter delta](file:///Users/elvis/file/develop/opensource/openharness/openspec/changes/harden-agent-runtime-single-node-production/specs/provider-adapter/spec.md)
 - [Stage 0 plan](file:///Users/elvis/file/develop/opensource/openharness/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- [production runbook (worktree)](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md)
+- [production runbook (worktree)](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md)
 - [dashboard development-log.json](file:///Users/elvis/file/develop/opensource/openharness/docs/project-dashboard/development-log.json)
 
 ## 主要发现

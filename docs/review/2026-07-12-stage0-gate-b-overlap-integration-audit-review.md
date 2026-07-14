@@ -8,14 +8,14 @@
 
 ## Review 范围
 
-- [Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/)
-- [Gate B worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/)
+- [Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/)
+- [Gate B worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/)
 - [Integration / parity intake worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/)
-- [Stage 0 tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
-- [Stage 0 final plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- [24h local soak closeout Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-11-agent-runtime-formal-24h-local-soak-closeout-review.md)
-- [Gate B evidence audit](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-gate-b-real-provider-evidence-review.md)
-- [Gate B Attempt-05 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-05-review.md)
+- [Stage 0 tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [Stage 0 final plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- [24h local soak closeout Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-agent-runtime-formal-24h-local-soak-closeout-review.md)
+- [Gate B evidence audit](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-gate-b-real-provider-evidence-review.md)
+- [Gate B Attempt-05 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-real-provider-runner-step8-16-attempt-05-review.md)
 - [Runtime parity backlog plan Review](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-09-openclacky-runtime-parity-development-backlog-final-plan-review.md)
 
 ## Git / OpenSpec 事实源审计
@@ -42,8 +42,8 @@ OAuth 完成提交 `26f4ebb68de83468b5ee068fbbb7596e07c89014` 与 `8dab892` 从�
 
 | 文件 | Stage 0 owner / 内容 | Gate B owner / 内容 | 冲突处理 |
 | --- | --- | --- | --- |
-| [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java) | Stage 0 formal OpenAI-compatible / reasoning / timeout 资格矩阵回归 | Gate B production-boundary、parser capture 与攻击回归 | 两侧均为有效新增，必须在 integration 基线上语义合并并重跑 backend 全量；禁止选边覆盖 |
-| [Stage 0 final plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md) | Stage 0 Step/Task evidence、Gate C/Gate D 与 local soak 状态 | Gate B real-provider runner Step 8–16 与修正门禁 | 以时间线和门禁语义逐段合并；Gate B concern、Stage 0 production blockers 均须保留 |
+| [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java) | Stage 0 formal OpenAI-compatible / reasoning / timeout 资格矩阵回归 | Gate B production-boundary、parser capture 与攻击回归 | 两侧均为有效新增，必须在 integration 基线上语义合并并重跑 backend 全量；禁止选边覆盖 |
+| [Stage 0 final plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md) | Stage 0 Step/Task evidence、Gate C/Gate D 与 local soak 状态 | Gate B real-provider runner Step 8–16 与修正门禁 | 以时间线和门禁语义逐段合并；Gate B concern、Stage 0 production blockers 均须保留 |
 
 除上述两项外，当前 dirty path 集合没有直接路径重叠；但 Provider qualification、OpenSpec task 状态和 dashboard 在语义上仍相互依赖，不能据此宣称可无审查合并。
 

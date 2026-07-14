@@ -2,15 +2,15 @@
 
 ## 结论
 
-通过：已闭合 [feedback follow-up re-verification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-feedback-followup-reverification.md) 中残留的 Medium 问题。压缩 formal soak 报告现在同时写入顶层 `track="local"` 与 `environment.track="local"`，不会再在同一份 compressed simulation report 内混入 `environment.track="production"`。这只修复本地压缩证据的一致性，不关闭 Gate B/C/D，也不改变 Stage 0 完成状态。
+通过：已闭合 [feedback follow-up re-verification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-feedback-followup-reverification.md) 中残留的 Medium 问题。压缩 formal soak 报告现在同时写入顶层 `track="local"` 与 `environment.track="local"`，不会再在同一份 compressed simulation report 内混入 `environment.track="production"`。这只修复本地压缩证据的一致性，不关闭 Gate B/C/D，也不改变 Stage 0 完成状态。
 
 ## Review 范围
 
-- [feedback follow-up re-verification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-feedback-followup-reverification.md)
-- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts)
-- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/test/formalSoakRunner.test.ts)
-- [task13-formal-soak-preflight-harness.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
-- [active change tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [feedback follow-up re-verification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-feedback-followup-reverification.md)
+- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts)
+- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/test/formalSoakRunner.test.ts)
+- [task13-formal-soak-preflight-harness.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
+- [active change tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
 
 ## 主要发现
 
@@ -20,7 +20,7 @@ Added a regression assertion that compressed simulations must expose `environmen
 
 ### Pass - Runtime report track fields are now aligned
 
-[formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts) now writes `track: reportTrack` inside the report `environment` after spreading the config environment. Formal non-compressed runs still resolve to `production`; compressed test simulations resolve to `local`.
+[formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts) now writes `track: reportTrack` inside the report `environment` after spreading the config environment. Formal non-compressed runs still resolve to `production`; compressed test simulations resolve to `local`.
 
 ### Pass - Gate semantics unchanged
 
@@ -32,7 +32,7 @@ The resource-growth failure test now asserts `environment.track="local"` for com
 
 ### Important - Stage 0 remains incomplete
 
-The current [active change tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) status remains `16/30`. Keep 2.1, 2.3, 2.4, 2.5, and 4.4 checked; keep 2.6/2.7, 3.1/3.2, 4.2/4.3, 4.5/4.6, and 5.x pending.
+The current [active change tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) status remains `16/30`. Keep 2.1, 2.3, 2.4, 2.5, and 4.4 checked; keep 2.6/2.7, 3.1/3.2, 4.2/4.3, 4.5/4.6, and 5.x pending.
 
 ## 验证记录
 

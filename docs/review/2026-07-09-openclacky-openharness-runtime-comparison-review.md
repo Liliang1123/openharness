@@ -17,7 +17,7 @@
 - 文档类型：Architecture / Runtime Comparison Review
 - 日期：2026-07-09
 - OpenClacky 工作区：[OpenClacky repository](file:///Users/elvis/file/develop/opensource/openclacky)
-- OpenHarness 工作区：[OpenHarness Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout)
+- OpenHarness 工作区：[OpenHarness Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap)
 - OpenClacky 分支：`main`
 - OpenHarness 分支：`stage0-runtime-production-closeout`
 - 本轮性质：只读对比 + review 落盘；未修改 OpenSpec tasks、未启动 Gate B/C/D、未提交/合并/归档。
@@ -48,22 +48,22 @@
 
 ### OpenHarness
 
-- [OpenHarness Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout)
-- [OpenHarness active tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
-- [OpenHarness proposal](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/proposal.md)
-- [OpenHarness design](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/design.md)
-- [OpenHarness production runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md)
-- [OpenHarness Gate Status Reverification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-gate-status-reverification-review.md)
-- [OpenHarness Gate B Blocked Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-gate-b-production-evidence-blocked-review.md)
-- [OpenHarness server](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/server.ts)
-- [OpenHarness execution runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/agentExecutionRunner.ts)
-- [OpenHarness tool registry](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/toolRegistry.ts)
-- [OpenHarness MCP registry](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/mcpRegistry.ts)
-- [OpenHarness runtime storage](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/storage/runtimeStorage.ts)
-- [OpenHarness lifecycle commands](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/storage/lifecycleCommands.ts)
-- [OpenHarness shared schema](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/packages/shared-schema/src/index.ts)
-- [OpenHarness Stage 1 Gate B Evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/stage1-gate-b.md)
-- [OpenHarness Formal Soak Preflight Harness](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
+- [OpenHarness Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap)
+- [OpenHarness active tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [OpenHarness proposal](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/proposal.md)
+- [OpenHarness design](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/design.md)
+- [OpenHarness production runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md)
+- [OpenHarness Gate Status Reverification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-gate-status-reverification-review.md)
+- [OpenHarness Gate B Blocked Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-gate-b-production-evidence-blocked-review.md)
+- [OpenHarness server](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/server.ts)
+- [OpenHarness execution runner](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/agentExecutionRunner.ts)
+- [OpenHarness tool registry](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/toolRegistry.ts)
+- [OpenHarness MCP registry](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/mcpRegistry.ts)
+- [OpenHarness runtime storage](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/runtimeStorage.ts)
+- [OpenHarness lifecycle commands](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/lifecycleCommands.ts)
+- [OpenHarness shared schema](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/packages/shared-schema/src/index.ts)
+- [OpenHarness Stage 1 Gate B Evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/stage1-gate-b.md)
+- [OpenHarness Formal Soak Preflight Harness](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
 
 ## 总览图
 
@@ -419,7 +419,7 @@ flowchart TD
 ## 后续门禁
 
 - OpenSpec proposal：本 review 不新增行为，不需要新 proposal。若要实现 OpenClacky parity，必须另建 OpenSpec change 并获批。
-- Superpowers plan：本 review 不生成 [OpenHarness Superpowers plans directory](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/) 下可执行计划；当前 active change 已有计划且仍受 Gate B/C/D 约束。
+- Superpowers plan：本 review 不生成 [OpenHarness Superpowers plans directory](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/) 下可执行计划；当前 active change 已有计划且仍受 Gate B/C/D 约束。
 - TDD / implementation：本轮未改代码，未改 tasks。
 - Verification：只读代码/文档抽查；后续若使用本对比推进实现，需要按 TDD 与 verification gate 重新执行。
 - 人工审批：Gate B evidence acceptance、Gate C credential use、Gate D start/promotion 仍需要独立人工审批。

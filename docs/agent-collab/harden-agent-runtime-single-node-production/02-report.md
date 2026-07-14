@@ -5,16 +5,16 @@
 PASS：Batch 02 已按 Brief 执行 Zhipu / OpenAI-compatible formal production re-run，并落盘真实 production JSON。Gate C 仍不能关闭，因为 production overall 仍为 `blocked`：safe rows 真实通过，retry / terminal_error / cancellation / reasoning 仍按安全边界保持 blocked。
 
 本报告同步目标：
-- Worktree: [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md)
+- Worktree: [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md)
 - Main repo: [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md)
 
 ## 修改文件
 
 本批未改代码，未改 OpenSpec tasks，未改 Gate 状态。新增产物：
 
-- Primary production evidence: [2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json)
-- First failed sandbox attempt: [2026-07-09-zhipu-openai-compatible-production-formal-batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json)
-- Report: [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md)
+- Primary production evidence: [2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json)
+- First failed sandbox attempt: [2026-07-09-zhipu-openai-compatible-production-formal-batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json)
+- Report: [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md)
 
 ## 执行摘要
 
@@ -36,7 +36,7 @@ PASS：Batch 02 已按 Brief 执行 Zhipu / OpenAI-compatible formal production 
 
 Primary evidence:
 
-[2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json)
+[2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json)
 
 Generated at: `2026-07-09T15:36:14.682276Z`
 
@@ -54,7 +54,7 @@ Generated at: `2026-07-09T15:36:14.682276Z`
 
 First attempt note:
 
-- [2026-07-09-zhipu-openai-compatible-production-formal-batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json) is retained as an execution-environment failure record.
+- [2026-07-09-zhipu-openai-compatible-production-formal-batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json) is retained as an execution-environment failure record.
 - It is not provider evidence: safe rows failed with `ConnectException: Operation not permitted`.
 - Root cause: harness process ran inside sandbox and could not connect to local backend; backend logs showed no `/api/v1/model/chat` calls for that attempt.
 - Corrective action: reran harness outside sandbox with a new filename, preserving the failed artifact instead of overwriting evidence.
@@ -102,8 +102,8 @@ Secret scan:
 
 Scan targets before report creation:
 
-- [2026-07-09-zhipu-openai-compatible-production-formal-batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json)
-- [2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json)
+- [2026-07-09-zhipu-openai-compatible-production-formal-batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json)
+- [2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json)
 
 Canaries: provider key environment names, raw authorization-token values, OpenAI-style secret prefixes, and dotted BigModel key shape.
 
@@ -119,15 +119,15 @@ Initial status summary:
 
 Final status is expected to include:
 
-- [2026-07-09-zhipu-openai-compatible-production-formal-batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json)
-- [2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json)
-- [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md)
+- [2026-07-09-zhipu-openai-compatible-production-formal-batch02.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02.json)
+- [2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production-formal-batch02-rerun01.json)
+- [02-report.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/02-report.md)
 
 `git diff --stat` currently reflects preexisting tracked edits from earlier batches; it does not include untracked Batch 02 evidence files. No code was changed in Batch 02.
 
 ## Boundary Confirmation
 
-- Did not check [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) items 3.1 / 3.2 / 3.5 / 3.6.
+- Did not check [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) items 3.1 / 3.2 / 3.5 / 3.6.
 - Did not close Gate C.
 - Did not run Gate B / Gate D / archive / freeze.
 - Did not implement OAuth.

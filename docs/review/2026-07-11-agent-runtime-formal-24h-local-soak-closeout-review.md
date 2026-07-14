@@ -9,17 +9,17 @@
 ## Review 范围
 
 - 正式报告只读来源：[主工作区报告](file:///Users/elvis/file/develop/opensource/openharness/docs/verification/agent-runtime-v1/baseline/2026-07-09-formal-24h-soak.json)
-- 隔离 worktree 内的同内容证据：[24h local soak report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/baseline/2026-07-09-formal-24h-soak.json)
-- Gate D runner：[formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts)
-- Runner tests：[formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/test/formalSoakRunner.test.ts)
-- 本地 database/sampler 执行路径：[localShortBaselineExecution.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/localShortBaselineExecution.ts)
-- 本地 sampler runner：[localShortBaselineRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/localShortBaselineRunner.ts)
-- OpenSpec proposal：[proposal.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/proposal.md)
-- OpenSpec design：[design.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/design.md)
-- OpenSpec tasks：[tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
-- 实施计划：[2026-07-03-agent-runtime-single-node-production-final-plan.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- Preflight review：[2026-07-09-task13-formal-soak-preflight-harness-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-task13-formal-soak-preflight-harness-review.md)
-- Dashboard 数据源：[development-log.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/project-dashboard/development-log.json)
+- 隔离 worktree 内的同内容证据：[24h local soak report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/baseline/2026-07-09-formal-24h-soak.json)
+- Gate D runner：[formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts)
+- Runner tests：[formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/test/formalSoakRunner.test.ts)
+- 本地 database/sampler 执行路径：[localShortBaselineExecution.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/localShortBaselineExecution.ts)
+- 本地 sampler runner：[localShortBaselineRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/localShortBaselineRunner.ts)
+- OpenSpec proposal：[proposal.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/proposal.md)
+- OpenSpec design：[design.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/design.md)
+- OpenSpec tasks：[tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- 实施计划：[2026-07-03-agent-runtime-single-node-production-final-plan.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- Preflight review：[2026-07-09-task13-formal-soak-preflight-harness-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-task13-formal-soak-preflight-harness-review.md)
+- Dashboard 数据源：[development-log.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/project-dashboard/development-log.json)
 
 ## 主要发现
 
@@ -40,7 +40,7 @@
 
 ### Blocker — 报告不证明 Task 4.2 workload 与 TS restart
 
-- [localShortBaselineExecution.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/localShortBaselineExecution.ts) 的匹配执行路径将 operation 清单直接 seed 为 completed conversation/message/execution/event rows；采样循环每轮执行顺序 `COUNT(*)` read probes，没有启动 20 个并发 Runtime execution。
+- [localShortBaselineExecution.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/localShortBaselineExecution.ts) 的匹配执行路径将 operation 清单直接 seed 为 completed conversation/message/execution/event rows；采样循环每轮执行顺序 `COUNT(*)` read probes，没有启动 20 个并发 Runtime execution。
 - `concurrency=20` 和 `60/20/15/5` 位于 report workload metadata；它们不构成 Java sandbox、MCP、approval/interruption 实际执行证据。报告全程 `mcpChildCount=0` 也不能支持 MCP workload 已执行的推断。
 - 匹配本地 restart callback 只关闭并重开 SQLite database handle，不重启 TS Runtime process。因此报告中的 2h/12h/22h event 不能满足 Task 4.2 的 “TS-only restarts”。
 - 报告没有记录生成命令/provenance，不能把与本地路径一致的 JSON 反向提升为 formal runner evidence。

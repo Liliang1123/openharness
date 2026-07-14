@@ -8,19 +8,19 @@
 
 ## Review 范围
 
-- [Model controller](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java)
-- [Model controller tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java)
-- [Structured error handler](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/StructuredErrorHandler.java)
-- [Backend pom](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/pom.xml)
-- [Zhipu timeout structured error review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-gate-c-zhipu-timeout-structured-error-review.md)
-- [Zhipu production matrix review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-zhipu-openai-compatible-production-matrix-review.md)
-- [OpenHarness active tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [Model controller](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java)
+- [Model controller tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java)
+- [Structured error handler](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/StructuredErrorHandler.java)
+- [Backend pom](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/pom.xml)
+- [Zhipu timeout structured error review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-gate-c-zhipu-timeout-structured-error-review.md)
+- [Zhipu production matrix review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-zhipu-openai-compatible-production-matrix-review.md)
+- [OpenHarness active tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
 
 ## 主要发现
 
 ### Critical - `/compress` provider timeout 裸异常已修复
 
-复核反馈成立：修复前 [Model controller](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java) 的 `/compress` 路径直接调用 provider adapter，缺少 `/chat` 的 `ProviderUnavailableException` 与 timeout-like `RuntimeException` 分类保护。
+复核反馈成立：修复前 [Model controller](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java) 的 `/compress` 路径直接调用 provider adapter，缺少 `/chat` 的 `ProviderUnavailableException` 与 timeout-like `RuntimeException` 分类保护。
 
 本轮先新增 RED 测试 `compressReturnsStructuredProviderTimeoutWhenProviderConnectTimesOut`。RED 结果显示期望 `AppException`，实际为 `RuntimeException: OpenAI-compatible call failed: HTTP connect timed out`。
 
@@ -46,7 +46,7 @@
 ## 最终建议
 
 1. 保留本修复作为 Task 3.5 的 evidence-backed contract gap fix。
-2. 不更新 [OpenHarness active tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 勾选状态，直到所有 required provider rows 和 Gate C strict review 完成。
+2. 不更新 [OpenHarness active tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 勾选状态，直到所有 required provider rows 和 Gate C strict review 完成。
 3. 下一步仍优先补正式 real-provider matrix harness，覆盖 retry、terminal_error、cancellation；Anthropic key 缺失期间 Gate C 保持 blocked。
 
 ## 后续门禁

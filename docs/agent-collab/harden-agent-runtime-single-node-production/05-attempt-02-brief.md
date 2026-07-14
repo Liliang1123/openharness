@@ -7,7 +7,7 @@
 
 ## 1. 项目路径
 
-唯一实施工作树：[stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout)
+唯一实施工作树：[stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap)
 
 Canonical 协作状态只读：[status.md](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/status.md)
 
@@ -20,7 +20,7 @@ Canonical 协作状态只读：[status.md](file:///Users/elvis/file/develop/open
 3. blocks 缺失、HTTP 非 200 或结构不合法时继续 `blocked/fail`，不得使用 content 或 mock 伪造 reasoning；
 4. 修复后使用 `glm-4.7-flash` 经 18084 后端执行一次新的真实 Provider rerun，写入新的 immutable JSON。
 
-Attempt 01 的 [BLOCKED JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning.json)、[Abort Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/05-report-abort.md) 与 [Review](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-10-harden-agent-runtime-single-node-production-step-05-review.md) 是只读历史，不得覆盖。
+Attempt 01 的 [BLOCKED JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning.json)、[Abort Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/05-report-abort.md) 与 [Review](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-10-harden-agent-runtime-single-node-production-step-05-review.md) 是只读历史，不得覆盖。
 
 本 attempt 只允许推进 `reasoning` row。即使 supporting rows 产生观察结果，也不得推进 `retry`、`cancellation`、tasks 3.1/3.2/3.5/3.6 或 Gate C。
 
@@ -53,25 +53,25 @@ Profile：`strict`
 
 只允许修改或新增：
 
-- [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java)
-- [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java)
-- [Attempt 02 immutable JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning-rerun01.json)
-- [Attempt 02 Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/05-attempt-02-report.md)
-- [Attempt 02 Abort Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/05-attempt-02-report-abort.md)
+- [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java)
+- [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java)
+- [Attempt 02 immutable JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning-rerun01.json)
+- [Attempt 02 Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/05-attempt-02-report.md)
+- [Attempt 02 Abort Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/05-attempt-02-report-abort.md)
 
 ## 4. 禁止修改的范围
 
 禁止修改：
 
 - [Canonical status](file:///Users/elvis/file/develop/opensource/openharness/docs/agent-collab/harden-agent-runtime-single-node-production/status.md)
-- [Worktree status mirror](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/status.md)
-- [application.yml](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/resources/application.yml)
-- [OpenAiCompatibleAdapter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java)
-- [OpenSpec active change](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production)
-- [Approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- [Agent Runtime](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime)
-- [Frontend](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/frontend)
-- [Development dashboard](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/project-dashboard)
+- [Worktree status mirror](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/status.md)
+- [application.yml](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/resources/application.yml)
+- [OpenAiCompatibleAdapter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java)
+- [OpenSpec active change](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production)
+- [Approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- [Agent Runtime](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime)
+- [Frontend](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/frontend)
+- [Development dashboard](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/project-dashboard)
 - 任何 Attempt 01 evidence/report/review
 - 任何 credential-bearing environment file
 
@@ -94,7 +94,7 @@ Profile：`strict`
 
 ## 6. 允许副作用
 
-- Maven 可写 [backend target](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/target) 编译缓存。
+- Maven 可写 [backend target](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/target) 编译缓存。
 - 允许通过用户持有的 18084 后端进行一次 Attempt 02 formal production rerun；不得读取后端进程的 key。
 - 允许真实 Zhipu/OpenAI-compatible 调用由既有 full runner 顺序产生；不得开启 unsafe row 注入。
 - 允许在仓库外的临时目录保存命令日志；日志同样必须做 secret scan。
@@ -102,8 +102,8 @@ Profile：`strict`
 
 ## 7. 需求来源
 
-- [Approved plan Task 10](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- [Provider spec delta](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/specs/provider-adapter/spec.md)
+- [Approved plan Task 10](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- [Provider spec delta](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/specs/provider-adapter/spec.md)
 - [Attempt 01 Review](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-07-10-harden-agent-runtime-single-node-production-step-05-review.md)
 - 用户授权：允许修改 formal harness 与对应测试，并再次执行真实 Provider 调用。
 
@@ -124,9 +124,9 @@ Profile：`strict`
 
 | 文件 | 函数/测试 | 当前行为 | 目标行为 | 消费者 |
 |---|---|---|---|---|
-| [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | `evaluateProductionResponse` | 只提取 content/toolCalls/usage；reasoning 默认 false | 提取非空 `message.reasoningBlocks`；reasoning 仅在 HTTP 200 + blocks 非空时 true | `resolveReasoningRow` |
-| [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | `resolveReasoningRow` | blocked 分支才写 `requestSent=true` | 无论成功/失败均记录真实发送；blocks 缺失继续 blocked | production JSON |
-| [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java) | 新 focused test | 无 production reasoning success regression | fake backend 返回结构化 blocks 时 row pass 且 observed 保留 blocks/requestSent | TDD evidence |
+| [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | `evaluateProductionResponse` | 只提取 content/toolCalls/usage；reasoning 默认 false | 提取非空 `message.reasoningBlocks`；reasoning 仅在 HTTP 200 + blocks 非空时 true | `resolveReasoningRow` |
+| [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) | `resolveReasoningRow` | blocked 分支才写 `requestSent=true` | 无论成功/失败均记录真实发送；blocks 缺失继续 blocked | production JSON |
+| [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java) | 新 focused test | 无 production reasoning success regression | fake backend 返回结构化 blocks 时 row pass 且 observed 保留 blocks/requestSent | TDD evidence |
 
 ### 数据合同
 
@@ -165,7 +165,7 @@ Profile：`strict`
 
 ## 9. 必须执行的验证命令
 
-所有仓库命令从 [stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout) 执行。
+所有仓库命令从 [stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap) 执行。
 
 ### Preflight
 
@@ -253,7 +253,7 @@ Report 必须记录：
 
 ## 12. 阻塞处理
 
-以下任一情况必须生成 [Attempt 02 Abort Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/05-attempt-02-report-abort.md)，不得声称 PASS：
+以下任一情况必须生成 [Attempt 02 Abort Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/05-attempt-02-report-abort.md)，不得声称 PASS：
 
 - canonical fingerprint 不一致；
 - staged 非空；
@@ -276,7 +276,7 @@ git diff --check -- backend/src/main/java/org/openharness/backend/qualification/
 
 ## 14. 执行报告
 
-执行成功后生成 [Attempt 02 Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/agent-collab/harden-agent-runtime-single-node-production/05-attempt-02-report.md)；阻塞时生成 attempt-specific Abort Report。
+执行成功后生成 [Attempt 02 Report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/agent-collab/harden-agent-runtime-single-node-production/05-attempt-02-report.md)；阻塞时生成 attempt-specific Abort Report。
 
 Report 必须包含：
 

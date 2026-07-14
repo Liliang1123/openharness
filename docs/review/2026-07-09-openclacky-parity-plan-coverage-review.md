@@ -6,7 +6,7 @@
 
 当前 approved plan **没有覆盖 OpenClacky 的全部产品运行时能力**；这不是单纯遗漏，而是当前 plan 的目标边界不同。
 
-[OpenHarness Stage 0 approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md) 的目标是把 Agent Runtime MVP 收口成单节点生产 v1：SQLite 持久化权威、重启恢复、私有服务安全、真实 Provider/Tool qualification、24 小时 soak。它没有承诺做 OpenClacky 的 CLI/Web/IM/Skill marketplace/idle compression/VirtualSkill/token-cost 产品体验 parity。
+[OpenHarness Stage 0 approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md) 的目标是把 Agent Runtime MVP 收口成单节点生产 v1：SQLite 持久化权威、重启恢复、私有服务安全、真实 Provider/Tool qualification、24 小时 soak。它没有承诺做 OpenClacky 的 CLI/Web/IM/Skill marketplace/idle compression/VirtualSkill/token-cost 产品体验 parity。
 
 因此答案是：**如果问题是“当前 Stage 0 production closeout plan 是否覆盖 OpenClacky 所有 OpenHarness 未来需要的能力”，答案是否；还有不少没覆盖。若问题是“当前 plan 是否漏掉了它自己批准范围内必须做的生产硬化项”，目前未见明显漏项，反而明确排除了产品层 parity。**
 
@@ -14,21 +14,21 @@
 
 - 文档类型：Plan Coverage Review
 - 日期：2026-07-09
-- 被复核 plan：[OpenHarness Stage 0 approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- 对比基线：[OpenClacky / OpenHarness Runtime Comparison Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-openclacky-openharness-runtime-comparison-review.md)
-- 当前 active change：[harden-agent-runtime-single-node-production](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production)
+- 被复核 plan：[OpenHarness Stage 0 approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- 对比基线：[OpenClacky / OpenHarness Runtime Comparison Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-openclacky-openharness-runtime-comparison-review.md)
+- 当前 active change：[harden-agent-runtime-single-node-production](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production)
 - 本轮性质：coverage review only；未修改 tasks、代码、Gate 状态、dashboard、archive。
 
 ## Review 范围
 
 - [Project AGENTS.md](file:///Users/elvis/file/develop/opensource/openharness/AGENTS.md)
-- [OpenSpec AGENTS.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/AGENTS.md)
-- [OpenHarness Stage 0 approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- [OpenHarness active tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
-- [OpenHarness proposal](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/proposal.md)
-- [OpenHarness design](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/design.md)
-- [OpenHarness Gate Status Reverification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-gate-status-reverification-review.md)
-- [OpenClacky / OpenHarness Runtime Comparison Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-openclacky-openharness-runtime-comparison-review.md)
+- [OpenSpec AGENTS.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/AGENTS.md)
+- [OpenHarness Stage 0 approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- [OpenHarness active tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [OpenHarness proposal](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/proposal.md)
+- [OpenHarness design](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/design.md)
+- [OpenHarness Gate Status Reverification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-gate-status-reverification-review.md)
+- [OpenClacky / OpenHarness Runtime Comparison Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-openclacky-openharness-runtime-comparison-review.md)
 - [OpenClacky repository](file:///Users/elvis/file/develop/opensource/openclacky)
 - [OpenClacky README](file:///Users/elvis/file/develop/opensource/openclacky/README.md)
 - [OpenClacky Agent](file:///Users/elvis/file/develop/opensource/openclacky/lib/clacky/agent.rb)
@@ -116,7 +116,7 @@
 ## 后续门禁
 
 - OpenSpec proposal：本 review 不新增行为，不需要新 proposal；若实施任一未覆盖 parity 能力，必须新建并批准 OpenSpec change。
-- Superpowers plan：本 review 不新增 [OpenHarness Superpowers plans directory](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/) 下执行计划。
+- Superpowers plan：本 review 不新增 [OpenHarness Superpowers plans directory](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/) 下执行计划。
 - TDD / implementation：本轮未改代码、未改 tasks。
 - Verification：只读 plan/spec/review inspection；未运行测试。
 - 人工审批：Gate B/C/D 仍按原规则独立审批。

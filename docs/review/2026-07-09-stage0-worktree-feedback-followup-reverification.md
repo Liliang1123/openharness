@@ -4,7 +4,7 @@
 
 有风险。
 
-Codex 对 [上一轮 independent review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-task-checkbox-and-gate-boundary-review.md) 中 **可代码/文档收口的 Important 项已实质闭合**：未标记 custom delay 不再产出 production/pass；压缩仿真强制 `track=local` + `result=local_verified`（成功路径）与 `evidenceKind=compressed-test-simulation`；runbook 已拆分 Gate D start / promotion；preflight 自证边界与 GateDApproval 仅为 runtime guard 已写入；stage1-gate-b 陈旧「local tests still open」文案已改为 production evidence blocker。
+Codex 对 [上一轮 independent review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-task-checkbox-and-gate-boundary-review.md) 中 **可代码/文档收口的 Important 项已实质闭合**：未标记 custom delay 不再产出 production/pass；压缩仿真强制 `track=local` + `result=local_verified`（成功路径）与 `evidenceKind=compressed-test-simulation`；runbook 已拆分 Gate D start / promotion；preflight 自证边界与 GateDApproval 仅为 runtime guard 已写入；stage1-gate-b 陈旧「local tests still open」文案已改为 production evidence blocker。
 
 **不构成需回滚五个 checkbox 的缺陷。** 仍保留 **有风险** 口径的原因是：
 
@@ -18,16 +18,16 @@ Codex 对 [上一轮 independent review](file:///Users/elvis/file/develop/openso
 - 日期：2026-07-09
 - 会话标识：stage0-worktree-feedback-followup-reverification
 - 结论：`有风险`
-- 对照输入：[stage0-worktree-review-feedback-followup.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-review-feedback-followup.md)
+- 对照输入：[stage0-worktree-review-feedback-followup.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-review-feedback-followup.md)
 
 ## Review 范围
 
-- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts)
-- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/test/formalSoakRunner.test.ts)
-- [agent-runtime-v1-production-runbook.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md)
-- [stage1-gate-b.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/stage1-gate-b.md)
-- [task13-formal-soak-preflight-harness.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
-- [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts)
+- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/test/formalSoakRunner.test.ts)
+- [agent-runtime-v1-production-runbook.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md)
+- [stage1-gate-b.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/stage1-gate-b.md)
+- [task13-formal-soak-preflight-harness.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
+- [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
 - 上一轮边界 review 与 Codex follow-up 文档
 
 边界遵守：未跑真实 Provider matrix；未启正式 24h soak；未 archive；未做 OpenClacky parity 实现。
@@ -62,7 +62,7 @@ const evidenceKind = input.compressedTestRun === true
 ```
 
 - 未标记 custom delay：**禁止启动** — 与 I-1 要求一致。
-- 压缩仿真成功：`createRuntimeBaselineReport` 在 `track=local` 时结果为 `local_verified`（见 [localBaseline.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/localBaseline.ts)）。
+- 压缩仿真成功：`createRuntimeBaselineReport` 在 `track=local` 时结果为 `local_verified`（见 [localBaseline.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/localBaseline.ts)）。
 - 压缩仿真资源增长失败：`result=fail` 且仍带 `evidenceKind=compressed-test-simulation` — 合理。
 - 真实路径默认 `delay = sleep`，无 `compressedTestRun` 时 `evidenceKind=formal-24-hour-soak`、`track=production` — 方向正确。
 
@@ -138,7 +138,7 @@ unit 测试不会也不应跑真实 24h sleep。Gate D 仍依赖人工批准 + �
 
 #### M-3（流程）：worktree 未 merge；主工作区另有脏改动
 
-- Stage 0 变更仍在 [worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout)，未 commit/merge。
+- Stage 0 变更仍在 [worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap)，未 commit/merge。
 - 主工作区可见 `.gitignore`（`/.worktrees/`）及与 baseline 相关的其他修改；**本 review 不把主仓 baseline 脏改动计入 Stage 0 通过证据**。合入 Stage 0 时应只带 worktree 意图文件，避免捎带无关 diff。
 
 ## Gate B / C / D 剩余状态

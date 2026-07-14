@@ -4,13 +4,13 @@
 
 通过。
 
-上一轮 [reverification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-feedback-followup-reverification.md) 指出的 **Medium：压缩 formal soak 报告 `report.track=local` 与 `environment.track=production` 不一致** 已在代码层闭合：
+上一轮 [reverification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-feedback-followup-reverification.md) 指出的 **Medium：压缩 formal soak 报告 `report.track=local` 与 `environment.track=production` 不一致** 已在代码层闭合：
 
-- 实现：[`formalSoakRunner.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts) 在构造 report `environment` 时写入 `track: reportTrack`（覆盖 config 继承值）。
-- 回归：[`formalSoakRunner.test.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/test/formalSoakRunner.test.ts) 成功路径与资源增长失败路径均断言 `environment.track === "local"`。
+- 实现：[`formalSoakRunner.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts) 在构造 report `environment` 时写入 `track: reportTrack`（覆盖 config 继承值）。
+- 回归：[`formalSoakRunner.test.ts`](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/test/formalSoakRunner.test.ts) 成功路径与资源增长失败路径均断言 `environment.track === "local"`。
 - 本轮 focused 测试 **5/5 pass**；tasks 仍为 **16/30**，Gate B/C/D 与 archive/parity 边界未放宽。
 
-Codex 自有 review [environment-track-fix-review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-feedback-followup-environment-track-fix-review.md) 总判断正确；本文件为独立 re-verify，不替代其 TDD 记录。
+Codex 自有 review [environment-track-fix-review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-feedback-followup-environment-track-fix-review.md) 总判断正确；本文件为独立 re-verify，不替代其 TDD 记录。
 
 ## 文档类型 / 日志及版本
 
@@ -21,11 +21,11 @@ Codex 自有 review [environment-track-fix-review](file:///Users/elvis/file/deve
 
 ## Review 范围
 
-- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/src/baseline/formalSoakRunner.ts)（约 L152–200）
-- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/agent-runtime/test/formalSoakRunner.test.ts)
-- [2026-07-09-stage0-worktree-feedback-followup-environment-track-fix-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-feedback-followup-environment-track-fix-review.md)
-- [2026-07-09-stage0-worktree-feedback-followup-reverification.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-stage0-worktree-feedback-followup-reverification.md)
-- [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts)（约 L152–200）
+- [formalSoakRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/test/formalSoakRunner.test.ts)
+- [2026-07-09-stage0-worktree-feedback-followup-environment-track-fix-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-feedback-followup-environment-track-fix-review.md)
+- [2026-07-09-stage0-worktree-feedback-followup-reverification.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-stage0-worktree-feedback-followup-reverification.md)
+- [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
 
 边界：未跑真实 Provider；未启 24h soak；未 archive；未做 OpenClacky parity。
 
@@ -90,7 +90,7 @@ expect(report.environment).toMatchObject({
 
 ## 验证记录
 
-本轮独立，执行目录为 [stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout)：
+本轮独立，执行目录为 [stage0-runtime-production-closeout](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap)：
 
 ```bash
 pnpm --filter @openharness/agent-runtime test -- formalSoakRunner

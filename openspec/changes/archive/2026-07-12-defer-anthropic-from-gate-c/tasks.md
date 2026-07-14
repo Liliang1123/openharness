@@ -23,5 +23,5 @@
 
 - [x] 4.1 `npx openspec validate defer-anthropic-from-gate-c --strict --no-interactive`
 - [x] 4.2 `npx openspec validate harden-agent-runtime-single-node-production --strict --no-interactive` after alignment edits
-- [ ] 4.3 Focused qualification/report tests green (optional smoke; no harness code change this batch)
+- [x] 4.3 Focused qualification/report tests green (22/22 PASS on 2026-07-12; no harness code change this batch)
 - [x] 4.4 Review note confirming Gate C still cannot close until OpenAI-compatible real matrix required rows pass

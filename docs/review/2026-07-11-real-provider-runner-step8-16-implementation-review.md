@@ -6,41 +6,41 @@
 
 ## Review 范围
 
-- [项目规则](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/AGENTS.md)
-- [OpenSpec 规则](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/openspec/AGENTS.md)
-- [Runtime production OpenSpec change](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/openspec/changes/harden-agent-runtime-single-node-production)
-- [Task 10 实施计划](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
-- [Runner 预检 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/docs/review/2026-07-11-real-provider-runner-plan-preflight-review.md)
-- [RealProviderQualificationRunner.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java)
-- [RealProviderQualificationConfig.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationConfig.java)
-- [RealProviderQualificationMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java)
-- [QualificationExchangeCapture.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java)
-- [QualificationReportWriter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java)
-- [qualification tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/test/java/org/openharness/backend/qualification)
+- [项目规则](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/AGENTS.md)
+- [OpenSpec 规则](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/AGENTS.md)
+- [Runtime production OpenSpec change](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production)
+- [Task 10 实施计划](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)
+- [Runner 预检 Review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-11-real-provider-runner-plan-preflight-review.md)
+- [RealProviderQualificationRunner.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java)
+- [RealProviderQualificationConfig.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationConfig.java)
+- [RealProviderQualificationMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java)
+- [QualificationExchangeCapture.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationExchangeCapture.java)
+- [QualificationReportWriter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java)
+- [qualification tests](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification)
 
 ## 主要发现
 
 ### 高：有凭据路径没有执行 13 行矩阵，Step 18/19 不可运行
 
-[RealProviderQualificationRunner.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java) 第 15–33 行的生产 `main` 使用 `config -> new Object()`；有凭据时仅调用一次 `transportFactory.create(config)`，随后固定输出 `qualification transport execution is not available yet` 并返回 2。它没有调用 `RealProviderQualificationMatrix.execute`，没有绑定 OpenAI-compatible/Anthropic adapter，没有生成任何 production report。
+[RealProviderQualificationRunner.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationRunner.java) 第 15–33 行的生产 `main` 使用 `config -> new Object()`；有凭据时仅调用一次 `transportFactory.create(config)`，随后固定输出 `qualification transport execution is not available yet` 并返回 2。它没有调用 `RealProviderQualificationMatrix.execute`，没有绑定 OpenAI-compatible/Anthropic adapter，没有生成任何 production report。
 
 High 独立 probe 注入合成 credential 与计数 factory，观察到 `exit=2`、`constructions=1`、`reportExists=false`。Step 17 只负责 credential-owner 授权，Step 18/19 已规定直接运行该 CLI；因此不能把生产执行链留到 Step 17–20 再实现。修复必须在 Step 8–16 同 scope 内完成可执行 transport/matrix/report wiring，同时继续以假 transport 做本地验证，禁止真实外呼。
 
 ### 高：writer 接受 usage/cost 与预算不一致的伪造 PASS 报告
 
-[RealProviderQualificationMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java) 第 152–185 行只检查 cost 为非负数；`totalCost` 被累计但从未与预算比较，也未从 usage 和配置价格复算。第 47–58 行的 `worstCaseNextRowCostMicros` 由调用者直接传入，而不是由 fixture UTF-8 上界、`maxOutputTokens` 和配置价格计算。
+[RealProviderQualificationMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/RealProviderQualificationMatrix.java) 第 152–185 行只检查 cost 为非负数；`totalCost` 被累计但从未与预算比较，也未从 usage 和配置价格复算。第 47–58 行的 `worstCaseNextRowCostMicros` 由调用者直接传入，而不是由 fixture UTF-8 上界、`maxOutputTokens` 和配置价格计算。
 
-High probe 使用配置预算 1,000 micros，将 13 行全部标为 PASS、每行 cost 1,000 micros，并放入极大 usage；[QualificationReportWriter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java) 仍成功发布总 cost 13,000 micros 的报告。该结果违反计划中的写前 cost invariant、预算上限、raw-versus-adapter usage 对账和成本复算门禁。
+High probe 使用配置预算 1,000 micros，将 13 行全部标为 PASS、每行 cost 1,000 micros，并放入极大 usage；[QualificationReportWriter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java) 仍成功发布总 cost 13,000 micros 的报告。该结果违反计划中的写前 cost invariant、预算上限、raw-versus-adapter usage 对账和成本复算门禁。
 
 ### 高：当前 atomic move 可覆盖竞争窗口中新出现的目标
 
-[QualificationReportWriter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java) 第 50–63 行的 lock 只约束遵守同一 lock 协议的 writer。第二次 `Files.exists(target)` 与 `Files.move(temp, target, ATOMIC_MOVE)` 之间仍有 TOCTOU 窗口；在当前 macOS 文件系统上，`ATOMIC_MOVE` 会替换该窗口中新出现的目标。
+[QualificationReportWriter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/QualificationReportWriter.java) 第 50–63 行的 lock 只约束遵守同一 lock 协议的 writer。第二次 `Files.exists(target)` 与 `Files.move(temp, target, ATOMIC_MOVE)` 之间仍有 TOCTOU 窗口；在当前 macOS 文件系统上，`ATOMIC_MOVE` 会替换该窗口中新出现的目标。
 
 High probe 等待 sibling temp 创建后由非协作线程写入目标，实际观察 `attackerCreated=true`、`writerSucceeded=true`，最终目标内容为 qualification report 而不是攻击线程写入的原内容。该实现不满足 immutable/no-overwrite 证据要求。修复需要在目标文件系统上具备原子 create-if-absent 发布语义，或使用经验证不会替换目标的同目录原子提交协议；必须保留非协作竞争回归测试。
 
 ### 中：现有测试只覆盖安全子集，无法证明上述生产合同
 
-[RealProviderQualificationRunnerTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/test/java/org/openharness/backend/qualification/RealProviderQualificationRunnerTest.java) 仅覆盖缺凭据路径；没有断言 credential-present 路径会执行固定矩阵并发布报告。[QualificationReportWriterTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/gate-b-real-provider-closeout/backend/src/test/java/org/openharness/backend/qualification/QualificationReportWriterTest.java) 的并发测试仅覆盖两个协作 writer，没有覆盖外部目标竞争；matrix tests 也没有 writer 拒绝 usage/cost/budget 不一致的负例。
+[RealProviderQualificationRunnerTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification/RealProviderQualificationRunnerTest.java) 仅覆盖缺凭据路径；没有断言 credential-present 路径会执行固定矩阵并发布报告。[QualificationReportWriterTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification/QualificationReportWriterTest.java) 的并发测试仅覆盖两个协作 writer，没有覆盖外部目标竞争；matrix tests 也没有 writer 拒绝 usage/cost/budget 不一致的负例。
 
 ## 已通过证据
 

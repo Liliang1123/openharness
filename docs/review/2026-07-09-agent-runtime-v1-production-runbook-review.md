@@ -2,17 +2,17 @@
 
 ## 结论
 
-通过：本轮新增 [Agent Runtime v1 production runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md)，覆盖 backup/restore、migration/recovery、Provider/tool qualification、private-service deployment、formal soak 和 incident procedures。该文档满足 OpenSpec 4.4 的文档交付条件，但不关闭 Gate B/C/D，也不授权 production promotion。
+通过：本轮新增 [Agent Runtime v1 production runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md)，覆盖 backup/restore、migration/recovery、Provider/tool qualification、private-service deployment、formal soak 和 incident procedures。该文档满足 OpenSpec 4.4 的文档交付条件，但不关闭 Gate B/C/D，也不授权 production promotion。
 
 ## Review 范围
 
-- [Agent Runtime v1 production runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/architecture/agent-runtime-v1-production-runbook.md)
-- [active change design](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/design.md)
-- [active change tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
-- [Stage 1 Gate B evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/stage1-gate-b.md)
-- [Task 10 Provider matrix evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/task10-fake-provider-matrix.md)
-- [Task 11 Java sandbox / MCP evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/tools/task11-java-sandbox-mcp-local.md)
-- [Task 13 formal soak preflight evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
+- [Agent Runtime v1 production runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md)
+- [active change design](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/design.md)
+- [active change tasks](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- [Stage 1 Gate B evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/stage1-gate-b.md)
+- [Task 10 Provider matrix evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/task10-fake-provider-matrix.md)
+- [Task 11 Java sandbox / MCP evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/tools/task11-java-sandbox-mcp-local.md)
+- [Task 13 formal soak preflight evidence](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/task13-formal-soak-preflight-harness.md)
 
 ## 主要发现
 
@@ -37,7 +37,7 @@ Runbook 多处声明本文件不代表 production cutover、real Provider creden
 
 ## 最终建议
 
-将 [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 的 4.4 勾选为完成；不要勾选 4.2、4.3、4.5、4.6 或 closeout。
+将 [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 的 4.4 勾选为完成；不要勾选 4.2、4.3、4.5、4.6 或 closeout。
 
 ## 后续门禁
 

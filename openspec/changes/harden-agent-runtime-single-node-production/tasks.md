@@ -6,15 +6,15 @@
 
 ## 2. Stage 1 — SQLite Durability And Recovery
 
-- [ ] 2.1 Add the single-worker SQLite storage boundary, Lifecycle Unit of Work, migration runner, readiness checks, bounded busy retry, WAL checkpoint, and low-disk protection.
+- [x] 2.1 Add the single-worker SQLite storage boundary, Lifecycle Unit of Work, migration runner, readiness checks, bounded busy retry, WAL checkpoint, and low-disk protection.
 - [x] 2.1a Implement the shared durable/transient SSE discriminated union and terminal vocabulary; migrate Runtime and Frontend wire parsers/types to it.
 - [x] 2.2 Implement SQLite persistence for conversations/stable messages, executions, approvals, runtime events, and memory facts.
-- [ ] 2.3 Add deterministic, idempotent JSON import with schema validation, quarantine manifest, backup verification, and forward-only cutover instructions.
-- [ ] 2.4 Add startup reconciliation that terminates running/waiting executions as `EXECUTION_INTERRUPTED`, invalidates approvals, and never rebuilds runners.
-- [ ] 2.5 Add the full Unit of Work crash matrix, second-instance fencing, provisional-context recovery, transient-stream reconciliation, cursor watermark/replay-live, IDOR, lock contention, WAL, low-disk, migration, outbox crash-before/after-ack/dead-letter, and restart tests.
+- [x] 2.3 Add deterministic, idempotent JSON import with schema validation, quarantine manifest, backup verification, and forward-only cutover instructions.
+- [x] 2.4 Add startup reconciliation that terminates running/waiting executions as `EXECUTION_INTERRUPTED`, invalidates approvals, and never rebuilds runners.
+- [x] 2.5 Add the full Unit of Work crash matrix, second-instance fencing, provisional-context recovery, transient-stream reconciliation, cursor watermark/replay-live, IDOR, lock contention, WAL, low-disk, migration, outbox crash-before/after-ack/dead-letter, and restart tests.
 - [x] 2.5a Add shared-schema positive/negative tests for required userId and preview/eventId exclusivity, plus Frontend interrupted-terminal rendering, preview parsing, durable replay, and reconnect deduplication tests.
-- [ ] 2.6 Pass the Stage 1 strict production evidence, pre-cutover restore/abort, and post-cutover forward-fix gates before production Stage 2 promotion; local-only qualification preflight under 3.0 may proceed while this remains open.
-- [ ] 2.7 Keep Gate B marked `pending_production_evidence` until production backup/import/quarantine/restore and measured RPO/RTO artifacts pass review; allow only explicitly local-qualified work while pending.
+- [x] 2.6 Pass the Stage 1 strict production evidence, pre-cutover restore/abort, and post-cutover forward-fix gates before production Stage 2 promotion; local-only qualification preflight under 3.0 may proceed while this remains open.
+- [x] 2.7 Keep Gate B marked `pending_production_evidence` until production backup/import/quarantine/restore and measured RPO/RTO artifacts pass review; allow only explicitly local-qualified work while pending.
 
 ## 3. Stage 2 — Real Provider And Tool Qualification
 

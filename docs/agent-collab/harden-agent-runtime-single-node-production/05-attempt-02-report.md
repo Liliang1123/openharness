@@ -61,7 +61,7 @@ expected: "pass"
 
 本次工作仅修改了 Brief 允许列表（allow-list）内的两个 Java 源码文件，且只在既存的 diff 基础上追加了最小修改：
 
-### 1. [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) 的修改
+### 1. [OpenAiCompatibleFormalMatrix.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/qualification/OpenAiCompatibleFormalMatrix.java) 的修改
 
 ```diff
 @@ -400,15 +400,15 @@
@@ -113,7 +113,7 @@ expected: "pass"
      return new RowEvaluation(pass, observed, usage, cost);
 ```
 
-### 2. [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java) 的修改
+### 2. [OpenAiFakeProviderMatrixTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/qualification/OpenAiFakeProviderMatrixTest.java) 的修改
 
 ```diff
 @@ -332,6 +332,71 @@
@@ -206,7 +206,7 @@ expected: "pass"
 
 ## 真实 Provider Rerun 证据摘要
 
-我们使用 glm-4.7-flash 经 18084 端口后端进行了一次真实 Rerun，输出到 [rerun01 JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning-rerun01.json)。
+我们使用 glm-4.7-flash 经 18084 端口后端进行了一次真实 Rerun，输出到 [rerun01 JSON](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning-rerun01.json)。
 
 ### 1. 运行命令与环境
 
@@ -218,7 +218,7 @@ mvn -o -f backend/pom.xml -DskipTests -Dspring-boot.run.main-class=org.openharne
 
 ### 2. Output 证据文件特征
 
-- 路径：[2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning-rerun01.json)
+- 路径：[2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning-rerun01.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-10-zhipu-openai-compatible-production-formal-batch05-reasoning-rerun01.json)
 - `track`：`production`
 - 行数量（Rows Count）：`9`
 - 整体 `result`：`blocked`
@@ -248,7 +248,7 @@ mvn -o -f backend/pom.xml -DskipTests -Dspring-boot.run.main-class=org.openharne
 | Real business | **BLOCKED** | HTTP 500, result=blocked | 真实 Zhipu 接口在推理模式下仍返回 500；无 Mock Fallback |
 | Gate C promotion | **BLOCKED** | Matrix overall result=blocked | 本 Attempt 禁止开启 Gate C 关闭或 tasks 3.1/3.2/3.5/3.6 勾选 |
 
-根据 Brief 规定，外部 Agent 禁止对 tasks 3.1/3.2/3.5/3.6 等状态做 `[x]` 标记，目前它们在 [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 中依然为 `[ ]` 状态，Gate C 保持关闭。
+根据 Brief 规定，外部 Agent 禁止对 tasks 3.1/3.2/3.5/3.6 等状态做 `[x]` 标记，目前它们在 [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 中依然为 `[ ]` 状态，Gate C 保持关闭。
 
 ---
 

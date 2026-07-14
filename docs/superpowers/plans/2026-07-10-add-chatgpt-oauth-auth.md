@@ -66,7 +66,7 @@
 
 **Signoff:** existing Zhipu/API-key routes remain unchanged; openai-codex routes cannot silently resolve to another adapter.
 
-**Workspace/scope:** Execute in [the repository root](file:///Users/elvis/file/develop/opensource/openharness) on the already-authorized feature branch because the Task 2 production/test files are clean there. Do not edit the separate [Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout). Audit only the files listed for Task 2 plus this plan, the Task 2 review, and Task 2 checkbox updates; preserve all unrelated dirty files.
+**Workspace/scope:** Execute in [the repository root](file:///Users/elvis/file/develop/opensource/openharness) on the already-authorized feature branch because the Task 2 production/test files are clean there. Do not edit the separate [Stage 0 worktree](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap). Audit only the files listed for Task 2 plus this plan, the Task 2 review, and Task 2 checkbox updates; preserve all unrelated dirty files.
 
 **Rollback/stop:** Roll back only the Task 2 configuration/router/test edits using a reviewed inverse patch. Stop on any credential field, accepted non-local endpoint, implicit Codex default, silent fallback, production Adapter implementation before Task 5, unrelated dirty-file overlap, or baseline regression.
 

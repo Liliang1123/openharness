@@ -8,13 +8,13 @@
 
 | 文件 | 角色 |
 |---|---|
-| [ModelController.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java) | timeout catch + `isProviderTimeout` 检测逻辑 |
-| [ModelControllerTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java) | TDD 回归测试 |
-| [2026-07-09-zhipu-openai-compatible-production.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json) | Production verification report |
-| [2026-07-09-zhipu-openai-compatible-production-matrix-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-zhipu-openai-compatible-production-matrix-review.md) | 前序 matrix review |
-| [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) | OpenSpec active change 任务清单 |
-| [Contracts.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/model/Contracts.java) | `StructuredError` record 定义 |
-| [OpenAiCompatibleAdapter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java) | Adapter 层 timeout 抛出路径 |
+| [ModelController.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java) | timeout catch + `isProviderTimeout` 检测逻辑 |
+| [ModelControllerTest.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java) | TDD 回归测试 |
+| [2026-07-09-zhipu-openai-compatible-production.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json) | Production verification report |
+| [2026-07-09-zhipu-openai-compatible-production-matrix-review.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-zhipu-openai-compatible-production-matrix-review.md) | 前序 matrix review |
+| [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) | OpenSpec active change 任务清单 |
+| [Contracts.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/model/Contracts.java) | `StructuredError` record 定义 |
+| [OpenAiCompatibleAdapter.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/OpenAiCompatibleAdapter.java) | Adapter 层 timeout 抛出路径 |
 
 ## 主要发现
 
@@ -22,13 +22,13 @@
 
 **修复前行为**：`OpenAiCompatibleAdapter` 在 `timeoutMs=1` 时抛出 `RuntimeException("OpenAI-compatible call failed: HTTP connect timed out", ConnectException)`，`ModelController.chat()` 无 catch，Spring 默认映射为 HTTP 500 裸响应，无 `StructuredError` 输出。
 
-**修复后行为** ([ModelController.java L88-101](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L88-L101))：
+**修复后行为** ([ModelController.java L88-101](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L88-L101))：
 
 1. `ProviderUnavailableException` → `PROVIDER_UNAVAILABLE` (503, retriable, retryOwner=`ts`, maxRetries=3)
 2. `RuntimeException` 且 `isProviderTimeout(e)` 为 true → `PROVIDER_TIMEOUT` (504, retriable, retryOwner=`java`, maxRetries=1, fallbackAllowed=true)
 3. 其他 `RuntimeException` → 继续抛出（保持裸 500 行为，不吞未知异常）
 
-**`isProviderTimeout` 检测逻辑** ([ModelController.java L181-197](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L181-L197))：
+**`isProviderTimeout` 检测逻辑** ([ModelController.java L181-197](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L181-L197))：
 
 - 遍历异常因果链 `getCause()`
 - 匹配 `java.net.http.HttpTimeoutException` 类型（直接 `instanceof`）
@@ -39,7 +39,7 @@
 
 ### ✅ TDD 回归测试——充分
 
-[chatReturnsStructuredProviderTimeoutWhenProviderConnectTimesOut](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java#L71-L116)：
+[chatReturnsStructuredProviderTimeoutWhenProviderConnectTimesOut](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java#L71-L116)：
 
 - 构造 `RuntimeException` wrapping `ConnectException("HTTP connect timed out")` —— 模拟真实 adapter 抛出场景
 - 断言 `response.message() == null`（无业务消息）
@@ -56,7 +56,7 @@
 
 ### ✅ Production Report——timeout row pass，overall blocked
 
-[2026-07-09-zhipu-openai-compatible-production.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json) 关键数据：
+[2026-07-09-zhipu-openai-compatible-production.json](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json) 关键数据：
 
 | 字段 | 值 | 预期 | 匹配 |
 |---|---|---|---|
@@ -72,17 +72,17 @@ Overall blocked 原因：`openai-zhipu-retry`、`openai-zhipu-terminal-error`、
 
 ### ✅ OpenSpec tasks.md——3.1/3.2 未勾选
 
-[tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 中 3.1、3.2、3.5、3.6 均为 `[ ]`，未被勾选。Gate C 未关闭。符合复核边界要求。
+[tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md) 中 3.1、3.2、3.5、3.6 均为 `[ ]`，未被勾选。Gate C 未关闭。符合复核边界要求。
 
 ### ⚠️ 非阻塞风险——`/compress` 端点缺少 timeout 保护
 
-[ModelController.java L136-137](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/api/ModelController.java#L136-L137) 的 `compress()` 方法直接调用 `resolved.adapter().chat(chatRequest, resolved.config())`，没有 `try/catch` 保护。如果 provider timeout，仍会以裸 500 返回。
+[ModelController.java L136-137](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/api/ModelController.java#L136-L137) 的 `compress()` 方法直接调用 `resolved.adapter().chat(chatRequest, resolved.config())`，没有 `try/catch` 保护。如果 provider timeout，仍会以裸 500 返回。
 
 **严重度**：低。`/compress` 不在当前 Gate C timeout matrix 的评审范围内，且当前 matrix review 未对该端点提出 required row。但建议后续补齐，保持 controller 层行为一致。
 
 ### ✅ `StructuredError` record 契约与 shared-schema 对齐
 
-[Contracts.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/backend/src/main/java/org/openharness/backend/model/Contracts.java) 中 `StructuredError` 包含 `errorClass`、`errorMessage`、`retriable`、`retryOwner`、`maxRetries`、`fallbackAllowed`、`httpStatus`、`recoveryHint`。前序 review 已确认 shared-schema Zod parse 通过（49 tests / 0 failures）。
+[Contracts.java](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/model/Contracts.java) 中 `StructuredError` 包含 `errorClass`、`errorMessage`、`retriable`、`retryOwner`、`maxRetries`、`fallbackAllowed`、`httpStatus`、`recoveryHint`。前序 review 已确认 shared-schema Zod parse 通过（49 tests / 0 failures）。
 
 ### ✅ 禁止事项检查
 
@@ -103,7 +103,7 @@ Overall blocked 原因：`openai-zhipu-retry`、`openai-zhipu-terminal-error`、
 ## 后续门禁
 
 - **OpenSpec proposal**：不需要新 proposal，本轮在已批准 active change scope 内。
-- **Superpowers plan**：已有 [approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)，不新增。
+- **Superpowers plan**：已有 [approved plan](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md)，不新增。
 - **测试**：前序 review 记录 Maven 46 tests / 0 failures、shared-schema 49 tests / 0 failures，覆盖充分。
 - **人工审批**：Gate C 仍需 Anthropic credential 和完整 matrix review 后才能 promotion。
 - **是否修改项目规则**：否。

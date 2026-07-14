@@ -43,8 +43,8 @@ Governor：Grok（方案 + review；本步不写实现）
 
 Zhipu 审查（worktree，注意其中旧「双 family Gate C」句已 **过时**，以 deferred Anthropic 合同为准）：
 
-- [Zhipu matrix review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/review/2026-07-09-zhipu-openai-compatible-production-matrix-review.md)
-- [Zhipu production report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/stage0-runtime-production-closeout/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json)
+- [Zhipu matrix review](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/review/2026-07-09-zhipu-openai-compatible-production-matrix-review.md)
+- [Zhipu production report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-09-zhipu-openai-compatible-production.json)
 
 ## 2.1 Handoff Contract
 
