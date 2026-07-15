@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "policy": "codex-oauth-required-v1",
+  "generatedAt": "2026-07-15T00:00:00.000Z",
+  "result": "pass",
+  "required": {
+    "authority": "required",
+    "path": "docs/verification/agent-runtime-v1/providers/2026-07-12-codex-app-server-production.json",
+    "sha256": "af2aee9aa03ed1d795599205936fe3f47e25bbfa3bdd3e16e317e6e0769bfad6",
+    "track": "production",
+    "reportResult": "pass",
+    "clientImplementationSha256": "08b2aa0126f78ca45aad239e20981ad06b6e796539a1edc498706f2b81833ddc",
+    "requiredRowIds": [
+      "codex-real-sync",
+      "codex-real-reasoning",
+      "codex-real-usage",
+      "codex-real-stream",
+      "codex-real-cancellation",
+      "codex-real-redaction"
+    ]
+  },
+  "advisory": [
+    {
+      "authority": "advisory",
+      "path": "docs/verification/agent-runtime-v1/providers/2026-07-14-zhipu-openai-compatible-production-real-runner-attempt-01.json",
+      "sha256": "46083ae59a285d3d656cd9df2ca35ca9a8cd708e333535460d5e2497dc15b2c2",
+      "track": "production",
+      "reportResult": "blocked"
+    }
+  ],
+  "blockers": []
+}

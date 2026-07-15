@@ -91,6 +91,52 @@ describe("compress", () => {
     expect(msgs[0].content).toBe("compressed summary");
   });
 
+  it("inserts a request-local compression instruction after the history being summarized", async () => {
+    const history = new InMemoryHistoryStore();
+    const tenantId = "t1";
+    const userId = "u1";
+    const conversationId = "insert-then-compress";
+    for (let index = 0; index < 10; index += 1) {
+      history.append(tenantId, userId, conversationId, { role: "user", content: `msg-${index}` });
+    }
+    const original = history.get(tenantId, userId, conversationId);
+    const compressRequest = vi.fn(async (messages: AgentMessage[]) => {
+      expect(messages.slice(0, -1)).toEqual(original.slice(0, 4));
+      expect(messages.at(-1)).toMatchObject({
+        role: "user",
+        compressionInstruction: true
+      });
+      expect(history.get(tenantId, userId, conversationId)).toEqual(original);
+      return "request-local summary";
+    });
+
+    await compress(tenantId, userId, conversationId, history, {
+      compress: compressRequest
+    } as any, {});
+
+    expect(compressRequest).toHaveBeenCalledTimes(1);
+    const stored = history.get(tenantId, userId, conversationId);
+    expect(stored[0]).toMatchObject({
+      role: "user",
+      content: "request-local summary",
+      compressedSummary: true
+    });
+    expect(stored.some(message => message.compressionInstruction === true)).toBe(false);
+  });
+
+  it("fails without fabricating a summary when the Java client lacks compression capability", async () => {
+    const history = new InMemoryHistoryStore();
+    for (let index = 0; index < 10; index += 1) {
+      history.append("t1", "u1", "no-capability", { role: "user", content: `msg-${index}` });
+    }
+    const original = history.get("t1", "u1", "no-capability");
+
+    await expect(compress("t1", "u1", "no-capability", history, {} as any, {}))
+      .rejects.toThrow(/compression capability/i);
+
+    expect(history.get("t1", "u1", "no-capability")).toEqual(original);
+  });
+
   it("does nothing when messages <= KEEP_RECENT", async () => {
     const history = new InMemoryHistoryStore();
     history.append("t1", "u1", "c1", { role: "user", content: "only one" });

@@ -72,6 +72,24 @@ public class MockModelService implements ProviderAdapter {
           null,
           null,
           null);
+    } else if ("mcp-qualification-echo".equals(fixtureName)) {
+      message = new AgentMessage(
+          "assistant",
+          "",
+          List.of(new ToolCall(
+              "call-mcp-qualification-echo",
+              "mcp_call",
+              "{\"server\":\"qualification\",\"tool\":\"qualification_echo\",\"arguments\":{}}")),
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null);
     } else if ("reasoning-tool-time".equals(fixtureName)) {
       message =
           new AgentMessage(

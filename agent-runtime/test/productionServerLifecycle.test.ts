@@ -14,6 +14,7 @@ import { InMemoryMemoryStore } from "../src/memoryStore";
 import { InMemoryRuntimeEventStore } from "../src/runtimeEventStore";
 import { InMemoryExecutionStateStore } from "../src/executionStateStore";
 import { InMemoryApprovalStore } from "../src/approvalStore";
+import { McpRegistry } from "../src/mcpRegistry";
 
 const workspaces: string[] = [];
 
@@ -113,6 +114,13 @@ describe("production server lifecycle", () => {
       executionId: "abort-execution"
     };
     context.lifecycle.startExecution({ ...abortScope, message: "hello" });
+    context.lifecycle.enterApproval({
+      ...abortScope,
+      approvalId: "approval-abort",
+      toolCallId: "tool-abort",
+      toolName: "qualification_echo",
+      argumentsRaw: "{}"
+    });
     const app = await createServer({
       runtimeContext: context,
       serviceToken: "service-token",
@@ -148,6 +156,9 @@ describe("production server lifecycle", () => {
     expect(context.database.transaction(tx => context.repositories.execution.get(
       tx, "tenant-a", "user-a", "abort-conversation", "abort-execution"
     ))?.status).toBe("aborted");
+    expect(context.database.transaction(tx => context.repositories.approval.get(
+      tx, "tenant-a", "user-a", "abort-conversation", "approval-abort"
+    ))?.status).toBe("invalidated");
 
     await app.close();
     context.close();
@@ -210,6 +221,29 @@ describe("production server lifecycle", () => {
     });
     await production.close();
     context.close();
+  });
+
+  it("owns an explicitly injected Gate D MCP registry in production", async () => {
+    const target = workspace();
+    let shutdownCount = 0;
+    class GateDMcpRegistry extends McpRegistry {
+      override async shutdown(): Promise<void> {
+        shutdownCount += 1;
+        await super.shutdown();
+      }
+    }
+    const registry = new GateDMcpRegistry({ mcpServers: {} });
+    await registry.init();
+    const app = await createProductionServer({
+      databasePath: target.databasePath,
+      serviceToken: "service-token",
+      javaClient: new FinalAnswerJavaClient(),
+      mcpRegistry: registry
+    });
+
+    await app.close();
+
+    expect(shutdownCount).toBe(1);
   });
 });
 

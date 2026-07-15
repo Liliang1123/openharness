@@ -136,4 +136,26 @@ describe("local runtime baseline sampler", () => {
     expect(report.result).toBe("local_verified");
     expect(report.failures).toEqual([]);
   });
+
+  it("blocks a completed production soak whose observed Runtime restarts do not match the fixed schedule", () => {
+    const report = createRuntimeBaselineReport({
+      track: "production",
+      generatedAt: "2026-07-15T00:00:00.000Z",
+      workload: {
+        seededConversations: 10_000,
+        concurrency: 20,
+        mix: { noTool: 0.6, javaSandbox: 0.2, mcp: 0.15, approvalInterruption: 0.05 }
+      },
+      environment: {
+        baselineKind: "fixed-24-hour-soak",
+        runComplete: true,
+        restartScheduleMs: [2, 12, 22],
+        observedRestartScheduleMs: [2, 12]
+      },
+      samples: []
+    });
+
+    expect(report.result).toBe("fail");
+    expect(report.failures.map(failure => failure.code)).toContain("RESTART_SCHEDULE_MISMATCH");
+  });
 });

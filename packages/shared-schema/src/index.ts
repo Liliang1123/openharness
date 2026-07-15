@@ -684,6 +684,78 @@ export const QualificationReportSchema = z
   });
 export type QualificationReport = z.infer<typeof QualificationReportSchema>;
 
+export const GateCProviderEvidencePathSchema = z.string().min(1).refine((path) => {
+  if (path.startsWith("/") || /^[a-zA-Z]:\//.test(path) || path.includes("\\")) {
+    return false;
+  }
+  return path.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
+}, "evidence path must be a normalized project-relative path");
+export type GateCProviderEvidencePath = z.infer<typeof GateCProviderEvidencePathSchema>;
+
+export const GateCProviderEvidenceRefSchema = z
+  .object({
+    authority: z.enum(["required", "advisory"]),
+    path: GateCProviderEvidencePathSchema,
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    track: QualificationTrackSchema,
+    reportResult: QualificationReportResultSchema
+  })
+  .strict();
+export type GateCProviderEvidenceRef = z.infer<typeof GateCProviderEvidenceRefSchema>;
+
+export const GateCRequiredRowIdsSchema = z.tuple([
+  z.literal("codex-real-sync"),
+  z.literal("codex-real-reasoning"),
+  z.literal("codex-real-usage"),
+  z.literal("codex-real-stream"),
+  z.literal("codex-real-cancellation"),
+  z.literal("codex-real-redaction")
+]);
+export type GateCRequiredRowIds = z.infer<typeof GateCRequiredRowIdsSchema>;
+
+export const GateCProviderDecisionSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    policy: z.literal("codex-oauth-required-v1"),
+    generatedAt: z.string().datetime(),
+    result: z.enum(["pass", "blocked"]),
+    required: GateCProviderEvidenceRefSchema.extend({
+      authority: z.literal("required"),
+      clientImplementationSha256: z.string().regex(/^[a-f0-9]{64}$/),
+      requiredRowIds: GateCRequiredRowIdsSchema
+    }).strict(),
+    advisory: z.array(GateCProviderEvidenceRefSchema.extend({
+      authority: z.literal("advisory")
+    }).strict()),
+    blockers: z.array(z.string().min(1))
+  })
+  .strict()
+  .superRefine((decision, context) => {
+    if (decision.result === "pass" && decision.blockers.length > 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["blockers"],
+        message: "pass decision cannot contain blockers"
+      });
+    }
+    if (decision.result === "pass"
+      && (decision.required.track !== "production" || decision.required.reportResult !== "pass")) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["required"],
+        message: "pass decision requires a production pass report"
+      });
+    }
+    if (decision.result === "blocked" && decision.blockers.length === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["blockers"],
+        message: "blocked decision must contain blockers"
+      });
+    }
+  });
+export type GateCProviderDecision = z.infer<typeof GateCProviderDecisionSchema>;
+
 export const RuntimeBaselineOperationKindSchema = z.enum(["no_tool", "java_sandbox", "mcp", "approval_interruption"]);
 export type RuntimeBaselineOperationKind = z.infer<typeof RuntimeBaselineOperationKindSchema>;
 

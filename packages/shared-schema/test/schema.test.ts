@@ -6,6 +6,7 @@ import {
   AskUserRequestSchema,
   ConversationLifecycleSchema,
   EvalCaseSchema,
+  GateCProviderDecisionSchema,
   MemoryDeleteResponseSchema,
   MemoryFactSchema,
   MemoryListResponseSchema,
@@ -1264,5 +1265,97 @@ describe("shared schema", () => {
       }]
     });
     expect(localReportParse.success).toBe(false);
+  });
+
+  it("allows optional provider failures without vetoing production pass", () => {
+    const row = (id: string, required: boolean, result: "pass" | "fail" | "blocked") => ({
+      id,
+      required,
+      track: "production" as const,
+      environment: {},
+      protocolVersion: "qualification-v1",
+      capabilities: [],
+      requestHash: "e".repeat(64),
+      observed: {},
+      oracle: {},
+      durationMs: 1,
+      result
+    });
+    const parsed = QualificationReportSchema.safeParse({
+      track: "production",
+      generatedAt: "2026-07-15T00:00:00.000Z",
+      result: "pass",
+      rows: [
+        row("codex-real-sync", true, "pass"),
+        row("openai-compatible-timeout", false, "blocked"),
+        row("anthropic-sync", false, "fail")
+      ]
+    });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.rows.map(({ required, result }) => ({ required, result }))).toEqual([
+        { required: true, result: "pass" },
+        { required: false, result: "blocked" },
+        { required: false, result: "fail" }
+      ]);
+    }
+
+    expect(QualificationReportSchema.safeParse({
+      track: "production",
+      generatedAt: "2026-07-15T00:00:00.000Z",
+      result: "pass",
+      rows: [row("codex-real-sync", true, "blocked")]
+    }).success).toBe(false);
+  });
+
+  it("validates Gate C provider decisions and rejects pass with blockers", () => {
+    const evidence = {
+      path: "docs/verification/provider.json",
+      sha256: "a".repeat(64),
+      track: "production" as const,
+      reportResult: "pass" as const
+    };
+    const decision = {
+      schemaVersion: 1,
+      policy: "codex-oauth-required-v1",
+      generatedAt: "2026-07-15T00:00:00.000Z",
+      result: "pass",
+      required: {
+        ...evidence,
+        authority: "required",
+        clientImplementationSha256: "b".repeat(64),
+        requiredRowIds: [
+          "codex-real-sync",
+          "codex-real-reasoning",
+          "codex-real-usage",
+          "codex-real-stream",
+          "codex-real-cancellation",
+          "codex-real-redaction"
+        ]
+      },
+      advisory: [{ ...evidence, authority: "advisory", reportResult: "blocked" }],
+      blockers: []
+    };
+
+    expect(GateCProviderDecisionSchema.safeParse(decision).success).toBe(true);
+    expect(GateCProviderDecisionSchema.safeParse({
+      ...decision,
+      blockers: ["codex_required_row_invalid"]
+    }).success).toBe(false);
+    expect(GateCProviderDecisionSchema.safeParse({
+      ...decision,
+      required: {
+        ...decision.required,
+        track: "local",
+        reportResult: "local_verified"
+      }
+    }).success).toBe(false);
+    for (const path of ["/tmp/provider.json", "../provider.json", "docs\\provider.json", "C:/provider.json"]) {
+      expect(GateCProviderDecisionSchema.safeParse({
+        ...decision,
+        required: { ...decision.required, path }
+      }).success).toBe(false);
+    }
   });
 });

@@ -296,6 +296,17 @@ export class RuntimeLifecycleCommands implements RuntimeLifecycleWriter {
       const execution = this.repositories.execution.get(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
       if (!execution || isTerminalStatus(execution.status)) return [];
       this.repositories.history.removeProvisionalByExecution(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
+      for (const approval of this.repositories.approval.listPending(tx, input.tenantId, input.userId, input.conversationId)) {
+        if (approval.executionId !== input.executionId) continue;
+        this.repositories.approval.compareAndSetStatus(tx, {
+          tenantId: input.tenantId,
+          userId: input.userId,
+          conversationId: input.conversationId,
+          approvalId: approval.approvalId,
+          expectedStatus: "pending",
+          nextStatus: "invalidated"
+        });
+      }
       this.repositories.execution.transition(tx, {
         ...input,
         status: "aborted",

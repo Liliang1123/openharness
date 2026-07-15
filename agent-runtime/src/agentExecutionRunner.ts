@@ -47,6 +47,7 @@ import type {
   RuntimeEventKind,
   StopReason,
   ToolCall,
+  ToolDefinition,
   ToolCallRequest,
   TraceEvent
 } from "./types";
@@ -821,11 +822,31 @@ export class AgentExecutionRunner {
       const skillName = String(args.skill_name || "");
       const task = String(args.task || "");
       try {
-        const skill = this.loadSkill(skillName);
+        const requestedMcpServer = skillName.startsWith("mcp:")
+          ? skillName.slice("mcp:".length)
+          : undefined;
+        if (
+          requestedMcpServer
+          && !this.preservesDefaultToolExposure(input)
+          && !input.agentDefinition.tools.includes("mcp_call")
+        ) {
+          throw new RuntimeTerminalFailure(
+            "POLICY_DENY",
+            `Agent ${input.agentDefinition.agentId} is not allowed to use mcp_call`,
+            { toolCallId: toolCall.id, toolName: "mcp_call", stepIndex }
+          );
+        }
+        const skill = skillName.startsWith("mcp:") && this.mcpRegistry
+          ? await this.mcpRegistry.getVirtualSkill(skillName)
+          : await this.loadSkill(skillName);
 
         if (skill.metadata.fork_agent === true) {
           const executionId = this.currentExecutionId(input.tenantId, input.userId, input.conversationId);
           const parentState = this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId);
+          const restrictedMcpServer = requestedMcpServer;
+          const childCatalogTools = this.modelVisibleTools(input, {
+            tools: this.toolRegistry.getCatalogTools(input.tenantId, input.conversationId)
+          }) as ToolDefinition[];
           const subagentResult = await this.subagentDispatcher.run({
             parent: {
               executionId,
@@ -843,11 +864,26 @@ export class AgentExecutionRunner {
             parentCatalog: {
               catalogVersion: catalog.catalogVersion,
               catalogHash: catalog.catalogHash,
-              tools: this.toolRegistry.getCatalogTools(input.tenantId, input.conversationId)
+              tools: childCatalogTools
             },
             timeoutMs: resolveTimeoutMs("SUBAGENT_TIMEOUT_MS", 300_000),
             stepIndex,
-            emitTrace: emit
+            emitTrace: emit,
+            restrictedMcpServer,
+            runtimeToolExecutor: restrictedMcpServer && this.mcpRegistry
+              ? (request, options) => this.mcpRegistry!.executeBroker(
+                  request.arguments,
+                  {
+                    requestId: request.requestId,
+                    conversationId: request.conversationId,
+                    toolCallId: request.toolCallId
+                  },
+                  {
+                    signal: options.signal,
+                    restrictedServer: options.restrictedMcpServer
+                  }
+                )
+              : undefined
           });
 
           if (subagentResult.status === "error") {
@@ -908,14 +944,29 @@ export class AgentExecutionRunner {
 
     const source = this.toolRegistry.resolveSource(input.tenantId, input.conversationId, toolCall.name);
 
-    if (source && source.startsWith("mcp:") && this.mcpRegistry) {
-      const serverName = source.slice("mcp:".length);
-      const result = await this.mcpRegistry.execute(serverName, toolCall.name, args, {
+    if (source === "mcp:broker" && this.mcpRegistry) {
+      const executionId = this.currentExecutionId(input.tenantId, input.userId, input.conversationId);
+      const abortSignal = this.executionStateStore.get(
+        input.tenantId,
+        input.userId,
+        input.conversationId,
+        executionId
+      )?.abortController.signal;
+      const result = await this.mcpRegistry.executeBroker(args, {
         requestId: input.requestId,
         conversationId: input.conversationId,
         toolCallId: toolCall.id
-      });
-      await emit(this.ev(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", { toolName: toolCall.name, status: result.status, source, stepIndex }));
+      }, { signal: abortSignal });
+      const mcpServer = typeof args.server === "string" ? args.server.slice(0, 128) : undefined;
+      const mcpTool = typeof args.tool === "string" ? args.tool.slice(0, 128) : undefined;
+      await emit(this.ev(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", {
+        toolName: toolCall.name,
+        status: result.status,
+        source,
+        stepIndex,
+        mcpServer,
+        mcpTool
+      }));
       if (result.status !== "ok") {
         throw new RuntimeTerminalFailure("TOOL_ERROR", "MCP tool execution failed", {
           toolCallId: toolCall.id,

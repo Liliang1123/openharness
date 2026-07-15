@@ -23,10 +23,10 @@ The current durable state is split between JSON and in-memory stores, interrupte
 
 ### Real provider and tool qualification
 
-- Qualify the **OpenAI-compatible** provider path through the Java Gateway as the **Gate C required** real-provider family.
-- Anthropic Messages real-provider qualification is **deferred / post-Gate-C** (approved 2026-07-09 via `defer-anthropic-from-gate-c`); missing Anthropic credentials MUST NOT block Gate C. Anthropic adapter and local/fake matrices remain in-tree supporting evidence.
+- Qualify the official local **Codex CLI/app-server + ChatGPT/Codex OAuth** route as the **Gate C required** real-model family (approved 2026-07-15 via `adopt-codex-oauth-regression-qualification`).
+- Retain Zhipu, generic OpenAI-compatible, Anthropic, and other API-key real matrices as advisory compatibility/optimization evidence. Their missing/expired credentials and observed FAIL/BLOCKED rows do not veto global model-regression PASS and are never relabelled PASS.
 - Qualify both Java sandbox protocol tools and MCP external tools through real multi-step Runtime executions.
-- Verify usage/cost, reasoning preservation, retries, timeouts, cancellation, approval policy, provenance, and secret redaction on required families.
+- Verify sync, stream, reasoning, usage, cancellation, redaction, OAuth safety, approval policy, provenance, and no-fallback behavior on the required Codex route; keep provider-specific API matrices truthful for their own protocols.
 
 ### Single-node release gate
 
@@ -49,7 +49,7 @@ The current durable state is split between JSON and in-memory stores, interrupte
 - `shared-schema`: add `EXECUTION_INTERRUPTED` to eval/recovery terminal reason contracts while preserving existing values.
 - `message-history`: SQLite stable-message persistence and JSON import semantics.
 - `long-term-memory`: SQLite memory fact persistence and scope isolation.
-- `provider-adapter`: auditable real OpenAI-compatible Gate C qualification, deferred Anthropic real matrix, and credential redaction.
+- `provider-adapter`: auditable required Codex OAuth Gate C qualification, advisory API-key matrices, no fallback, and credential redaction.
 - `mcp-tools`: auditable real MCP lifecycle and tool-call qualification.
 - `backend-gateway`: real sandbox-tool qualification requirements.
 

@@ -294,6 +294,56 @@ class ModelControllerTest {
     assertThat(response.cancelled()).isFalse();
   }
 
+  @Test
+  void gateDMockFixtureCallsQualificationMcpOnceThenReturnsFinalAnswer() {
+    ProviderRegistry registry = new ProviderRegistry(new ArrayList<>());
+    ProviderProperties properties = new ProviderProperties(registry);
+    ModelController controller = new ModelController(
+        new ModelRouter(registry, properties),
+        new CostCalculator(properties),
+        new MockModelService(),
+        new TraceService(new com.fasterxml.jackson.databind.ObjectMapper()));
+    MockHttpServletRequest fixtureRequest = request();
+    fixtureRequest.addHeader("X-Mock-Fixture", "mcp-qualification-echo");
+
+    ModelChatResponse first = controller.chat(
+        new ModelChatRequest(
+            "req-gate-d-mcp",
+            "conv-gate-d-mcp",
+            "user-001",
+            "tenant-001",
+            "default",
+            false,
+            List.of(new AgentMessage("user", "gate d", null, null, null, null, null, null, null, null, null, null, null)),
+            List.of(),
+            Map.of()),
+        fixtureRequest);
+
+    assertThat(first.message().toolCalls()).hasSize(1);
+    assertThat(first.message().toolCalls().getFirst().name()).isEqualTo("mcp_call");
+    assertThat(first.message().toolCalls().getFirst().argumentsRaw())
+        .isEqualTo("{\"server\":\"qualification\",\"tool\":\"qualification_echo\",\"arguments\":{}}");
+
+    ModelChatResponse second = controller.chat(
+        new ModelChatRequest(
+            "req-gate-d-mcp",
+            "conv-gate-d-mcp",
+            "user-001",
+            "tenant-001",
+            "default",
+            false,
+            List.of(
+                new AgentMessage("user", "gate d", null, null, null, null, null, null, null, null, null, null, null),
+                first.message(),
+                new AgentMessage("tool", "qualification:echo", null, "call-mcp-qualification-echo", null, null, null, null, null, null, null, null, null)),
+            List.of(),
+            Map.of()),
+        fixtureRequest);
+
+    assertThat(second.message().content()).isNotNull();
+    assertThat(second.message().toolCalls()).isNull();
+  }
+
   private ProviderAdapter adapterReturningUsage() {
     return new ProviderAdapter() {
       @Override

@@ -17,6 +17,10 @@ class StubJava implements JavaClient {
 
 function makeMcpStub(entries: McpToolEntry[]): McpRegistry {
   return {
+    hasConfiguredServers: vi.fn(() => entries.length > 0),
+    listVirtualSkillDescriptors: vi.fn(() => entries.length === 0 ? [] : [
+      { name: "mcp:fs", description: "Workspace file tools" }
+    ]),
     refreshToolDefinitions: vi.fn(async () => entries),
     listTools: vi.fn(() => []),
     init: vi.fn(),
@@ -64,29 +68,47 @@ const mcpEcho: McpToolEntry = {
 };
 
 describe("ToolRegistry merge", () => {
-  it("merges distinct catalog and MCP tools", async () => {
+  it("adds one constant broker without discovering individual MCP tools", async () => {
     const java = new StubJava(sampleCatalog);
-    const mcp = makeMcpStub([mcpReadFile]);
+    const mcp = makeMcpStub([mcpReadFile, { ...mcpReadFile, serverName: "db", tool: { ...mcpReadFile.tool, name: "query" } }]);
     const reg = new ToolRegistry(java, mcp);
 
     const merged = await reg.getFrozenCatalog("t1", "c1", {});
     const names = merged.tools.map(t => t.name);
     expect(names).toContain("echo");
-    expect(names).toContain("read_file");
+    expect(names).toContain("mcp_call");
+    expect(names).not.toContain("read_file");
+    expect(names).not.toContain("query");
     expect(merged.tools).toHaveLength(2);
+    expect(mcp.refreshToolDefinitions).not.toHaveBeenCalled();
+    const invokeSkill = merged.tools.find(tool => tool.name === "invoke_skill");
+    if (invokeSkill) {
+      expect(invokeSkill.description).toContain("mcp:fs");
+      expect(invokeSkill.description).toContain("Workspace file tools");
+      expect(invokeSkill.description).not.toContain("read_file");
+    }
+    const bridge = merged.tools.find(tool => tool.name === "mcp_call");
+    expect(bridge?.parameters).toEqual({
+      type: "object",
+      properties: {
+        server: expect.objectContaining({ type: "string" }),
+        tool: expect.objectContaining({ type: "string" }),
+        arguments: expect.objectContaining({ type: "object" })
+      },
+      required: ["server", "tool", "arguments"],
+      additionalProperties: false
+    });
   });
 
-  it("catalog wins on name conflict and MCP version is dropped", async () => {
-    const java = new StubJava(sampleCatalog);
+  it("fails closed when Java owns the reserved broker name", async () => {
+    const java = new StubJava({
+      ...sampleCatalog,
+      tools: [{ ...sampleCatalog.tools[0], name: "mcp_call" }]
+    });
     const mcp = makeMcpStub([mcpEcho]);
     const reg = new ToolRegistry(java, mcp);
 
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const merged = await reg.getFrozenCatalog("t1", "c1", {});
-    expect(merged.tools).toHaveLength(1);
-    expect(merged.tools[0].description).toBe("Catalog echo");
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
+    await expect(reg.getFrozenCatalog("t1", "reserved", {})).rejects.toThrow(/reserved.*mcp_call/i);
   });
 
   it("resolveSource returns correct source", async () => {
@@ -96,7 +118,8 @@ describe("ToolRegistry merge", () => {
 
     await reg.getFrozenCatalog("t1", "c1", {});
     expect(reg.resolveSource("t1", "c1", "echo")).toBe("catalog");
-    expect(reg.resolveSource("t1", "c1", "read_file")).toBe("mcp:fs");
+    expect(reg.resolveSource("t1", "c1", "mcp_call")).toBe("mcp:broker");
+    expect(reg.resolveSource("t1", "c1", "read_file")).toBeNull();
     expect(reg.resolveSource("t1", "c1", "missing")).toBeNull();
   });
 
@@ -117,7 +140,7 @@ describe("ToolRegistry merge", () => {
     await reg.getFrozenCatalog("t1", "c1", {});
     const sources = reg.getSources("t1", "c1");
     expect(sources.get("echo")).toBe("catalog");
-    expect(sources.get("read_file")).toBe("mcp:fs");
+    expect(sources.get("mcp_call")).toBe("mcp:broker");
   });
 
   it("locks the tool catalog across different ToolRegistry instances for the same session", async () => {
@@ -166,13 +189,16 @@ describe("ToolRegistry merge", () => {
     process.env.OPENHARNESS_SKILLS_ENABLED = "true";
     try {
       const java = new StubJava(sampleCatalog);
-      const reg = new ToolRegistry(java);
+      const reg = new ToolRegistry(java, makeMcpStub([mcpReadFile]));
       const merged = await reg.getFrozenCatalog("tSkill", "cSkill", {});
       const names = merged.tools.map(t => t.name);
       expect(names).toContain("invoke_skill");
       const skillTool = merged.tools.find(t => t.name === "invoke_skill");
       expect(skillTool).toBeDefined();
       expect(skillTool?.permission).toBe("sensitive");
+      expect(skillTool?.description).toContain("mcp:fs");
+      expect(skillTool?.description).toContain("Workspace file tools");
+      expect(skillTool?.description).not.toContain("read_file");
     } finally {
       process.env.OPENHARNESS_SKILLS_ENABLED = origSkills;
     }
@@ -195,5 +221,3 @@ describe("ToolRegistry merge", () => {
     }
   });
 });
-
-

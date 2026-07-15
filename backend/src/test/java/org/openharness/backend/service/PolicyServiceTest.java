@@ -56,6 +56,115 @@ class PolicyServiceTest {
     assertThat(decisions.get(0).decision()).isEqualTo("ALLOW");
   }
 
+  @Test
+  void mcpBrokerUsesNestedToolForAllowList() {
+    ToolCallInput tc = new ToolCallInput(
+        "call-broker-tool",
+        "mcp_call",
+        "{\"server\":\"trusted-server\",\"tool\":\"safe_tool\",\"arguments\":{}}",
+        "mcp:broker");
+    PolicyContext ctx = new PolicyContext(
+        null, null, null, null, null, null, List.of("safe_tool"), false, Map.of());
+
+    DecisionItem decision = service.evaluate("t1", "u1", "conv-1", List.of(tc), ctx).get(0);
+
+    assertThat(decision.decision()).isEqualTo("ALLOW");
+  }
+
+  @Test
+  void mcpBrokerUsesNestedServerForAllowList() {
+    ToolCallInput tc = new ToolCallInput(
+        "call-broker-server",
+        "mcp_call",
+        "{\"server\":\"trusted-server\",\"tool\":\"any_tool\",\"arguments\":{}}",
+        "mcp:broker");
+    PolicyContext ctx = new PolicyContext(
+        null, null, null, null, null, null, List.of("mcp:trusted-server"), false, Map.of());
+
+    DecisionItem decision = service.evaluate("t1", "u1", "conv-1", List.of(tc), ctx).get(0);
+
+    assertThat(decision.decision()).isEqualTo("ALLOW");
+  }
+
+  @Test
+  void mcpBrokerAppliesDenyRuleToNestedTool() {
+    ToolCallInput tc = new ToolCallInput(
+        "call-broker-blocked",
+        "mcp_call",
+        "{\"server\":\"trusted-server\",\"tool\":\"blocked_dangerous\",\"arguments\":{}}",
+        "mcp:broker");
+
+    DecisionItem decision = service.evaluate("t1", "u1", "conv-1", List.of(tc), null).get(0);
+
+    assertThat(decision.decision()).isEqualTo("DENY");
+    assertThat(decision.source()).isEqualTo("ORG_POLICY");
+  }
+
+  @Test
+  void mcpBrokerTrimsNestedToolBeforeDenyRule() {
+    ToolCallInput tc = new ToolCallInput(
+        "call-broker-blocked-spaces",
+        "mcp_call",
+        "{\"server\":\" trusted-server \",\"tool\":\" blocked_dangerous \",\"arguments\":{}}",
+        "mcp:broker");
+
+    DecisionItem decision = service.evaluate("t1", "u1", "conv-1", List.of(tc), null).get(0);
+
+    assertThat(decision.decision()).isEqualTo("DENY");
+    assertThat(decision.source()).isEqualTo("ORG_POLICY");
+  }
+
+  @Test
+  void mcpBrokerTrimsNestedTargetBeforeAllowList() {
+    ToolCallInput tc = new ToolCallInput(
+        "call-broker-allow-spaces",
+        "mcp_call",
+        "{\"server\":\" trusted-server \",\"tool\":\" safe_tool \",\"arguments\":{}}",
+        "mcp:broker");
+    PolicyContext ctx = new PolicyContext(
+        null, null, null, null, null, null, List.of("safe_tool", "mcp:trusted-server"), false, Map.of());
+
+    DecisionItem decision = service.evaluate("t1", "u1", "conv-1", List.of(tc), ctx).get(0);
+
+    assertThat(decision.decision()).isEqualTo("ALLOW");
+  }
+
+  @Test
+  void mcpBrokerAppliesSkillApprovalRuleToNestedTool() {
+    ToolCallInput tc = new ToolCallInput(
+        "call-broker-skill",
+        "mcp_call",
+        "{\"server\":\"trusted-server\",\"tool\":\"review_tool\",\"arguments\":{}}",
+        "mcp:broker");
+    PolicyContext ctx = new PolicyContext(
+        null,
+        null,
+        List.of(new PolicyService.SkillPolicy("review-skill", List.of("review_tool"))),
+        null,
+        null,
+        null,
+        null,
+        false,
+        Map.of());
+
+    DecisionItem decision = service.evaluate("t1", "u1", "conv-1", List.of(tc), ctx).get(0);
+
+    assertThat(decision.decision()).isEqualTo("REQUIRE_APPROVAL");
+    assertThat(decision.source()).isEqualTo("SKILL_MANIFEST");
+  }
+
+  @Test
+  void malformedMcpBrokerEnvelopeFailsClosedEvenWhenOuterBridgeIsAllowListed() {
+    ToolCallInput tc = new ToolCallInput("call-broker-invalid", "mcp_call", "{}", "mcp:broker");
+    PolicyContext ctx = new PolicyContext(
+        null, null, null, null, null, null, List.of("mcp_call", "mcp:broker"), false, Map.of());
+
+    DecisionItem decision = service.evaluate("t1", "u1", "conv-1", List.of(tc), ctx).get(0);
+
+    assertThat(decision.decision()).isEqualTo("REQUIRE_APPROVAL");
+    assertThat(decision.source()).isEqualTo("MCP_DEFAULT");
+  }
+
   // blocked_ rule still fires before MCP check
   @Test
   void blockedRuleTakesPrecedenceOverMcpSource() {

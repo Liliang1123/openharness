@@ -378,7 +378,9 @@ function median(values: number[]): number {
 }
 
 function evaluateRestartSchedule(environment: Record<string, unknown>): RuntimeBaselineFailure | null {
-  if (environment.baselineKind !== "fixed-24-hour-local-soak") return null;
+  const baselineKind = environment.baselineKind;
+  if (baselineKind !== "fixed-24-hour-local-soak" && baselineKind !== "fixed-24-hour-soak") return null;
+  if (baselineKind === "fixed-24-hour-soak" && environment.runComplete !== true) return null;
 
   const planned = numberArray(environment.restartScheduleMs);
   const observed = numberArray(environment.observedRestartScheduleMs);

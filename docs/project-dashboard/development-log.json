@@ -3,9 +3,225 @@
   "project": {
     "name": "openharness",
     "root": ".",
-    "updatedAt": "2026-07-14"
+    "updatedAt": "2026-07-15"
   },
   "entries": [
+    {
+      "changeId": "add-mcp-stable-schema-broker",
+      "title": "Add MCP Stable-Schema Broker",
+      "status": "archived",
+      "date": "2026-07-15",
+      "type": "feature",
+      "summary": "以固定 mcp_call Broker、每服务虚拟 Skill、按需启动和五分钟 idle 回收替代模型侧直接合并全部 MCP schemas；保持审批、取消、trace、非可信 provenance 与内部 qualification 接口，并迁移 Gate D 确定性 fixture。",
+      "tags": [
+        "mcp",
+        "broker",
+        "stable-schema",
+        "virtual-skill",
+        "lazy-lifecycle",
+        "openclacky-parity"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-07-15-add-mcp-stable-schema-broker/proposal.md",
+        "design": "openspec/changes/archive/2026-07-15-add-mcp-stable-schema-broker/design.md",
+        "tasks": "openspec/changes/archive/2026-07-15-add-mcp-stable-schema-broker/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-07-15-add-mcp-stable-schema-broker/specs/mcp-tools/spec.md",
+          "openspec/changes/archive/2026-07-15-add-mcp-stable-schema-broker/specs/policy-evaluate/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/mcp-tools/spec.md",
+          "openspec/specs/policy-evaluate/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-07-15-add-mcp-stable-schema-broker/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-07-15-mcp-stable-schema-broker.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/mcpRegistry.ts",
+          "agent-runtime/src/toolRegistry.ts",
+          "agent-runtime/src/agentExecutionRunner.ts",
+          "agent-runtime/src/agentLoop.ts",
+          "agent-runtime/src/subagent/dispatcher.ts",
+          "agent-runtime/src/baseline/formalSoakExecution.ts",
+          "agent-runtime/src/baseline/formalSoakRuntimeChild.ts",
+          "agent-runtime/src/baseline/formalSoakCli.ts",
+          "backend/src/main/java/org/openharness/backend/service/MockModelService.java",
+          "backend/src/main/java/org/openharness/backend/service/PolicyService.java",
+          "docs/architecture/agent-runtime-v1-production-runbook.md"
+        ],
+        "testFiles": [
+          "agent-runtime/test/mcpRegistry.test.ts",
+          "agent-runtime/test/toolRegistryMerge.test.ts",
+          "agent-runtime/test/mcpRouting.test.ts",
+          "agent-runtime/test/subagentDispatcher.test.ts",
+          "agent-runtime/test/agentExecutionRunner.test.ts",
+          "agent-runtime/test/mcpRequireApproval.test.ts",
+          "agent-runtime/test/formalSoakExecution.test.ts",
+          "agent-runtime/test/formalSoakRunner.test.ts",
+          "agent-runtime/test/formalSoakCli.test.ts",
+          "agent-runtime/test/productionServerLifecycle.test.ts",
+          "backend/src/test/java/org/openharness/backend/api/ModelControllerTest.java",
+          "backend/src/test/java/org/openharness/backend/service/PolicyServiceTest.java"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test -- test/mcpRegistry.test.ts test/toolRegistryMerge.test.ts test/mcpRouting.test.ts test/subagentDispatcher.test.ts test/agentExecutionRunner.test.ts test/mcpRequireApproval.test.ts test/formalSoakExecution.test.ts test/formalSoakRunner.test.ts test/formalSoakCli.test.ts test/productionServerLifecycle.test.ts",
+          "result": "passed",
+          "note": "10 focused files, 128 tests passed"
+        },
+        {
+          "command": "mvn -f backend/pom.xml -Dtest=PolicyServiceTest test",
+          "result": "passed",
+          "note": "15 policy tests passed, including trimmed nested Broker tool/server allow-list, nested deny/Skill approval, and malformed-envelope fail-closed cases"
+        },
+        {
+          "command": "pnpm test && pnpm typecheck && mvn -f backend/pom.xml test",
+          "result": "passed",
+          "note": "workspace regressions and typechecks passed; backend 208 tests passed with BUILD SUCCESS"
+        },
+        {
+          "command": "npx openspec validate add-mcp-stable-schema-broker --strict --no-interactive && npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "pre-archive target change valid; post-archive all 23 strict validation items passed"
+        },
+        {
+          "command": "node docs/project-dashboard/scripts/render-dashboard.mjs && pnpm dashboard:check && git diff --check",
+          "result": "passed",
+          "note": "dashboard outputs current and whitespace validation passed"
+        },
+        {
+          "command": "environment-derived sensitive-value scan over 14 MCP production/governance files",
+          "result": "passed",
+          "note": "0 credential-value matches across 14 files; no secret values printed"
+        }
+      ],
+      "closeout": "docs/review/2026-07-15-mcp-stable-schema-broker-archive-closeout.md",
+      "next": [
+        "Keep formal Gate D production start separately authorized",
+        "Use the archived current spec as the MCP contract for subsequent Runtime work"
+      ],
+      "nonGoals": [
+        "Running a real paid model qualification",
+        "Rerunning the completed 24-hour local baseline",
+        "Starting or promoting formal Gate D production evidence"
+      ],
+      "notes": [
+        "User approved the complete Broker design boundary on 2026-07-15",
+        "Three-round independent implementation Review ended PASS with no remaining Critical, Important, or Minor findings",
+        "Archived on 2026-07-15 after Project Learning Closeout and independent learning Review PASS",
+        "No real model call or formal 24-hour Gate D run occurred during implementation verification",
+        "This change remains independent of the active production-hardening Gate D evidence lifecycle"
+      ]
+    },
+    {
+      "changeId": "adopt-codex-oauth-regression-qualification",
+      "title": "Adopt Codex OAuth For Required Model Regression Qualification",
+      "status": "archived",
+      "date": "2026-07-15",
+      "type": "feature",
+      "summary": "将官方 Codex CLI/app-server + ChatGPT/Codex OAuth 设为 OpenHarness 回归与 Gate C 模型调用的唯一必选真实模型轨；API-key Provider 保留为兼容性/优化证据，其缺 Key、过期、FAIL 或 BLOCKED 不再否决全局模型回归 PASS，同时保持所有非模型安全与生产门禁独立阻塞。",
+      "tags": [
+        "codex",
+        "oauth",
+        "qualification",
+        "gate-c",
+        "provider-adapter",
+        "regression-policy"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/archive/2026-07-15-adopt-codex-oauth-regression-qualification/proposal.md",
+        "design": "openspec/changes/archive/2026-07-15-adopt-codex-oauth-regression-qualification/design.md",
+        "tasks": "openspec/changes/archive/2026-07-15-adopt-codex-oauth-regression-qualification/tasks.md",
+        "specDeltas": [
+          "openspec/changes/archive/2026-07-15-adopt-codex-oauth-regression-qualification/specs/provider-adapter/spec.md"
+        ],
+        "currentSpecs": [
+          "openspec/specs/provider-adapter/spec.md"
+        ],
+        "archivePath": "openspec/changes/archive/2026-07-15-adopt-codex-oauth-regression-qualification/"
+      },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-07-15-adopt-codex-oauth-regression-qualification.md"
+      },
+      "implementation": {
+        "sourceFiles": [
+          "packages/shared-schema/src/index.ts",
+          "agent-runtime/src/qualification/gateCProviderPolicy.ts",
+          "agent-runtime/src/qualification/gateCProviderReconcileCli.ts",
+          "agent-runtime/package.json",
+          "openspec/changes/harden-agent-runtime-single-node-production/proposal.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/design.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/tasks.md",
+          "openspec/changes/harden-agent-runtime-single-node-production/specs/provider-adapter/spec.md",
+          "docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md",
+          "docs/architecture/agent-runtime-v1-production-runbook.md",
+          "docs/project-dashboard/development-log.json",
+          "docs/verification/agent-runtime-v1/providers/2026-07-15-gate-c-codex-oauth-provider-decision.json"
+        ],
+        "testFiles": [
+          "packages/shared-schema/test/schema.test.ts",
+          "agent-runtime/test/gateCProviderPolicy.test.ts",
+          "integration-tests/test/p1b.integration.test.ts"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm test && pnpm typecheck",
+          "result": "passed",
+          "note": "shared 60, Runtime 373, Frontend 24, integration 17 tests passed; all TypeScript typechecks passed"
+        },
+        {
+          "command": "mvn -f backend/pom.xml test",
+          "result": "passed",
+          "note": "200 tests passed with zero failure, error, or skip"
+        },
+        {
+          "command": "Gate C provider decision generation + no-overwrite replay + schema/hash/sensitive scans",
+          "result": "passed",
+          "note": "decision PASS SHA-256 47bd881cdc0875136ec137b7392f83fcecb9539c010cd5fc931d0720bc623b5a; second run rejected existing target without hash change"
+        },
+        {
+          "command": "OpenSpec strict validation + dashboard render/check + git diff --check",
+          "result": "passed",
+          "note": "new and active Runtime changes valid; dashboard current; no whitespace diagnostics"
+        },
+        {
+          "command": "npx openspec archive adopt-codex-oauth-regression-qualification --yes",
+          "result": "passed",
+          "note": "archived as 2026-07-15-adopt-codex-oauth-regression-qualification and updated the provider-adapter current spec"
+        },
+        {
+          "command": "npx openspec validate --all --strict --no-interactive",
+          "result": "passed",
+          "note": "23 specs/active changes passed and 0 failed after archive and stale Anthropic wording reconciliation"
+        }
+      ],
+      "closeout": "docs/review/2026-07-15-adopt-codex-oauth-regression-qualification-archive-closeout.md",
+      "next": [
+        "Prepare the active Runtime Gate D production-start preflight without rerunning model qualification",
+        "Start the formal 24-hour workload only after an explicit Gate D production start approval"
+      ],
+      "nonGoals": [
+        "Reading or exposing Codex OAuth credentials",
+        "Relabelling unexecuted API-key rows as PASS",
+        "Deleting API-key adapters or deterministic provider tests",
+        "Weakening non-model security, persistence, tool, Gate D, or archive gates"
+      ],
+      "notes": [
+        "User approved the required-Codex/advisory-API design boundary on 2026-07-15",
+        "User explicitly approved the scoped OpenSpec contract on 2026-07-15; the strict implementation plan passed Preflight Review",
+        "Initial implementation approval did not authorize archive; the user separately authorized archive by replying continue after that boundary was stated on 2026-07-15",
+        "Archive authorization does not authorize a real OAuth rerun, Gate D production start, commit, or push",
+        "Existing Codex production evidence remains immutable and passed fresh binding review against the current client source",
+        "Gate C provider decision PASS SHA-256: 47bd881cdc0875136ec137b7392f83fcecb9539c010cd5fc931d0720bc623b5a; Zhipu source remains advisory blocked",
+        "Implementation and archive verification made no real model call and read no OAuth/API-key credential",
+        "Post-archive contract scan reconciled stale deferred-Anthropic wording with the required Codex Gate C decision without changing Provider-specific evidence truthfulness"
+      ]
+    },
     {
       "changeId": "add-chatgpt-oauth-auth",
       "title": "Add ChatGPT/Codex OAuth via Local App Server",
@@ -223,7 +439,7 @@
       "status": "proposed",
       "date": "2026-07-03",
       "type": "feature",
-      "summary": "将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：Stage 1 / Gate B 已用真实 production backup/import/restore/cutover、单一 SQLite 写权和受控读写探针闭环；Gate C 真实 OpenAI-compatible matrix 与 Gate D 正式 24 小时 production workload仍按真实证据门禁推进。",
+      "summary": "将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：Stage 1 / Gate B 已用真实 production backup/import/restore/cutover、单一 SQLite 写权和受控读写探针闭环；Gate C 模型轨改用官方 Codex OAuth 六行必选证据，API-key Provider 保持 advisory，Java/MCP/security 与 Gate D 正式 24 小时 production workload 仍按独立真实证据门禁推进。",
       "tags": [
         "agent-runtime",
         "production-readiness",
@@ -261,8 +477,8 @@
         "plan": "docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md"
       },
       "next": [
-        "Complete Gate C required real OpenAI-compatible Provider rows, including retry, timeout, cancellation, reasoning and redaction oracles; retain Anthropic as deferred / post-Gate-C",
-        "Keep Gate D pending until a production-track formal report with start approval/preflight evidence and explicit post-result human promotion approval passes review"
+        "Run Gate D only after explicit start approval and a passed production preflight; retain the immutable partial report on any failure",
+        "After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive"
       ],
       "nonGoals": [
         "Multi-node high availability or PostgreSQL deployment",
@@ -279,7 +495,10 @@
         "A 24-hour local database/sampler baseline completed on 2026-07-10 with 2,880 samples and result local_verified. It seeds completed rows and samples sequential reads rather than proving concurrent Runtime workload or TS process restarts; Gate D remains open.",
         "Stage 1 / Gate B passed total reconciliation on 2026-07-14: production backup/import/quarantine/restore and measured RPO/RTO, forward-fix cutover, owner-only SQLite artifacts, sole Runtime write authority, second-instance fencing, one scoped production write, cross-user isolation and post-stop integrity all passed review.",
         "Dashboard remains proposed because the active change still has Gate C, Gate D, full production qualification, contract freeze and closeout/archive tasks open.",
-        "Gate C runner Steps 8–16 passed fresh local strict verification on 2026-07-14. After exact user approval, one immutable Zhipu/glm-4-flash production report was generated: 5 required rows passed and 8 remained blocked; SHA-256 46083ae59a285d3d656cd9df2ca35ca9a8cd708e333535460d5e2497dc15b2c2. Gate C remains open."
+        "Gate C runner Steps 8–16 passed fresh local strict verification on 2026-07-14. After exact user approval, one immutable Zhipu/glm-4-flash production report was generated: 5 required rows passed and 8 remained blocked; SHA-256 46083ae59a285d3d656cd9df2ca35ca9a8cd708e333535460d5e2497dc15b2c2. Gate C remains open.",
+        "2026-07-15: The production runbook and existing independent Review satisfy OpenSpec 4.4, and the implementation-plan tracking now points to the same reviewed runbook with its operations-documentation checkbox aligned; the dashboard remains proposed because Gate C, Gate D, production qualification, contract freeze, and closeout remain incomplete.",
+        "2026-07-15: Approved adopt-codex-oauth-regression-qualification changes Gate C model authority to required Codex OAuth evidence and makes API-key Provider reports advisory without relabelling their observed rows; non-model gates remain independently blocking.",
+        "2026-07-15: Required Codex decision and full Stage 2 TypeScript/Java/integration/security regression passed strict Review; tasks 3.1, 3.2, 3.5, and 3.6 are complete. Gate D, full qualification, contract freeze, closeout, and archive remain open."
       ]
     },
     {

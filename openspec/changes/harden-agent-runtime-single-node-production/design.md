@@ -2,7 +2,7 @@
 
 Agent Runtime 已具备完整 MVP 能力，但 durable lifecycle state 分散在 JSON 与进程内 store。平台能力继续扩展前，必须先形成可恢复、可审计、可压测的单机生产 v1。
 
-已批准产品边界：Gate C 真实 Provider **必选** OpenAI-compatible；Anthropic 真实矩阵 **后置（deferred / post-Gate-C，2026-07-09 批准 `defer-anthropic-from-gate-c`）**，缺 Anthropic key 不得单独阻塞 Gate C；同时验收 Java sandbox 与 MCP；SQLite 为唯一持久化权威；Runtime 仅作为私有服务；容量门禁为 20 concurrent executions、10,000 conversations、24-hour soak。
+已批准产品边界：Gate C 真实模型回归 **必选**官方本地 Codex CLI/app-server + ChatGPT/Codex OAuth（2026-07-15 批准 `adopt-codex-oauth-regression-qualification`）；Zhipu、OpenAI-compatible、Anthropic 和其他 API-key Provider 真实矩阵降为 advisory compatibility/optimization 证据，不否决 global model-regression PASS，也不得伪造其 row 结果；同时验收 Java sandbox 与 MCP；SQLite 为唯一持久化权威；Runtime 仅作为私有服务；容量门禁为 20 concurrent executions、10,000 conversations、24-hour soak。
 
 ## Goals / Non-Goals
 
@@ -72,7 +72,7 @@ Durable event key 为 `(tenant_id, user_id, conversation_id, seq)`；seq 分配�
 
 资格验证同时采用本地与生产双轨状态。`local_verified` 允许在 Gate B 生产证据仍待补齐时继续 deterministic SQLite、fake Provider、真实本地 Java sandbox 与真实本地 MCP stdio 子进程链路；它只证明本地开发链路，不得转换为生产结论。`production_verified` 仍要求生产 migration/cutover 证据、真实 Provider、生产部署与正式 soak。Gate B 保持 `pending_production_evidence` 时，禁止首次生产 SQLite write、生产数据、生产 Provider credential 与任何生产 promotion，但不阻塞本地限定的 Task 9–12。
 
-Real matrix 每个 provider/tool case 记录 environment fingerprint、协议版本、model/tool capability、redacted request hash、observed response/event sequence、oracle、usage/cost、duration 和 result。缺凭证或必需 capability 为 `BLOCKED`，整体验收不得 PASS；不得 mock fallback。统一 redaction interceptor 覆盖 Runtime/Backend stdout、file log、trace 与 failure report，并用 Authorization、`sk-` canary 做负向扫描。
+Real matrix 每个 provider/tool case 记录 environment fingerprint、协议版本、model/tool capability、redacted request hash、observed response/event sequence、oracle、usage/cost、duration 和 result。必选 Codex OAuth track 缺登录、缺 transport、mock/fallback、任一 required row FAIL/BLOCKED 或证据绑定失败时，model-provider gate 不得 PASS。API-key Provider 缺凭证或 capability 时保留真实 `BLOCKED`/`FAIL` 作为 advisory finding，不否决 global model-regression PASS；只有各自 dedicated real matrix PASS 才能声明该协议 production-qualified。统一 redaction interceptor 覆盖 Runtime/Backend stdout、file log、trace 与 failure report，并用 Authorization、`sk-` canary 做负向扫描。
 
 ### Decision 9: Fixed soak oracle
 
@@ -86,9 +86,9 @@ Performance/resource gate：Runtime admission p95 ≤100ms、durable replay p95 
 
 ### Providers
 
-OpenAI-compatible 固定为 Chat Completions-compatible endpoint 与记录的 API/model version，是 **Gate C 必选** 真实 Provider family：覆盖 sync、stream、single/multi-step tool calls、structured arguments、reasoning（能力支持时必须验证，否则该 model 不合格）、usage token 对账（provider response 精确相等）、cost 按配置公式精确复算、503 retry、timeout、cancel、terminal error 与 redaction。缺 OpenAI-compatible 凭证或任一 required row FAIL/BLOCKED 时 Gate C 不得 PASS。
+官方本地 Codex CLI/app-server + ChatGPT/Codex OAuth 是 **Gate C 必选**真实模型 family。固定 required production rows 为 `codex-real-sync`、`codex-real-reasoning`、`codex-real-usage`、`codex-real-stream`、`codex-real-cancellation`、`codex-real-redaction`；必须全部 required/PASS，并通过 authorized production track、immutable report SHA、当前 client source SHA、`provider=codex-app-server`、`qualificationAuthorization=granted`、`credentialState=not-read` 与 redaction/no-fallback 复核。OpenHarness 不读取 OAuth credential，也不在 required 失败时 fallback 到 API-key 或 mock。
 
-Anthropic 固定为 Messages API 与记录的 `anthropic-version`，能力矩阵口径与上相同，但真实 credential matrix 为 **deferred / post-Gate-C**：可继续跑 local/fake Anthropic 证据；缺 Anthropic 凭证不得单独将 Gate C 判为 blocked。OpenAI-compatible 成功不得推断 Anthropic 已 production-qualified；Anthropic 仅在后续独立真实矩阵 PASS 后才可额外晋升。
+Zhipu、generic OpenAI-compatible、Anthropic 和其他 API-key Provider 保留现有 adapters、fake/local tests、real runners 和 immutable reports。其真实 rows 保留 observed PASS/FAIL/BLOCKED，但在 global Runtime qualification 中为 `required:false` 或在 required aggregate 外以 advisory report 引用。缺/过期 API key、provider-specific fixture 不可用、unsupported capability、FAIL 或 BLOCKED 只形成 compatibility/optimization finding；Codex PASS 不得推断任何第三方协议已 production-qualified。
 
 ### Tools
 
@@ -98,6 +98,6 @@ Java sandbox 必须记录 sandbox implementation，并覆盖 read/search/run-com
 
 Stage 1：migration/import/quarantine、Unit of Work crash matrix、restart reconciliation、cursor/IDOR、WAL/low-disk tests。fixture/local 证据可进入 `local_verified`；生产 migration rehearsal 未完成时 Gate B 保持 pending。
 
-Stage 2：先运行 fake Provider、真实本地 backend sandbox、真实本地 MCP qualification matrix 与 secret canary/redaction，形成 `local_verified`；真实 Provider credential matrix 仍由 Gate C 单独授权。
+Stage 2：先运行 fake Provider、真实本地 backend sandbox、真实本地 MCP qualification matrix 与 secret canary/redaction，形成 `local_verified`；Gate C model-provider portion 由 authorized immutable Codex OAuth production report 及 no-overwrite decision artifact 单独复核。API-key real matrices 仅在独立授权时运行，并保持 advisory。
 
 Stage 3：本地仅允许 deterministic short baseline；固定 24-hour soak、生产 backup/restore rehearsal、全仓 production qualification 和最终 freeze 仍需独立人工 promotion。`local_verified` 不得标记 Gate B/C/D 通过、dashboard verified、OpenSpec complete 或 archive。

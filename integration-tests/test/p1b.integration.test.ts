@@ -48,7 +48,7 @@ describe("P1b persistence integration", () => {
     });
     expect(res.statusCode).toBe(200);
 
-    const path = join(TMP, "t-p1b", "conv-p1b.json");
+    const path = join(TMP, "t-p1b", "u", "conv-p1b.json");
     expect(existsSync(path)).toBe(true);
 
     const data = JSON.parse(readFileSync(path, "utf-8"));

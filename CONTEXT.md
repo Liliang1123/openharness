@@ -124,7 +124,9 @@
 | **MCP Tool** | MCP Server 暴露的工具。区别于 catalog tool（Java 注册的内置工具）。 |
 | **stdio Transport** | MCP 通信方式之一：通过子进程的 stdin/stdout JSON-RPC。用于本地工具。 |
 | **HTTP Transport** | MCP 通信方式之一：通过 HTTP + SSE。用于远程 MCP server。 |
-| **Tool Source** | 工具的来源标记。值为 `catalog`（Java）或 `mcp:{server-name}`。用于路由执行和 policy 评估。 |
+| **Tool Source** | 工具的来源标记。Java 工具使用 `catalog`；模型可见的稳定 MCP Broker 使用 `mcp:broker`。用于路由执行和 policy 评估。 |
 | **MCP_DEFAULT** | Java PolicyService 对 MCP 来源工具的默认决策来源标记。当 `source` 以 `mcp:` 开头且不在 `mcpAllowList` 中时，返回 `REQUIRE_APPROVAL`，source 为 `MCP_DEFAULT`。 |
-| **mcpAllowList** | PolicyContext 上的可选白名单。每项可匹配工具名（如 `"safe_tool"`）或完整 server source（如 `"mcp:trusted-server"`），命中则将 MCP 工具降级回 ALLOW。配置入口保留给后续 change。 |
-| **MCP Registry** | TS Runtime 内的 MCP server 注册表。从 `mcp.json` 加载，启动时连接 server，拉取 tool 列表。 |
+| **mcpAllowList** | PolicyContext 上的可选白名单。direct MCP source 与稳定 Broker 都按 nested 工具名（如 `"safe_tool"`）或完整 server source（如 `"mcp:trusted-server"`）匹配；Broker 不使用外层 `mcp_call` / `mcp:broker` 作为 malformed envelope 的放行回退。 |
+| **MCP Registry** | TS Runtime 内的 MCP server 注册表。从 `mcp.json` 加载配置；Runtime 启动只注册、不启动进程，首次解析虚拟 Skill 或调用 Broker target 时才按 server 单飞启动并发现工具，idle 后关闭并可按需重启。 |
+| **MCP Stable-Schema Broker** | Runtime 拥有的固定模型工具 `mcp_call`。其模型可见 schema 恒为 `{server, tool, arguments}`，不把各 MCP server 的动态工具 schema 合并进主 catalog。 |
+| **MCP Virtual Skill** | 名为 `mcp:<server>` 的内存 Skill。解析时只发现目标 server 的工具，并在隔离 subagent 中仅开放受该 server 限制的 `mcp_call`。 |

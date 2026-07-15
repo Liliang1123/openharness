@@ -17,6 +17,10 @@ Keep this managed block so 'openspec update' can refresh the instructions.
 
 <!-- OPENSPEC:END -->
 
+## Shared Engineering Invariants
+
+Before changing MCP authorization, child-process environment, or qualification approval behavior, read `docs/engineering-invariants.md` together with the relevant OpenSpec capability.
+
 # 全局绝对路径规范
 
 为了保证不同 Agent 在独立窗口和执行环境中能够准确读取、跳转和识别文件：

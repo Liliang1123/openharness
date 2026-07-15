@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import type { AgentMessage, CatalogResponse, ModelChatRequest, ToolCallRequest, TraceEvent } from "../src/types";
+import { describe, expect, it, vi } from "vitest";
+import type { AgentMessage, CatalogResponse, ModelChatRequest, ToolCallRequest, ToolCallResponse, TraceEvent } from "../src/types";
 import type { JavaClient, PolicyEvaluateRequest, PolicyEvaluateResponse } from "../src/javaClient";
 import { SubagentDispatcher } from "../src/subagent/dispatcher";
 import {
@@ -127,6 +127,18 @@ const parentCatalog: CatalogResponse = {
       isConcurrencySafe: false
     },
     {
+      name: "mcp_call",
+      description: "MCP broker",
+      parameters: { type: "object", properties: {}, required: [] },
+      catalogVersion: "v1",
+      catalogHash: "h1",
+      permission: "sensitive",
+      isReadOnly: false,
+      isDestructive: false,
+      requiresApproval: false,
+      isConcurrencySafe: true
+    },
+    {
       name: "invoke_skill",
       description: "Invoke skill",
       parameters: { type: "object", properties: {}, required: [] },
@@ -142,6 +154,105 @@ const parentCatalog: CatalogResponse = {
 };
 
 describe("SubagentDispatcher", () => {
+  it("restricts an MCP virtual skill to the broker and executes it through Runtime", async () => {
+    const javaClient = new FakeSubagentJavaClient();
+    javaClient.nextToolCallName = "mcp_call";
+    javaClient.nextArgumentsRaw = JSON.stringify({
+      server: "filesystem",
+      tool: "read_file",
+      arguments: { path: "README.md" }
+    });
+    const runtimeToolExecutor = vi.fn(async (request: ToolCallRequest): Promise<ToolCallResponse> => ({
+      requestId: request.requestId,
+      conversationId: request.conversationId,
+      toolCallId: request.toolCallId,
+      toolName: request.toolName,
+      status: "ok",
+      result: { content: "from mcp" },
+      provenance: "untrusted"
+    }));
+    const dispatcher = new SubagentDispatcher(javaClient);
+
+    const result = await dispatcher.run({
+      parent: {
+        executionId: "parent-exec-1",
+        tenantId: "t1",
+        conversationId: "parent-conv",
+        requestId: "req-1",
+        traceId: "trace-1",
+        userId: "u1",
+        headers: {},
+        abortSignal: new AbortController().signal
+      },
+      toolCallId: "call-skill",
+      skill: {
+        metadata: {
+          name: "mcp:filesystem",
+          description: "filesystem",
+          version: "1",
+          tools_required: ["mcp_call"],
+          parameters: {},
+          fork_agent: true
+        },
+        content: "Use filesystem tools.",
+        sourcePath: "virtual:mcp:filesystem"
+      },
+      task: "read a file",
+      parentCatalog,
+      timeoutMs: 30_000,
+      restrictedMcpServer: "filesystem",
+      runtimeToolExecutor
+    });
+
+    expect(result.status).toBe("ok");
+    expect(javaClient.chatRequests[0].tools?.map(tool => tool.name)).toEqual(["mcp_call"]);
+    expect(javaClient.executedTools).toEqual([]);
+    expect(runtimeToolExecutor).toHaveBeenCalledWith(
+      expect.objectContaining({ toolName: "mcp_call", arguments: expect.objectContaining({ server: "filesystem" }) }),
+      expect.objectContaining({ restrictedMcpServer: "filesystem" })
+    );
+    expect(javaClient.policyRequests[0].toolCalls[0].source).toBe("mcp:broker");
+    const secondChildRequest = javaClient.chatRequests[1];
+    const childToolResult = secondChildRequest.messages.find(message => message.role === "tool");
+    expect(childToolResult?.toolResultProvenance).toBe("untrusted");
+    expect(String(childToolResult?.content)).toContain('<tool_output trust="untrusted" tool="mcp_call">');
+  });
+
+  it("denies a virtual MCP skill call targeting another server", async () => {
+    const javaClient = new FakeSubagentJavaClient();
+    javaClient.nextToolCallName = "mcp_call";
+    javaClient.nextArgumentsRaw = JSON.stringify({ server: "database", tool: "query", arguments: {} });
+    const runtimeToolExecutor = vi.fn();
+    const dispatcher = new SubagentDispatcher(javaClient);
+
+    const result = await dispatcher.run({
+      parent: {
+        executionId: "parent-exec-1", tenantId: "t1", conversationId: "parent-conv",
+        requestId: "req-1", traceId: "trace-1", userId: "u1", headers: {},
+        abortSignal: new AbortController().signal
+      },
+      toolCallId: "call-skill",
+      skill: {
+        metadata: {
+          name: "mcp:filesystem", description: "filesystem", version: "1",
+          tools_required: ["mcp_call"], parameters: {}, fork_agent: true
+        },
+        content: "Use filesystem tools.",
+        sourcePath: "virtual:mcp:filesystem"
+      },
+      task: "query",
+      parentCatalog,
+      timeoutMs: 30_000,
+      restrictedMcpServer: "filesystem",
+      runtimeToolExecutor
+    });
+
+    expect(result.status).toBe("error");
+    expect(result.errorClass).toBe("SUBAGENT_POLICY_DENY");
+    expect(runtimeToolExecutor).not.toHaveBeenCalled();
+    expect(javaClient.executedTools).toEqual([]);
+  });
+
   it("derives child catalog by removing forbidden tools and privileged meta tools", async () => {
     const javaClient = new FakeSubagentJavaClient();
     const dispatcher = new SubagentDispatcher(javaClient);

@@ -31,7 +31,7 @@ The Java backend SHALL reject execution of sensitive/destructive tools via `POST
 
 ### Requirement: MCP source default decision
 
-The Java `PolicyService` SHALL inspect each tool call's `source` field. When `source` matches `mcp:*` and no explicit deny / require-approval rule has matched, the policy decision MUST default to `REQUIRE_APPROVAL` with decision source `MCP_DEFAULT` and a generated `approvalToken`. When `source` is omitted, missing, or equals `catalog`, the existing default-ALLOW behavior MUST remain unchanged.
+The Java `PolicyService` SHALL inspect each tool call's `source` field. When `source` matches `mcp:*` and no explicit deny / require-approval rule has matched, the policy decision MUST default to `REQUIRE_APPROVAL` with decision source `MCP_DEFAULT` and a generated `approvalToken`. For `name: mcp_call` with `source: mcp:broker`, Java MUST parse a valid Broker envelope and apply name-based deny, Skill approval, and `mcpAllowList` matching to its nested tool/server identity. A malformed Broker envelope MUST fail closed for MCP allow-list evaluation. When `source` is omitted, missing, or equals `catalog`, the existing default-ALLOW behavior MUST remain unchanged.
 
 #### Scenario: MCP source falls into default REQUIRE_APPROVAL
 
@@ -57,15 +57,30 @@ The Java `PolicyService` SHALL inspect each tool call's `source` field. When `so
 - **THEN** the decision is `DENY`
 - **AND** the decision source is `ORG_POLICY`
 
+#### Scenario: Broker preserves nested MCP policy identity
+
+- **GIVEN** a tool call with `name: "mcp_call"`, `source: "mcp:broker"`, and a valid envelope targeting `filesystem/read_file`
+- **WHEN** `mcpAllowList` contains `read_file` or `mcp:filesystem`
+- **THEN** the MCP default rule treats the call as allow-listed
+- **AND** name-based deny and Skill approval rules evaluate `read_file`
+
+#### Scenario: Malformed Broker target fails closed
+
+- **GIVEN** a tool call with `name: "mcp_call"`, `source: "mcp:broker"`, and an invalid or incomplete envelope
+- **WHEN** `mcpAllowList` contains only `mcp_call` or `mcp:broker`
+- **THEN** the decision is `REQUIRE_APPROVAL`
+- **AND** the decision source is `MCP_DEFAULT`
+
 ### Requirement: TS Runtime forwards source field
 
 The TS Agent Runtime SHALL include each tool call's resolved source (from `ToolRegistry.resolveSource`) in the `evaluatePolicy` request. When the source cannot be resolved, the runtime MUST omit the field rather than send a guessed value.
 
 #### Scenario: Runtime sends source for MCP tool
 
-- **GIVEN** an MCP-sourced tool call has been frozen in the conversation's tool registry
+- **GIVEN** the stable MCP Broker has been frozen in the conversation's tool registry
 - **WHEN** the runtime calls Java `evaluatePolicy`
-- **THEN** the request body includes `toolCalls[i].source: "mcp:{server}"` for that tool
+- **THEN** the request body includes `toolCalls[i].source: "mcp:broker"`
+- **AND** `argumentsRaw` contains the original server/tool/arguments Broker envelope
 
 #### Scenario: Runtime sends source for catalog tool
 
@@ -103,4 +118,3 @@ The Java backend SHALL inspect `ReviewPolicyEvaluateRequest.context.untrustedToo
 - **WHEN** no MCP allow-list entry matches
 - **THEN** the decision is `REQUIRE_APPROVAL`
 - **AND** the decision source is `MCP_DEFAULT`
-

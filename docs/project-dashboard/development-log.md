@@ -1,9 +1,14 @@
 # openharness — 开发导航台
 
 > 自动生成，请勿直接编辑。数据源：`development-log.json`  
-> 最后更新：2026-07-14
+> 最后更新：2026-07-15
 
 ## Timeline
+
+### 2026-07-15
+
+- 📦 archived **add-mcp-stable-schema-broker** — 以固定 mcp_call Broker、每服务虚拟 Skill、按需启动和五分钟 idle 回收替代模型侧直接合并全部 MCP schemas；保持审批、取消、trace、非可信 provenance 与内部 qualification 接口，并迁移 Gate D 确定性 fixture。
+- 📦 archived **adopt-codex-oauth-regression-qualification** — 将官方 Codex CLI/app-server + ChatGPT/Codex OAuth 设为 OpenHarness 回归与 Gate C 模型调用的唯一必选真实模型轨；API-key Provider 保留为兼容性/优化证据，其缺 Key、过期、FAIL 或 BLOCKED 不再否决全局模型回归 PASS，同时保持所有非模型安全与生产门禁独立阻塞。
 
 ### 2026-07-12
 
@@ -12,7 +17,7 @@
 
 ### 2026-07-03
 
-- 📋 proposed **harden-agent-runtime-single-node-production** — 将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：Stage 1 / Gate B 已用真实 production backup/import/restore/cutover、单一 SQLite 写权和受控读写探针闭环；Gate C 真实 OpenAI-compatible matrix 与 Gate D 正式 24 小时 production workload仍按真实证据门禁推进。
+- 📋 proposed **harden-agent-runtime-single-node-production** — 将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：Stage 1 / Gate B 已用真实 production backup/import/restore/cutover、单一 SQLite 写权和受控读写探针闭环；Gate C 模型轨改用官方 Codex OAuth 六行必选证据，API-key Provider 保持 advisory，Java/MCP/security 与 Gate D 正式 24 小时 production workload 仍按独立真实证据门禁推进。
 
 ### 2026-06-29
 
@@ -67,6 +72,8 @@
 
 | 功能点 | 状态 | Spec | Plan | Code | Tests | Closeout |
 |---|---|---|---|---|---|---|
+| add-mcp-stable-schema-broker | 📦 archived | mcp-tools, policy-evaluate | [plan](docs/superpowers/plans/2026-07-15-mcp-stable-schema-broker.md) | 11 files | 12 files | [closeout](docs/review/2026-07-15-mcp-stable-schema-broker-archive-closeout.md) |
+| adopt-codex-oauth-regression-qualification | 📦 archived | provider-adapter | [plan](docs/superpowers/plans/2026-07-15-adopt-codex-oauth-regression-qualification.md) | 12 files | 3 files | [closeout](docs/review/2026-07-15-adopt-codex-oauth-regression-qualification-archive-closeout.md) |
 | add-chatgpt-oauth-auth | 📦 archived | backend-gateway, provider-adapter | [plan](docs/superpowers/plans/2026-07-10-add-chatgpt-oauth-auth.md) | 22 files | 16 files | [closeout](docs/review/2026-07-12-chatgpt-oauth-auth-closeout-review.md) |
 | defer-anthropic-from-gate-c | 📦 archived | provider-adapter | — | — | — | [closeout](docs/review/2026-07-12-defer-anthropic-from-gate-c-closeout-review.md) |
 | harden-agent-runtime-single-node-production | 📋 proposed | agent-runtime, agent-sse, shared-schema, backend-gateway, message-history, long-term-memory, provider-adapter, mcp-tools | [plan](docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md) | — | — | — |
@@ -182,6 +189,10 @@
 
 - 📦 archived add-subagent-trace-tree
 
+### broker
+
+- 📦 archived add-mcp-stable-schema-broker
+
 ### cache-hints
 
 - ⚠️ partial add-p1a-provider-adapter
@@ -192,6 +203,7 @@
 
 ### codex
 
+- 📦 archived adopt-codex-oauth-regression-qualification
 - 📦 archived add-chatgpt-oauth-auth
 
 ### context-builder
@@ -252,6 +264,7 @@
 
 ### gate-c
 
+- 📦 archived adopt-codex-oauth-regression-qualification
 - 📦 archived defer-anthropic-from-gate-c
 
 ### hookable
@@ -266,6 +279,10 @@
 
 - 📦 archived add-subagent-dispatcher
 
+### lazy-lifecycle
+
+- 📦 archived add-mcp-stable-schema-broker
+
 ### long-term-memory
 
 - 📦 archived add-p5a-memory-and-eval
@@ -274,6 +291,7 @@
 
 ### mcp
 
+- 📦 archived add-mcp-stable-schema-broker
 - ⚠️ partial add-p3c-policy-mcp-aware
 - ⚠️ partial add-p2a-mcp
 
@@ -316,6 +334,7 @@
 
 ### oauth
 
+- 📦 archived adopt-codex-oauth-regression-qualification
 - 📦 archived add-chatgpt-oauth-auth
 
 ### observability
@@ -323,6 +342,10 @@
 - 📦 archived add-runtime-progress-panel
 - 📦 archived add-subagent-trace-tree
 - 📦 archived add-agent-definition-observability
+
+### openclacky-parity
+
+- 📦 archived add-mcp-stable-schema-broker
 
 ### p0
 
@@ -396,6 +419,7 @@
 
 ### provider-adapter
 
+- 📦 archived adopt-codex-oauth-regression-qualification
 - 📦 archived add-chatgpt-oauth-auth
 - 📦 archived defer-anthropic-from-gate-c
 - 📦 archived add-p3b-cost-and-router
@@ -403,6 +427,7 @@
 
 ### qualification
 
+- 📦 archived adopt-codex-oauth-regression-qualification
 - 📦 archived add-chatgpt-oauth-auth
 - 📦 archived defer-anthropic-from-gate-c
 
@@ -413,6 +438,10 @@
 ### recovery
 
 - 📋 proposed harden-agent-runtime-single-node-production
+
+### regression-policy
+
+- 📦 archived adopt-codex-oauth-regression-qualification
 
 ### renderer
 
@@ -491,6 +520,10 @@
 
 - ⚠️ partial add-execution-lifecycle-and-stream-recovery
 
+### stable-schema
+
+- 📦 archived add-mcp-stable-schema-broker
+
 ### stream-recovery
 
 - ⚠️ partial add-execution-lifecycle-and-stream-recovery
@@ -533,17 +566,25 @@
 
 - ✅ verified harden-project-dashboard-validation
 
+### virtual-skill
+
+- 📦 archived add-mcp-stable-schema-broker
+
 ## Next Work Queue
 
 ### 推荐下一步
 
+- Keep formal Gate D production start separately authorized _(from add-mcp-stable-schema-broker)_
+- Use the archived current spec as the MCP contract for subsequent Runtime work _(from add-mcp-stable-schema-broker)_
+- Prepare the active Runtime Gate D production-start preflight without rerunning model qualification _(from adopt-codex-oauth-regression-qualification)_
+- Start the formal 24-hour workload only after an explicit Gate D production start approval _(from adopt-codex-oauth-regression-qualification)_
 - Start Runtime parity only in a separate worktree and separate OpenSpec intake _(from add-chatgpt-oauth-auth)_
 - Do not implement Runtime parity until its proposal is independently reviewed and approved _(from add-chatgpt-oauth-auth)_
 - Gate C still requires OpenAI-compatible real matrix required rows to PASS (timeout/retry/terminal_error/cancellation/reasoning remain evidence-gated) _(from defer-anthropic-from-gate-c)_
 - Keep Anthropic real matrix deferred; do not delete AnthropicAdapter or fake tests _(from defer-anthropic-from-gate-c)_
 - Continue Stage 0 only after the corresponding production evidence and business authorization are available _(from defer-anthropic-from-gate-c)_
-- Complete Gate C required real OpenAI-compatible Provider rows, including retry, timeout, cancellation, reasoning and redaction oracles; retain Anthropic as deferred / post-Gate-C _(from harden-agent-runtime-single-node-production)_
-- Keep Gate D pending until a production-track formal report with start approval/preflight evidence and explicit post-result human promotion approval passes review _(from harden-agent-runtime-single-node-production)_
+- Run Gate D only after explicit start approval and a passed production preflight; retain the immutable partial report on any failure _(from harden-agent-runtime-single-node-production)_
+- After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive _(from harden-agent-runtime-single-node-production)_
 - 真实 Java Gateway 联调与 trace tree 视图优化 _(from add-subagent-dispatcher)_
 - 按独立 OpenSpec 评估子智能体系统级隔离能力 _(from add-subagent-dispatcher)_
 - 如需更细粒度成本归因，扩展 token usage 聚合契约 _(from add-subagent-dispatcher)_
@@ -604,6 +645,13 @@
 
 ### 暂不建议
 
+- Running a real paid model qualification _(from add-mcp-stable-schema-broker)_
+- Rerunning the completed 24-hour local baseline _(from add-mcp-stable-schema-broker)_
+- Starting or promoting formal Gate D production evidence _(from add-mcp-stable-schema-broker)_
+- Reading or exposing Codex OAuth credentials _(from adopt-codex-oauth-regression-qualification)_
+- Relabelling unexecuted API-key rows as PASS _(from adopt-codex-oauth-regression-qualification)_
+- Deleting API-key adapters or deterministic provider tests _(from adopt-codex-oauth-regression-qualification)_
+- Weakening non-model security, persistence, tool, Gate D, or archive gates _(from adopt-codex-oauth-regression-qualification)_
 - Reading, persisting, refreshing, or displaying OAuth tokens _(from add-chatgpt-oauth-auth)_
 - Frontend login UI or credential import _(from add-chatgpt-oauth-auth)_
 - Java-side tool policy, approval, or execution _(from add-chatgpt-oauth-auth)_

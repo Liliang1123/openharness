@@ -174,6 +174,8 @@ describe("fixed 24-hour formal soak runner", () => {
     expect(report.track).toBe("local");
     expect(report.result).toBe("local_verified");
     expect(report.environment).toMatchObject({ track: "local", evidenceKind: "compressed-test-simulation" });
+    expect(report.environment.restartScheduleMs).toEqual(config.restartAtMs);
+    expect(report.environment.observedRestartScheduleMs).toEqual(config.restartAtMs);
     expect(report.samples).toHaveLength(24 * 60 * 2);
     expect(report.failures).toEqual([]);
     expect(report.reportHash).toMatch(/^[a-f0-9]{64}$/);
@@ -221,5 +223,139 @@ describe("fixed 24-hour formal soak runner", () => {
       { code: "RSS_MEDIAN_GROWTH_LIMIT_EXCEEDED", severity: "hard" },
       { code: "FD_MEDIAN_GROWTH_LIMIT_EXCEEDED", severity: "hard" }
     ]);
+  });
+
+  it("checkpoints each observed sample and stops immediately after a hard failure", async () => {
+    const checkpoints: number[] = [];
+    const config = createFixedTwentyFourHourSoakConfig({
+      generatedAt: "2026-07-15T00:00:00.000Z",
+      environment: { nodeVersion: "test-node", platform: "test-os" },
+      gateDApproval: {
+        approved: true,
+        approvedBy: "test-reviewer",
+        approvedAt: "2026-07-15T00:00:00.000Z",
+        reason: "unit test"
+      },
+      preflight: evaluateFixedTwentyFourHourSoakPreflight({
+        javaGatewayRunning: true,
+        deterministicFixturesReady: true,
+        diskHeadroomBytes: 2 * 1024 * 1024 * 1024,
+        minimumDiskHeadroomBytes: 1024 * 1024 * 1024,
+        reportPath: "/tmp/openharness-formal-soak.json",
+        monitoringReady: true,
+        interruptionProcedureDocumented: true
+      })
+    });
+
+    const report = await runFixedTwentyFourHourSoak({
+      ...config,
+      compressedTestRun: true,
+      delayMs: async () => undefined,
+      onCheckpoint: checkpoint => {
+        checkpoints.push(checkpoint.samples.length);
+      },
+      sample: ({ sampleIndex, sampledAt }) =>
+        collectRuntimeBaselineSample({
+          sampledAt,
+          admissionLatenciesMs: [10],
+          durableReplayLatenciesMs: [20],
+          readRssBytes: () => 100_000_000,
+          readOpenFileDescriptors: () => 100,
+          mcpChildCount: 1,
+          hardFailures: sampleIndex === 1 ? ["CROSS_SCOPE_LEAKAGE"] : []
+        })
+    });
+
+    expect(report.result).toBe("fail");
+    expect(report.samples).toHaveLength(2);
+    expect(checkpoints).toEqual([1, 2]);
+  });
+
+  it("turns checkpoint persistence failure into a retained FAIL report", async () => {
+    const config = createFixedTwentyFourHourSoakConfig({
+      generatedAt: "2026-07-15T00:00:00.000Z",
+      environment: { nodeVersion: "test-node", platform: "test-os" },
+      gateDApproval: {
+        approved: true,
+        approvedBy: "test-reviewer",
+        approvedAt: "2026-07-15T00:00:00.000Z",
+        reason: "unit test"
+      },
+      preflight: evaluateFixedTwentyFourHourSoakPreflight({
+        javaGatewayRunning: true,
+        deterministicFixturesReady: true,
+        diskHeadroomBytes: 2 * 1024 * 1024 * 1024,
+        minimumDiskHeadroomBytes: 1024 * 1024 * 1024,
+        reportPath: "/tmp/openharness-formal-soak.json",
+        monitoringReady: true,
+        interruptionProcedureDocumented: true
+      })
+    });
+
+    const report = await runFixedTwentyFourHourSoak({
+      ...config,
+      compressedTestRun: true,
+      delayMs: async () => undefined,
+      onCheckpoint: () => { throw new Error("disk unavailable"); },
+      sample: ({ sampledAt }) => collectRuntimeBaselineSample({
+        sampledAt,
+        admissionLatenciesMs: [10],
+        durableReplayLatenciesMs: [20],
+        readRssBytes: () => 100_000_000,
+        readOpenFileDescriptors: () => 100,
+        mcpChildCount: 1
+      })
+    });
+
+    expect(report.result).toBe("fail");
+    expect(report.samples).toHaveLength(1);
+    expect(report.failures.map(failure => failure.code)).toContain("EVIDENCE_CHECKPOINT_FAILURE");
+  });
+
+  it("targets absolute 30-second sample boundaries instead of accumulating sampler work drift", async () => {
+    let monotonicMs = 0;
+    const observedDelays: number[] = [];
+    const config = createFixedTwentyFourHourSoakConfig({
+      generatedAt: "2026-07-15T00:00:00.000Z",
+      environment: { nodeVersion: "test-node", platform: "test-os" },
+      gateDApproval: {
+        approved: true,
+        approvedBy: "test-reviewer",
+        approvedAt: "2026-07-15T00:00:00.000Z",
+        reason: "unit test"
+      },
+      preflight: evaluateFixedTwentyFourHourSoakPreflight({
+        javaGatewayRunning: true,
+        deterministicFixturesReady: true,
+        diskHeadroomBytes: 2 * 1024 * 1024 * 1024,
+        minimumDiskHeadroomBytes: 1024 * 1024 * 1024,
+        reportPath: "/tmp/openharness-formal-soak.json",
+        monitoringReady: true,
+        interruptionProcedureDocumented: true
+      })
+    });
+
+    await runFixedTwentyFourHourSoak({
+      ...config,
+      compressedTestRun: true,
+      monotonicNowMs: () => monotonicMs,
+      delayMs: async delayMs => {
+        observedDelays.push(delayMs);
+        monotonicMs += delayMs;
+      },
+      sample: ({ sampledAt }) => {
+        monotonicMs += 5_000;
+        return collectRuntimeBaselineSample({
+          sampledAt,
+          admissionLatenciesMs: [10],
+          durableReplayLatenciesMs: [20],
+          readRssBytes: () => 100,
+          readOpenFileDescriptors: () => 10,
+          mcpChildCount: 1
+        });
+      }
+    });
+
+    expect(observedDelays.slice(0, 4)).toEqual([30_000, 25_000, 25_000, 25_000]);
   });
 });

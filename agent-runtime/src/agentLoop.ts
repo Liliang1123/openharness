@@ -10,6 +10,7 @@ import { promptedMessages, injectSessionContextIfNeeded } from "./prompts/regist
 import type { PendingInjection } from "./skills/types";
 import { resolveSkillPath, parseSkillMarkdown } from "./skills/loader";
 import { resolveProviderCapabilities } from "./skills/capabilities";
+import { SubagentDispatcher } from "./subagent/dispatcher";
 import {
   TRACE_AGENT_START,
   TRACE_AGENT_END,
@@ -56,6 +57,7 @@ export interface AgentLoopInput {
 export class AgentLoop {
   private readonly toolRegistry: ToolRegistry;
   private readonly pendingInjections = new Map<string, PendingInjection[]>();
+  private readonly subagentDispatcher: SubagentDispatcher;
 
   constructor(
     private readonly javaClient: JavaClient,
@@ -63,6 +65,7 @@ export class AgentLoop {
     private readonly mcpRegistry?: McpRegistry
   ) {
     this.toolRegistry = new ToolRegistry(javaClient, mcpRegistry);
+    this.subagentDispatcher = new SubagentDispatcher(javaClient);
   }
 
   async run(input: AgentLoopInput): Promise<AgentChatResponse> {
@@ -229,8 +232,64 @@ export class AgentLoop {
       const skillName = String(args.skill_name || "");
       const task = String(args.task || "");
       try {
-        const skillPath = resolveSkillPath(skillName);
-        const skill = parseSkillMarkdown(skillPath);
+        const skill = skillName.startsWith("mcp:") && this.mcpRegistry
+          ? await this.mcpRegistry.getVirtualSkill(skillName)
+          : parseSkillMarkdown(resolveSkillPath(skillName));
+
+        if (skill.metadata.fork_agent === true) {
+          const restrictedMcpServer = skillName.startsWith("mcp:")
+            ? skillName.slice("mcp:".length)
+            : undefined;
+          const result = await this.subagentDispatcher.run({
+            parent: {
+              executionId: `legacy-${input.requestId}`,
+              tenantId: input.tenantId,
+              conversationId: input.conversationId,
+              requestId: input.requestId,
+              traceId: input.traceId,
+              userId: input.userId,
+              headers: input.headers,
+              abortSignal: new AbortController().signal
+            },
+            toolCallId: toolCall.id,
+            skill,
+            task,
+            parentCatalog: {
+              catalogVersion: catalog.catalogVersion,
+              catalogHash: catalog.catalogHash,
+              tools: this.toolRegistry.getCatalogTools(input.tenantId, input.conversationId)
+            },
+            timeoutMs: 300_000,
+            stepIndex,
+            emitTrace: emit,
+            restrictedMcpServer,
+            runtimeToolExecutor: restrictedMcpServer && this.mcpRegistry
+              ? (request, options) => this.mcpRegistry!.executeBroker(
+                  request.arguments,
+                  {
+                    requestId: request.requestId,
+                    conversationId: request.conversationId,
+                    toolCallId: request.toolCallId
+                  },
+                  { signal: options.signal, restrictedServer: options.restrictedMcpServer }
+                )
+              : undefined
+          });
+          await emit(this.event(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", {
+            toolName: toolCall.name,
+            status: result.status,
+            stepIndex,
+            childExecutionId: result.childExecutionId
+          }));
+          return {
+            role: "tool",
+            toolCallId: toolCall.id,
+            toolName: toolCall.name,
+            content: result.status === "ok"
+              ? result.summary
+              : JSON.stringify({ error: result.errorMessage, errorClass: result.errorClass })
+          };
+        }
 
         const sessionKey = `${input.tenantId}:${input.userId}:${input.conversationId}`;
         let pending = this.pendingInjections.get(sessionKey);
@@ -259,16 +318,21 @@ export class AgentLoop {
 
     const source = this.toolRegistry.resolveSource(input.tenantId, input.conversationId, toolCall.name);
 
-    if (source && source.startsWith("mcp:") && this.mcpRegistry) {
-      const serverName = source.slice("mcp:".length);
-      const result = await this.mcpRegistry.execute(serverName, toolCall.name, args, {
+    if (source === "mcp:broker" && this.mcpRegistry) {
+      const result = await this.mcpRegistry.executeBroker(args, {
         requestId: input.requestId,
         conversationId: input.conversationId,
         toolCallId: toolCall.id
       });
       await emit(this.event(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", { toolName: toolCall.name, status: result.status, source, stepIndex }));
       const content = result.status === "ok" ? JSON.stringify(result.result ?? {}) : JSON.stringify(result.error);
-      return { role: "tool", toolCallId: toolCall.id, content };
+      return {
+        role: "tool",
+        toolCallId: toolCall.id,
+        toolName: toolCall.name,
+        toolResultProvenance: "untrusted",
+        content: wrapUntrustedToolOutput(toolCall.name, content)
+      };
     }
 
     const request: ToolCallRequest = {
@@ -363,4 +427,8 @@ export class AgentLoop {
       }
     }
   }
+}
+
+function wrapUntrustedToolOutput(toolName: string, content: string): string {
+  return `<tool_output trust="untrusted" tool="${toolName}">\n${content}\n</tool_output>`;
 }

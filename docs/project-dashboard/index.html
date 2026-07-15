@@ -252,10 +252,10 @@
 <body>
   <header>
     <h1>openharness — 开发导航台</h1>
-    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-14</div>
+    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-15</div>
     <div class="stats">
-      <div class="stat"><div class="number">34</div><div class="label">Total</div></div>
-      <div class="stat"><div class="number">19</div><div class="label">Archived</div></div>
+      <div class="stat"><div class="number">36</div><div class="label">Total</div></div>
+      <div class="stat"><div class="number">21</div><div class="label">Archived</div></div>
       <div class="stat"><div class="number">13</div><div class="label">Partial</div></div>
       <div class="stat"><div class="number">1</div><div class="label">Proposed</div></div>
       <div class="stat"><div class="number">1</div><div class="label">Verified</div></div>
@@ -272,6 +272,22 @@
   <section id="timeline" class="active">
     <h2>Timeline</h2>
     
+      <div class="timeline-group">
+        <div class="timeline-date">2026-07-15</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>add-mcp-stable-schema-broker</strong>
+            <span class="summary">以固定 mcp_call Broker、每服务虚拟 Skill、按需启动和五分钟 idle 回收替代模型侧直接合并全部 MCP schemas；保持审批、取消、trace、非可信 provenance 与内部 qualification 接口，并迁移 Gate D 确定性 fixture。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-archived">archived</span>
+            <strong>adopt-codex-oauth-regression-qualification</strong>
+            <span class="summary">将官方 Codex CLI/app-server + ChatGPT/Codex OAuth 设为 OpenHarness 回归与 Gate C 模型调用的唯一必选真实模型轨；API-key Provider 保留为兼容性/优化证据，其缺 Key、过期、FAIL 或 BLOCKED 不再否决全局模型回归 PASS，同时保持所有非模型安全与生产门禁独立阻塞。</span>
+          </div>
+        </div>
+      </div>
+
       <div class="timeline-group">
         <div class="timeline-date">2026-07-12</div>
         <div class="timeline-items">
@@ -294,7 +310,7 @@
           <div class="timeline-item">
             <span class="badge badge-proposed">proposed</span>
             <strong>harden-agent-runtime-single-node-production</strong>
-            <span class="summary">将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：Stage 1 / Gate B 已用真实 production backup/import/restore/cutover、单一 SQLite 写权和受控读写探针闭环；Gate C 真实 OpenAI-compatible matrix 与 Gate D 正式 24 小时 production workload仍按真实证据门禁推进。</span>
+            <span class="summary">将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：Stage 1 / Gate B 已用真实 production backup/import/restore/cutover、单一 SQLite 写权和受控读写探针闭环；Gate C 模型轨改用官方 Codex OAuth 六行必选证据，API-key Provider 保持 advisory，Java/MCP/security 与 Gate D 正式 24 小时 production workload 仍按独立真实证据门禁推进。</span>
           </div>
         </div>
       </div>
@@ -502,6 +518,28 @@
       </thead>
       <tbody>
         <tr>
+      <td><strong>add-mcp-stable-schema-broker</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-07-15</td>
+      <td>mcp-tools, policy-evaluate</td>
+      <td><a href="docs/superpowers/plans/2026-07-15-mcp-stable-schema-broker.md">2026-07-15-mcp-stable-schema-broker.md</a></td>
+      <td>mcpRegistry.ts, toolRegistry.ts, agentExecutionRunner.ts, agentLoop.ts, dispatcher.ts, formalSoakExecution.ts, formalSoakRuntimeChild.ts, formalSoakCli.ts, MockModelService.java, PolicyService.java, agent-runtime-v1-production-runbook.md</td>
+      <td>mcpRegistry.test.ts, toolRegistryMerge.test.ts, mcpRouting.test.ts, subagentDispatcher.test.ts, agentExecutionRunner.test.ts, mcpRequireApproval.test.ts, formalSoakExecution.test.ts, formalSoakRunner.test.ts, formalSoakCli.test.ts, productionServerLifecycle.test.ts, ModelControllerTest.java, PolicyServiceTest.java</td>
+      <td><a href="docs/review/2026-07-15-mcp-stable-schema-broker-archive-closeout.md">2026-07-15-mcp-stable-schema-broker-archive-closeout.md</a></td>
+      <td>Keep formal Gate D production start separately authorized<br>Use the archived current spec as the MCP contract for subsequent Runtime work</td>
+    </tr>
+<tr>
+      <td><strong>adopt-codex-oauth-regression-qualification</strong></td>
+      <td><span class="badge badge-archived">archived</span></td>
+      <td>2026-07-15</td>
+      <td>provider-adapter</td>
+      <td><a href="docs/superpowers/plans/2026-07-15-adopt-codex-oauth-regression-qualification.md">2026-07-15-adopt-codex-oauth-regression-qualification.md</a></td>
+      <td>index.ts, gateCProviderPolicy.ts, gateCProviderReconcileCli.ts, package.json, proposal.md, design.md, tasks.md, spec.md, 2026-07-03-agent-runtime-single-node-production-final-plan.md, agent-runtime-v1-production-runbook.md, development-log.json, 2026-07-15-gate-c-codex-oauth-provider-decision.json</td>
+      <td>schema.test.ts, gateCProviderPolicy.test.ts, p1b.integration.test.ts</td>
+      <td><a href="docs/review/2026-07-15-adopt-codex-oauth-regression-qualification-archive-closeout.md">2026-07-15-adopt-codex-oauth-regression-qualification-archive-closeout.md</a></td>
+      <td>Prepare the active Runtime Gate D production-start preflight without rerunning model qualification<br>Start the formal 24-hour workload only after an explicit Gate D production start approval</td>
+    </tr>
+<tr>
       <td><strong>add-chatgpt-oauth-auth</strong></td>
       <td><span class="badge badge-archived">archived</span></td>
       <td>2026-07-12</td>
@@ -532,7 +570,7 @@
       <td>—</td>
       <td>—</td>
       <td>—</td>
-      <td>Complete Gate C required real OpenAI-compatible Provider rows, including retry, timeout, cancellation, reasoning and redaction oracles; retain Anthropic as deferred / post-Gate-C<br>Keep Gate D pending until a production-track formal report with start approval/preflight evidence and explicit post-result human promotion approval passes review</td>
+      <td>Run Gate D only after explicit start approval and a passed production preflight; retain the immutable partial report on any failure<br>After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive</td>
     </tr>
 <tr>
       <td><strong>add-runtime-progress-panel</strong></td>
@@ -995,6 +1033,13 @@
       </div>
 
       <div class="tag-group">
+        <h3>broker</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-mcp-stable-schema-broker</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>cache-hints</h3>
         <ul>
           <li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
@@ -1011,7 +1056,8 @@
       <div class="tag-group">
         <h3>codex</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+          <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
+<li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
         </ul>
       </div>
 
@@ -1110,7 +1156,8 @@
       <div class="tag-group">
         <h3>gate-c</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> defer-anthropic-from-gate-c</li>
+          <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
+<li><span class="badge badge-archived">archived</span> defer-anthropic-from-gate-c</li>
         </ul>
       </div>
 
@@ -1136,6 +1183,13 @@
       </div>
 
       <div class="tag-group">
+        <h3>lazy-lifecycle</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-mcp-stable-schema-broker</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>long-term-memory</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> add-p5a-memory-and-eval</li>
@@ -1147,7 +1201,8 @@
       <div class="tag-group">
         <h3>mcp</h3>
         <ul>
-          <li><span class="badge badge-partial">partial</span> add-p3c-policy-mcp-aware</li>
+          <li><span class="badge badge-archived">archived</span> add-mcp-stable-schema-broker</li>
+<li><span class="badge badge-partial">partial</span> add-p3c-policy-mcp-aware</li>
 <li><span class="badge badge-partial">partial</span> add-p2a-mcp</li>
         </ul>
       </div>
@@ -1219,7 +1274,8 @@
       <div class="tag-group">
         <h3>oauth</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+          <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
+<li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
         </ul>
       </div>
 
@@ -1229,6 +1285,13 @@
           <li><span class="badge badge-archived">archived</span> add-runtime-progress-panel</li>
 <li><span class="badge badge-archived">archived</span> add-subagent-trace-tree</li>
 <li><span class="badge badge-archived">archived</span> add-agent-definition-observability</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>openclacky-parity</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-mcp-stable-schema-broker</li>
         </ul>
       </div>
 
@@ -1347,7 +1410,8 @@
       <div class="tag-group">
         <h3>provider-adapter</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+          <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
+<li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
 <li><span class="badge badge-archived">archived</span> defer-anthropic-from-gate-c</li>
 <li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
 <li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
@@ -1357,7 +1421,8 @@
       <div class="tag-group">
         <h3>qualification</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+          <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
+<li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
 <li><span class="badge badge-archived">archived</span> defer-anthropic-from-gate-c</li>
         </ul>
       </div>
@@ -1373,6 +1438,13 @@
         <h3>recovery</h3>
         <ul>
           <li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>regression-policy</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
         </ul>
       </div>
 
@@ -1502,6 +1574,13 @@
       </div>
 
       <div class="tag-group">
+        <h3>stable-schema</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-mcp-stable-schema-broker</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>stream-recovery</h3>
         <ul>
           <li><span class="badge badge-partial">partial</span> add-execution-lifecycle-and-stream-recovery</li>
@@ -1572,17 +1651,28 @@
           <li><span class="badge badge-verified">verified</span> harden-project-dashboard-validation</li>
         </ul>
       </div>
+
+      <div class="tag-group">
+        <h3>virtual-skill</h3>
+        <ul>
+          <li><span class="badge badge-archived">archived</span> add-mcp-stable-schema-broker</li>
+        </ul>
+      </div>
   </section>
 
   <section id="next">
     <h2>Next Work Queue</h2>
-    <h3>推荐下一步</h3><ul><li>Start Runtime parity only in a separate worktree and separate OpenSpec intake <em>(from add-chatgpt-oauth-auth)</em></li>
+    <h3>推荐下一步</h3><ul><li>Keep formal Gate D production start separately authorized <em>(from add-mcp-stable-schema-broker)</em></li>
+<li>Use the archived current spec as the MCP contract for subsequent Runtime work <em>(from add-mcp-stable-schema-broker)</em></li>
+<li>Prepare the active Runtime Gate D production-start preflight without rerunning model qualification <em>(from adopt-codex-oauth-regression-qualification)</em></li>
+<li>Start the formal 24-hour workload only after an explicit Gate D production start approval <em>(from adopt-codex-oauth-regression-qualification)</em></li>
+<li>Start Runtime parity only in a separate worktree and separate OpenSpec intake <em>(from add-chatgpt-oauth-auth)</em></li>
 <li>Do not implement Runtime parity until its proposal is independently reviewed and approved <em>(from add-chatgpt-oauth-auth)</em></li>
 <li>Gate C still requires OpenAI-compatible real matrix required rows to PASS (timeout/retry/terminal_error/cancellation/reasoning remain evidence-gated) <em>(from defer-anthropic-from-gate-c)</em></li>
 <li>Keep Anthropic real matrix deferred; do not delete AnthropicAdapter or fake tests <em>(from defer-anthropic-from-gate-c)</em></li>
 <li>Continue Stage 0 only after the corresponding production evidence and business authorization are available <em>(from defer-anthropic-from-gate-c)</em></li>
-<li>Complete Gate C required real OpenAI-compatible Provider rows, including retry, timeout, cancellation, reasoning and redaction oracles; retain Anthropic as deferred / post-Gate-C <em>(from harden-agent-runtime-single-node-production)</em></li>
-<li>Keep Gate D pending until a production-track formal report with start approval/preflight evidence and explicit post-result human promotion approval passes review <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>Run Gate D only after explicit start approval and a passed production preflight; retain the immutable partial report on any failure <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>真实 Java Gateway 联调与 trace tree 视图优化 <em>(from add-subagent-dispatcher)</em></li>
 <li>按独立 OpenSpec 评估子智能体系统级隔离能力 <em>(from add-subagent-dispatcher)</em></li>
 <li>如需更细粒度成本归因，扩展 token usage 聚合契约 <em>(from add-subagent-dispatcher)</em></li>
@@ -1640,7 +1730,14 @@
 <li>Add dynamic MCP-tool permission configurations <em>(from add-p3d-injection-guard)</em></li>
 <li>Operator budgets and daily rate limits enforcement <em>(from add-p3b-cost-and-router)</em></li>
 <li>Logical intent based logical routing mappings <em>(from add-p3b-cost-and-router)</em></li></ul>
-    <h3>暂不建议</h3><ul><li>Reading, persisting, refreshing, or displaying OAuth tokens <em>(from add-chatgpt-oauth-auth)</em></li>
+    <h3>暂不建议</h3><ul><li>Running a real paid model qualification <em>(from add-mcp-stable-schema-broker)</em></li>
+<li>Rerunning the completed 24-hour local baseline <em>(from add-mcp-stable-schema-broker)</em></li>
+<li>Starting or promoting formal Gate D production evidence <em>(from add-mcp-stable-schema-broker)</em></li>
+<li>Reading or exposing Codex OAuth credentials <em>(from adopt-codex-oauth-regression-qualification)</em></li>
+<li>Relabelling unexecuted API-key rows as PASS <em>(from adopt-codex-oauth-regression-qualification)</em></li>
+<li>Deleting API-key adapters or deterministic provider tests <em>(from adopt-codex-oauth-regression-qualification)</em></li>
+<li>Weakening non-model security, persistence, tool, Gate D, or archive gates <em>(from adopt-codex-oauth-regression-qualification)</em></li>
+<li>Reading, persisting, refreshing, or displaying OAuth tokens <em>(from add-chatgpt-oauth-auth)</em></li>
 <li>Frontend login UI or credential import <em>(from add-chatgpt-oauth-auth)</em></li>
 <li>Java-side tool policy, approval, or execution <em>(from add-chatgpt-oauth-auth)</em></li>
 <li>Remote app-server transport <em>(from add-chatgpt-oauth-auth)</em></li>

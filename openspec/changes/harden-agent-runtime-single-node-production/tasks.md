@@ -19,12 +19,12 @@
 ## 3. Stage 2 — Real Provider And Tool Qualification
 
 - [x] 3.0 Complete the local qualification preflight with fake Provider servers, a real local Java sandbox process, and real local MCP stdio subprocesses; record results only as `local_verified`, never as production qualification.
-- [ ] 3.1 Qualify OpenAI-compatible sync, stream, multi-step tools, usage/cost, reasoning, retry, timeout, cancellation, and redaction through the fixed evidence matrix. **Gate C required** real-provider family.
-- [ ] 3.2 **Deferred / post-Gate-C** — Qualify Anthropic sync, stream, multi-step tools, usage/cost, reasoning, retry, timeout, cancellation, and redaction through the fixed evidence matrix when Anthropic credentials are available. Missing Anthropic credentials MUST NOT block Gate C. OpenAI-compatible PASS MUST NOT mark Anthropic production-qualified. (Amended 2026-07-09 via approved `defer-anthropic-from-gate-c`.)
+- [x] 3.1 Qualify the official local Codex CLI/app-server + ChatGPT/Codex OAuth route through the six-row authorized production matrix and no-overwrite Gate C provider-decision artifact. **Gate C required** model-provider family; mock/fallback, required FAIL/BLOCKED, or stale evidence binding vetoes PASS. (Amended 2026-07-15 via approved `adopt-codex-oauth-regression-qualification`.)
+- [x] 3.2 Retain Zhipu, generic OpenAI-compatible, Anthropic, and other API-key real matrices as optional advisory compatibility/optimization evidence. Missing/expired credentials and observed FAIL/BLOCKED rows MUST NOT block global model-regression PASS and MUST NOT be relabelled PASS; a provider needs its own dedicated real matrix PASS before provider-specific production qualification.
 - [x] 3.3 Qualify Java sandbox protocol tools through the fixed evidence matrix for workspace containment, output limits, timeout, policy, idempotency, cancellation, and trace-ingest deduplication.
 - [x] 3.4 Qualify MCP lifecycle, catalog merge, real calls, approval, failure isolation, cancellation where supported, and shutdown.
-- [ ] 3.5 Fix only evidence-backed contract gaps and add deterministic regression tests for each fix.
-- [ ] 3.6 Pass the Stage 2 strict security/integration gate before Stage 3.
+- [x] 3.5 Fix required Codex/non-model evidence-backed contract gaps and add deterministic regression tests for each fix; record API-key advisory gaps as compatibility/optimization follow-up without release veto.
+- [x] 3.6 Pass the Stage 2 strict security/integration gate, including independent Java sandbox, MCP, OAuth safety, tenant isolation, persistence/recovery, and no-secret checks, before Stage 3.
 
 ## 4. Stage 3 — Capacity, Soak, And Contract Freeze
 
@@ -33,7 +33,7 @@
 - [x] 4.1 Add a reproducible harness for 20 concurrent executions and 10,000 persisted conversations.
 - [ ] 4.2 Run the formal production Gate D fixed 60/20/15/5 workload for 24 hours with 30-second sampling and TS-only restarts at hours 2, 12, and 22; require the formal runner's start approval/preflight evidence and explicit post-result human promotion approval.
 - [ ] 4.3 Verify on formal production evidence zero cross-tenant leakage, duplicate Runtime-caused side effects, store corruption, event-order corruption, and unbounded resource growth.
-- [ ] 4.4 Document database backup/restore, migration, recovery, provider/tool qualification, and private-service deployment procedures.
+- [x] 4.4 Document database backup/restore, migration, recovery, provider/tool qualification, and private-service deployment procedures.
 - [ ] 4.5 Run full TypeScript, Java, integration, OpenSpec, dashboard, security, and production qualification gates.
 - [ ] 4.6 Freeze and document Agent Runtime v1 service/persistence contracts.
 

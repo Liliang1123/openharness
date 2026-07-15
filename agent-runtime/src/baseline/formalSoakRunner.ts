@@ -91,7 +91,9 @@ export interface FixedTwentyFourHourSoakRestartContext {
 export interface RunFixedTwentyFourHourSoakInput extends FixedTwentyFourHourSoakConfig {
   sample(input: FixedTwentyFourHourSoakSampleContext): RuntimeBaselineSampleInput | Promise<RuntimeBaselineSampleInput>;
   onRestart?: (input: FixedTwentyFourHourSoakRestartContext) => void | Promise<void>;
+  onCheckpoint?: (report: RuntimeBaselineReport) => void | Promise<void>;
   delayMs?: (ms: number) => void | Promise<void>;
+  monotonicNowMs?: () => number;
   compressedTestRun?: boolean;
 }
 
@@ -156,15 +158,22 @@ export async function runFixedTwentyFourHourSoak(
   if (input.delayMs && input.compressedTestRun !== true) {
     throw new Error("custom delay requires compressed test simulation marker and cannot produce Gate D evidence");
   }
+  if (input.monotonicNowMs && input.compressedTestRun !== true) {
+    throw new Error("custom monotonic clock requires compressed test simulation marker and cannot produce Gate D evidence");
+  }
   const samples: RuntimeBaselineSampleInput[] = [];
+  const observedRestartScheduleMs: number[] = [];
   let nextRestartIndex = 0;
   const sampleCount = input.durationMs / input.sampleIntervalMs;
   const delay = input.delayMs ?? sleep;
+  const monotonicNow = input.monotonicNowMs ?? (() => performance.now());
+  const monotonicStartedAt = monotonicNow();
   const reportTrack = input.compressedTestRun === true ? "local" : "production";
   const evidenceKind = input.compressedTestRun === true ? "compressed-test-simulation" : "formal-24-hour-soak";
 
   for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
-    await delay(input.sampleIntervalMs);
+    const sampleTargetMs = monotonicStartedAt + (sampleIndex + 1) * input.sampleIntervalMs;
+    await delay(Math.max(0, sampleTargetMs - monotonicNow()));
 
     const elapsedMs = (sampleIndex + 1) * input.sampleIntervalMs;
     while (nextRestartIndex < input.restartAtMs.length && input.restartAtMs[nextRestartIndex] <= elapsedMs) {
@@ -173,6 +182,7 @@ export async function runFixedTwentyFourHourSoak(
         sampleIndex,
         workload: input.workload
       });
+      observedRestartScheduleMs.push(input.restartAtMs[nextRestartIndex]);
       nextRestartIndex += 1;
     }
 
@@ -182,8 +192,45 @@ export async function runFixedTwentyFourHourSoak(
       sampledAt: addMsToIso(input.generatedAt, elapsedMs),
       workload: input.workload
     }));
+
+    const lastSample = samples[samples.length - 1]!;
+    const shouldEvaluateCheckpoint = input.onCheckpoint !== undefined ||
+      lastSample.hardFailures.length > 0 ||
+      (reportTrack === "production" && samples.length % 10 === 0);
+    if (!shouldEvaluateCheckpoint) continue;
+
+    const checkpoint = buildFixedTwentyFourHourSoakReport(
+      input, samples, reportTrack, evidenceKind, observedRestartScheduleMs
+    );
+    try {
+      await input.onCheckpoint?.(checkpoint);
+    } catch {
+      const failedSamples = [
+        ...samples.slice(0, -1),
+        {
+          ...lastSample,
+          hardFailures: [...new Set([...lastSample.hardFailures, "EVIDENCE_CHECKPOINT_FAILURE"])]
+        }
+      ];
+      return buildFixedTwentyFourHourSoakReport(
+        input, failedSamples, reportTrack, evidenceKind, observedRestartScheduleMs
+      );
+    }
+    if (checkpoint.result === "fail") return checkpoint;
   }
 
+  return buildFixedTwentyFourHourSoakReport(
+    input, samples, reportTrack, evidenceKind, observedRestartScheduleMs
+  );
+}
+
+function buildFixedTwentyFourHourSoakReport(
+  input: RunFixedTwentyFourHourSoakInput,
+  samples: RuntimeBaselineSampleInput[],
+  reportTrack: "local" | "production",
+  evidenceKind: "compressed-test-simulation" | "formal-24-hour-soak",
+  observedRestartScheduleMs: number[]
+): RuntimeBaselineReport {
   return createRuntimeBaselineReport({
     track: reportTrack,
     generatedAt: input.generatedAt,
@@ -192,6 +239,9 @@ export async function runFixedTwentyFourHourSoak(
       ...input.environment,
       track: reportTrack,
       evidenceKind,
+      runComplete: samples.length === input.durationMs / input.sampleIntervalMs,
+      restartScheduleMs: input.restartAtMs,
+      observedRestartScheduleMs,
       gateDApproval: redactedGateDApproval(input.gateDApproval),
       preflight: input.preflight
     },

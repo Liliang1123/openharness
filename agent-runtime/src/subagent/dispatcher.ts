@@ -1,5 +1,5 @@
 import type { JavaClient } from "../javaClient";
-import type { AgentMessage, CatalogResponse, ToolDefinition, ToolCall, ToolCallRequest, TraceEvent } from "../types";
+import type { AgentMessage, CatalogResponse, ToolDefinition, ToolCall, ToolCallRequest, ToolCallResponse, TraceEvent } from "../types";
 import type { Skill } from "../skills/types";
 import { beforeToolUse } from "../beforeToolUse";
 import { traceEvent } from "../trace";
@@ -34,6 +34,11 @@ export interface SubagentRunInput {
   timeoutMs: number;
   stepIndex?: number;
   emitTrace?: (event: TraceEvent) => Promise<void>;
+  restrictedMcpServer?: string;
+  runtimeToolExecutor?: (
+    request: ToolCallRequest,
+    options: { signal: AbortSignal; restrictedMcpServer?: string }
+  ) => Promise<ToolCallResponse>;
 }
 
 export interface SubagentRunResult {
@@ -52,7 +57,11 @@ export class SubagentDispatcher {
   async run(input: SubagentRunInput): Promise<SubagentRunResult> {
     const childExecutionId = `subagent-${crypto.randomUUID()}`;
     const childConversationId = `${input.parent.conversationId}::${childExecutionId}`;
-    const tools = deriveChildTools(input.parentCatalog.tools, input.skill.metadata.forbidden_tools ?? []);
+    const tools = deriveChildTools(
+      input.parentCatalog.tools,
+      input.skill.metadata.forbidden_tools ?? [],
+      input.skill.metadata.tools_required ?? []
+    );
 
     const startedAt = Date.now();
     const emitSubagentTrace = async (
@@ -198,7 +207,8 @@ export class SubagentDispatcher {
       traceId: input.parent.traceId,
       catalogVersion: input.parentCatalog.catalogVersion,
       catalogHash: input.parentCatalog.catalogHash,
-      toolPermissions
+      toolPermissions,
+      sources: new Map(tools.flatMap(tool => tool.name === "mcp_call" ? [[tool.name, "mcp:broker"]] : []))
     };
 
     const decisions = await beforeToolUse(childToolCalls, auditContext, this.javaClient, input.parent.headers);
@@ -241,6 +251,27 @@ export class SubagentDispatcher {
         };
       }
 
+      if (
+        toolCall.name === "mcp_call"
+        && input.restrictedMcpServer
+        && parsedArgs.server !== input.restrictedMcpServer
+      ) {
+        await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", {
+          status: "error",
+          terminalClass: "SUBAGENT_POLICY_DENY",
+          costUsdMicros: aggregatedCost
+        });
+        return {
+          status: "error",
+          summary: "",
+          childExecutionId,
+          childConversationId,
+          errorClass: "SUBAGENT_POLICY_DENY",
+          errorMessage: `MCP virtual skill is restricted to server: ${input.restrictedMcpServer}`,
+          usage: { costUsdMicros: aggregatedCost }
+        };
+      }
+
       const toolRequest: ToolCallRequest = {
         requestId: input.parent.requestId,
         conversationId: childConversationId,
@@ -258,7 +289,17 @@ export class SubagentDispatcher {
 
       let toolResponse;
       try {
-        toolResponse = await this.javaClient.executeTool(toolRequest, input.parent.headers);
+        if (toolCall.name === "mcp_call") {
+          if (!input.runtimeToolExecutor) {
+            throw new Error("Runtime MCP executor is unavailable");
+          }
+          toolResponse = await input.runtimeToolExecutor(toolRequest, {
+            signal: input.parent.abortSignal,
+            restrictedMcpServer: input.restrictedMcpServer
+          });
+        } else {
+          toolResponse = await this.javaClient.executeTool(toolRequest, input.parent.headers);
+        }
       } catch (err: any) {
         await emitSubagentTrace(TRACE_SUBAGENT_END, "subagent end", { status: "error", terminalClass: "SUBAGENT_TOOL_ERROR", costUsdMicros: aggregatedCost });
         return {
@@ -284,11 +325,18 @@ export class SubagentDispatcher {
         };
       }
 
+      const resultContent = typeof toolResponse.result === "string"
+        ? toolResponse.result
+        : JSON.stringify(toolResponse.result ?? "");
+      const untrusted = toolResponse.provenance === "untrusted";
       childToolResultMessages.push({
         role: "tool" as const,
         toolCallId: toolCall.id,
         toolName: toolCall.name,
-        content: typeof toolResponse.result === "string" ? toolResponse.result : JSON.stringify(toolResponse.result ?? "")
+        toolResultProvenance: untrusted ? "untrusted" : "trusted",
+        content: untrusted
+          ? wrapUntrustedToolOutput(toolCall.name, resultContent)
+          : resultContent
       } as AgentMessage);
     }
 
@@ -362,9 +410,22 @@ export class SubagentDispatcher {
   }
 }
 
-export function deriveChildTools(tools: ToolDefinition[], forbiddenTools: string[]): ToolDefinition[] {
+function wrapUntrustedToolOutput(toolName: string, content: string): string {
+  return `<tool_output trust="untrusted" tool="${toolName}">\n${content}\n</tool_output>`;
+}
+
+export function deriveChildTools(
+  tools: ToolDefinition[],
+  forbiddenTools: string[],
+  requiredTools: string[] = []
+): ToolDefinition[] {
   const forbidden = new Set(forbiddenTools);
-  return tools.filter(tool => !forbidden.has(tool.name) && !PRIVILEGED_META_TOOLS.has(tool.name));
+  const required = new Set(requiredTools);
+  return tools.filter(tool =>
+    !forbidden.has(tool.name)
+    && !PRIVILEGED_META_TOOLS.has(tool.name)
+    && (required.size === 0 || required.has(tool.name))
+  );
 }
 
 function costOf(response: { usage?: { costUsdMicros?: number } }): number {

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { DEFAULT_AGENT_DEFINITION } from "../src/agentDefinitionLoader";
@@ -10,6 +10,7 @@ import { JsonFileApprovalStore } from "../src/approvalStore";
 import { InMemoryMemoryStore, type MemoryFact } from "../src/memoryStore";
 import type { JavaClient, PolicyEvaluateRequest, PolicyEvaluateResponse } from "../src/javaClient";
 import type { AgentMessage, CatalogResponse, ModelChatRequest, ToolCallRequest, TraceEvent } from "../src/types";
+import type { McpRegistry } from "../src/mcpRegistry";
 
 class FakeJavaClient implements JavaClient {
   modelDelayMs = 0;
@@ -718,6 +719,85 @@ describe("AgentExecutionRunner", () => {
       if (fs.existsSync(path.join(skillDir, "SKILL.md"))) fs.unlinkSync(path.join(skillDir, "SKILL.md"));
       if (fs.existsSync(skillDir)) fs.rmdirSync(skillDir);
     }
+  });
+
+  it("does not let invoke_skill bypass an Agent Definition that omits mcp_call", async () => {
+    const javaClient = new FakeJavaClient();
+    javaClient.chat = async (request: ModelChatRequest) => {
+      javaClient.chatRequests.push(request);
+      if (request.conversationId.includes("::subagent-")) {
+        return {
+          requestId: request.requestId,
+          conversationId: request.conversationId,
+          rawProvider: "mock",
+          message: {
+            role: "assistant",
+            content: "",
+            toolCalls: [{
+              id: "child-mcp-call",
+              name: "mcp_call",
+              argumentsRaw: '{"server":"filesystem","tool":"read_file","arguments":{}}'
+            }]
+          } as AgentMessage
+        };
+      }
+      if (javaClient.chatRequests.length === 1) {
+        return {
+          requestId: request.requestId,
+          conversationId: request.conversationId,
+          rawProvider: "mock",
+          message: {
+            role: "assistant",
+            content: "",
+            toolCalls: [{
+              id: "parent-invoke-mcp",
+              name: "invoke_skill",
+              argumentsRaw: '{"skill_name":"mcp:filesystem","task":"read"}'
+            }]
+          } as AgentMessage
+        };
+      }
+      return {
+        requestId: request.requestId,
+        conversationId: request.conversationId,
+        rawProvider: "mock",
+        message: { role: "assistant", content: "done" } as AgentMessage
+      };
+    };
+    const executeBroker = vi.fn();
+    const getVirtualSkill = vi.fn(async () => ({
+      metadata: {
+        name: "mcp:filesystem", description: "files", version: "1",
+        tools_required: ["mcp_call"], parameters: {}, fork_agent: true
+      },
+      content: "schema must remain child-only",
+      sourcePath: "virtual:mcp:filesystem"
+    }));
+    const mcpRegistry = {
+      hasConfiguredServers: () => true,
+      listVirtualSkillDescriptors: () => [{ name: "mcp:filesystem", description: "files" }],
+      getVirtualSkill,
+      executeBroker
+    } as unknown as McpRegistry;
+    const runner = new AgentExecutionRunner(
+      javaClient,
+      history,
+      mcpRegistry,
+      runtimeEventStore,
+      executionStateStore
+    );
+
+    const { done } = runner.start({
+      ...baseInput,
+      agentDefinition: { ...DEFAULT_AGENT_DEFINITION, agentId: "mcp-restricted", tools: ["invoke_skill"] }
+    });
+    const final = await done;
+
+    expect(final.status).toBe("errored");
+    expect(final.endReason).toBe("POLICY_DENY");
+    expect(executeBroker).not.toHaveBeenCalled();
+    expect(getVirtualSkill).not.toHaveBeenCalled();
+    expect(javaClient.chatRequests.some(request => request.conversationId.includes("::subagent-"))).toBe(false);
   });
 
   it("calls postTrace on fork skill execution including SUBAGENT_START and SUBAGENT_END", async () => {

@@ -73,6 +73,7 @@ export interface CreateProductionServerOptions {
   javaClient?: JavaClient;
   javaBaseUrl?: string;
   frontendUrl?: string;
+  mcpRegistry?: McpRegistry;
   disableMcp?: boolean;
 }
 
@@ -631,6 +632,14 @@ export async function createServer(options: CreateServerOptions = {}) {
       });
       publishCommittedLifecycleEvents(options.runtimeContext.liveEvents, committed);
     }
+    for (const pending of approvalStore.listPending(tenantId, userId, conversationId)) {
+      if (pending.executionId !== executionId) continue;
+      approvalStore.decide(tenantId, userId, conversationId, executionId, pending.toolCallId, {
+        action: "reject",
+        message: "EXECUTION_ABORTED",
+        respondedAt: new Date().toISOString()
+      });
+    }
     const processState = executionStateStore.get(tenantId, userId, conversationId, executionId);
     if (processState) {
       executionStateStore.abort(tenantId, userId, conversationId, executionId);
@@ -662,6 +671,7 @@ export async function createProductionServer(options: CreateProductionServerOpti
       javaClient: options.javaClient,
       javaBaseUrl: options.javaBaseUrl,
       frontendUrl: options.frontendUrl,
+      mcpRegistry: options.mcpRegistry,
       disableMcp: options.disableMcp,
       serviceToken: options.serviceToken,
       requireServiceAuth: true
