@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "changeId": "harden-agent-runtime-single-node-production",
+  "approved": true,
+  "approvedBy": "elvis",
+  "approvedAt": "2026-07-16T01:33:27.000Z",
+  "runId": "gate-d-20260716-002",
+  "planSha256": "cf809f4286b82c71b377e26e4d66742dea1bfc895ef1369151b632c1511de3ca",
+  "reason": "explicit approval for the new Gate D 24-hour production start attempt received from the user on 2026-07-16"
+}

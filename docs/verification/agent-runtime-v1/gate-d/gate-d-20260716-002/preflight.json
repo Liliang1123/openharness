@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "changeId": "harden-agent-runtime-single-node-production",
+  "runId": "gate-d-20260716-002",
+  "result": "pass",
+  "generatedAt": "2026-07-16T01:34:45.703Z",
+  "planSha256": "cf809f4286b82c71b377e26e4d66742dea1bfc895ef1369151b632c1511de3ca",
+  "approvalSha256": "e33b1a85225c0c25360a14c9007024d5d02e25236c53f30f78ceb767e6c2bb89",
+  "bindings": {
+    "approvalFile": "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/approval.json",
+    "plan": "docs/superpowers/plans/2026-07-15-agent-runtime-gate-d-production-executor.md",
+    "mcpConfig": "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/mcp-config.json",
+    "sqlitePath": "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/runtime.sqlite",
+    "report": "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/report.json",
+    "partialReport": "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/partial-report.json",
+    "journal": "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/journal.jsonl",
+    "monitoringEvidenceSha256": "9c92b6ea49f6c88b8f167ae9d5c2bac244567ae2c0e95120ba60fc7f7a142ec6",
+    "interruptionProcedureSha256": "19a880dfc5c35b0429a778fd0f569c6abc0055d1401de2b2ef83aca99a390708"
+  },
+  "probes": {
+    "javaGateway": "pass",
+    "mcpFixture": "pass",
+    "diskHeadroom": "pass"
+  },
+  "diskHeadroomBytes": 209828114432,
+  "diskHeadroomRatio": 0.2109540639607438,
+  "minimumDiskHeadroomBytes": 2147483648
+}

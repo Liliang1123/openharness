@@ -1,7 +1,7 @@
 # openharness — 开发导航台
 
 > 自动生成，请勿直接编辑。数据源：`development-log.json`  
-> 最后更新：2026-07-15
+> 最后更新：2026-07-16
 
 ## Timeline
 
@@ -583,7 +583,8 @@
 - Gate C still requires OpenAI-compatible real matrix required rows to PASS (timeout/retry/terminal_error/cancellation/reasoning remain evidence-gated) _(from defer-anthropic-from-gate-c)_
 - Keep Anthropic real matrix deferred; do not delete AnthropicAdapter or fake tests _(from defer-anthropic-from-gate-c)_
 - Continue Stage 0 only after the corresponding production evidence and business authorization are available _(from defer-anthropic-from-gate-c)_
-- Run Gate D only after explicit start approval and a passed production preflight; retain the immutable partial report on any failure _(from harden-agent-runtime-single-node-production)_
+- Diagnose and fix the sustained Gate D admission p95 degradation without weakening the fixed workload or thresholds _(from harden-agent-runtime-single-node-production)_
+- After a focused regression passes, prepare a new no-overwrite Gate D packet and obtain a new explicit start approval _(from harden-agent-runtime-single-node-production)_
 - After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive _(from harden-agent-runtime-single-node-production)_
 - 真实 Java Gateway 联调与 trace tree 视图优化 _(from add-subagent-dispatcher)_
 - 按独立 OpenSpec 评估子智能体系统级隔离能力 _(from add-subagent-dispatcher)_

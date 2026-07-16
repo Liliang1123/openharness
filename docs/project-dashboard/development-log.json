@@ -3,7 +3,7 @@
   "project": {
     "name": "openharness",
     "root": ".",
-    "updatedAt": "2026-07-15"
+    "updatedAt": "2026-07-16"
   },
   "entries": [
     {
@@ -477,7 +477,8 @@
         "plan": "docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md"
       },
       "next": [
-        "Run Gate D only after explicit start approval and a passed production preflight; retain the immutable partial report on any failure",
+        "Diagnose and fix the sustained Gate D admission p95 degradation without weakening the fixed workload or thresholds",
+        "After a focused regression passes, prepare a new no-overwrite Gate D packet and obtain a new explicit start approval",
         "After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive"
       ],
       "nonGoals": [
@@ -498,7 +499,10 @@
         "Gate C runner Steps 8–16 passed fresh local strict verification on 2026-07-14. After exact user approval, one immutable Zhipu/glm-4-flash production report was generated: 5 required rows passed and 8 remained blocked; SHA-256 46083ae59a285d3d656cd9df2ca35ca9a8cd708e333535460d5e2497dc15b2c2. Gate C remains open.",
         "2026-07-15: The production runbook and existing independent Review satisfy OpenSpec 4.4, and the implementation-plan tracking now points to the same reviewed runbook with its operations-documentation checkbox aligned; the dashboard remains proposed because Gate C, Gate D, production qualification, contract freeze, and closeout remain incomplete.",
         "2026-07-15: Approved adopt-codex-oauth-regression-qualification changes Gate C model authority to required Codex OAuth evidence and makes API-key Provider reports advisory without relabelling their observed rows; non-model gates remain independently blocking.",
-        "2026-07-15: Required Codex decision and full Stage 2 TypeScript/Java/integration/security regression passed strict Review; tasks 3.1, 3.2, 3.5, and 3.6 are complete. Gate D, full qualification, contract freeze, closeout, and archive remain open."
+        "2026-07-15: Required Codex decision and full Stage 2 TypeScript/Java/integration/security regression passed strict Review; tasks 3.1, 3.2, 3.5, and 3.6 are complete. Gate D, full qualification, contract freeze, closeout, and archive remain open.",
+        "2026-07-16: Fresh local development verification passed: pnpm test (shared-schema 60, agent-runtime 434, frontend 24, integration 17), pnpm typecheck, Maven 208/0/0/0, OpenSpec strict change/all validation (23 items), dashboard check, git diff check, and the Task 14 negative scans. This evidence closes only local verification/reconciliation; dashboard remains proposed because formal production Gate D, production qualification, contract freeze, closeout, and archive remain open.",
+        "2026-07-16: User explicitly approved Gate D start attempt gate-d-20260716-001, bound to executor plan SHA-256 cf809f4286b82c71b377e26e4d66742dea1bfc895ef1369151b632c1511de3ca. Active preflight exited 2 before Runtime spawn because the MCP config referenced a missing root node_modules/.bin/tsx path. No preflight, journal, partial, final report, or 24-hour workload was created; the command was not retried, Java was stopped gracefully, and dashboard remains proposed.",
+        "2026-07-16: Gate D attempt gate-d-20260716-002 passed active preflight and started the formal production workload. It fail-closed after 49 samples (about 24 minutes) because admissionP95Ms remained above the fixed 100ms threshold for at least 300 seconds; the final sample was about 153.85ms. No scheduled TS restart or final report was reached, no automatic retry occurred, and the dashboard remains proposed pending performance remediation and a newly approved attempt."
       ]
     },
     {

@@ -252,7 +252,7 @@
 <body>
   <header>
     <h1>openharness — 开发导航台</h1>
-    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-15</div>
+    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-16</div>
     <div class="stats">
       <div class="stat"><div class="number">36</div><div class="label">Total</div></div>
       <div class="stat"><div class="number">21</div><div class="label">Archived</div></div>
@@ -570,7 +570,7 @@
       <td>—</td>
       <td>—</td>
       <td>—</td>
-      <td>Run Gate D only after explicit start approval and a passed production preflight; retain the immutable partial report on any failure<br>After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive</td>
+      <td>Diagnose and fix the sustained Gate D admission p95 degradation without weakening the fixed workload or thresholds<br>After a focused regression passes, prepare a new no-overwrite Gate D packet and obtain a new explicit start approval<br>After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive</td>
     </tr>
 <tr>
       <td><strong>add-runtime-progress-panel</strong></td>
@@ -1671,7 +1671,8 @@
 <li>Gate C still requires OpenAI-compatible real matrix required rows to PASS (timeout/retry/terminal_error/cancellation/reasoning remain evidence-gated) <em>(from defer-anthropic-from-gate-c)</em></li>
 <li>Keep Anthropic real matrix deferred; do not delete AnthropicAdapter or fake tests <em>(from defer-anthropic-from-gate-c)</em></li>
 <li>Continue Stage 0 only after the corresponding production evidence and business authorization are available <em>(from defer-anthropic-from-gate-c)</em></li>
-<li>Run Gate D only after explicit start approval and a passed production preflight; retain the immutable partial report on any failure <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>Diagnose and fix the sustained Gate D admission p95 degradation without weakening the fixed workload or thresholds <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>After a focused regression passes, prepare a new no-overwrite Gate D packet and obtain a new explicit start approval <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>真实 Java Gateway 联调与 trace tree 视图优化 <em>(from add-subagent-dispatcher)</em></li>
 <li>按独立 OpenSpec 评估子智能体系统级隔离能力 <em>(from add-subagent-dispatcher)</em></li>

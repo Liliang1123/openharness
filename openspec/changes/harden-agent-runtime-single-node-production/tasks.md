@@ -39,7 +39,7 @@
 
 ## 5. Closeout
 
-- [ ] 5.1 Mark implementation tasks complete only after observed evidence exists.
+- [x] 5.1 Mark implementation tasks complete only after observed evidence exists.
 - [ ] 5.2 Sync the development dashboard to `verified` and render generated artifacts.
 - [ ] 5.3 Complete required review and closeout artifacts.
 - [ ] 5.4 Archive the OpenSpec change only after production qualification passes and update dashboard to `archived`.

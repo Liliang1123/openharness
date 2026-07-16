@@ -487,7 +487,7 @@ The Java API-key qualification harness below is retained as advisory compatibili
 
 **Gate:** final-critical.
 
-- [ ] Run full verification:
+- [x] Run full verification:
 
 ```bash
 pnpm test
@@ -499,9 +499,9 @@ pnpm dashboard:check
 git diff --check
 ```
 
-- [ ] Run negative searches for raw approval/provider secrets, default production identities, JSON dual-write, bare conversation keys, preview durability, pending outbox pruning, and threshold changes.
+- [x] Run negative searches for raw approval/provider secrets, default production identities, JSON dual-write, bare conversation keys, preview durability, pending outbox pruning, and threshold changes.
 - [x] Maintain the [Agent Runtime v1 production runbook](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/architecture/agent-runtime-v1-production-runbook.md) with backup/restore, forward-fix cutover, quarantine, singleton lock, low disk, dead-letter, credential rotation, and incident procedures.
-- [ ] Mark OpenSpec tasks complete only where evidence exists.
+- [x] Mark OpenSpec tasks complete only where evidence exists.
 - [ ] Sync dashboard to `verified`, render generated artifacts, and create the required review/closeout documents.
 - [ ] Request independent code review and resolve all Critical/Important findings.
 - [ ] Do not archive until deployment/qualification evidence and explicit user approval satisfy project rules.
