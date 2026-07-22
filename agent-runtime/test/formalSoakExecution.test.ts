@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
+import { spawn as nodeSpawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import { resolveGateDRuntimeChildConfig } from "../src/baseline/formalSoakRuntimeChild";
 import { buildDeterministicBaselineWorkload, createRuntimeBaselineReport } from "../src/baseline/localBaseline";
@@ -24,6 +36,8 @@ import {
   spawnGateDRuntimeManagedChild,
   waitUntilGateDRuntimeReady,
   writeGateDReportNoOverwrite,
+  type GateDDatabaseProbeTiming,
+  type GateDEvidenceJournal,
   type GateDManagedChild
 } from "../src/baseline/formalSoakExecution";
 
@@ -59,6 +73,39 @@ describe("Gate D production Runtime child", () => {
       host: "127.0.0.1",
       port: 3101
     });
+  });
+
+  it("parses a complete safe expected database identity", () => {
+    const config = resolveGateDRuntimeChildConfig({
+      ...validEnvironment(),
+      GATE_D_EXPECTED_DATABASE_DEV: "101",
+      GATE_D_EXPECTED_DATABASE_INO: "202"
+    });
+
+    expect(config.expectedDatabaseIdentity).toEqual({ dev: 101, ino: 202 });
+  });
+
+  it.each([
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "101" }, "101"],
+    [{ GATE_D_EXPECTED_DATABASE_INO: "202" }, "202"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "", GATE_D_EXPECTED_DATABASE_INO: "202" }, "202"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "101", GATE_D_EXPECTED_DATABASE_INO: "" }, "101"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "-1", GATE_D_EXPECTED_DATABASE_INO: "202" }, "-1"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "1.5", GATE_D_EXPECTED_DATABASE_INO: "202" }, "1.5"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "not-a-number", GATE_D_EXPECTED_DATABASE_INO: "202" }, "not-a-number"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: String(Number.MAX_SAFE_INTEGER + 1), GATE_D_EXPECTED_DATABASE_INO: "202" }, String(Number.MAX_SAFE_INTEGER + 1)]
+  ])("rejects invalid expected database identity without echoing values %#", (identity, rawValue) => {
+    let observed: Error | undefined;
+    try {
+      resolveGateDRuntimeChildConfig({ ...validEnvironment(), ...identity });
+    } catch (error) {
+      observed = error as Error;
+    }
+
+    expect(observed?.message).toBe("Gate D Runtime child database identity is invalid");
+    expect(observed?.message).not.toContain(rawValue);
+    expect(observed?.message).not.toContain(validEnvironment().AGENT_RUNTIME_SQLITE_PATH!);
+    expect(observed?.message).not.toContain(validEnvironment().OPENHARNESS_SERVICE_TOKEN!);
   });
 });
 
@@ -162,6 +209,8 @@ describe("Gate D production executor primitives", () => {
       serviceToken: "raw-gate-d-secret",
       baseEnvironment: {
         PATH: "/usr/bin",
+        GATE_D_EXPECTED_DATABASE_DEV: "polluted-dev",
+        GATE_D_EXPECTED_DATABASE_INO: "polluted-ino",
         ZHIPU_API_KEY: "zhipu-secret",
         OPENAI_API_KEY: "openai-secret",
         ANTHROPIC_AUTH_TOKEN: "anthropic-secret",
@@ -188,6 +237,8 @@ describe("Gate D production executor primitives", () => {
     expect(spec.options.env).not.toHaveProperty("AWS_ACCESS_KEY_ID");
     expect(spec.options.env).not.toHaveProperty("AWS_SECRET_ACCESS_KEY");
     expect(spec.options.env).not.toHaveProperty("GOOGLE_APPLICATION_CREDENTIALS");
+    expect(spec.options.env).not.toHaveProperty("GATE_D_EXPECTED_DATABASE_DEV");
+    expect(spec.options.env).not.toHaveProperty("GATE_D_EXPECTED_DATABASE_INO");
     expect(spec.options.env).toMatchObject({
       AGENT_RUNTIME_PROFILE: "production",
       AGENT_RUNTIME_SQLITE_PATH: "/workspace/evidence/runtime.sqlite",
@@ -199,6 +250,117 @@ describe("Gate D production executor primitives", () => {
       PORT: "3101"
     });
   });
+
+  it("emits an explicit expected database identity as a complete environment pair", () => {
+    const spec = buildGateDRuntimeChildSpawnSpec({
+      childEntrypoint: "/workspace/agent-runtime/src/baseline/formalSoakRuntimeChild.ts",
+      databasePath: "/workspace/evidence/runtime.sqlite",
+      mcpConfigPath: "/workspace/evidence/mcp.json",
+      javaBaseUrl: "http://127.0.0.1:8080",
+      runtimePort: 3101,
+      serviceToken: "raw-gate-d-secret",
+      expectedDatabaseIdentity: { dev: 101, ino: 202 },
+      baseEnvironment: {
+        GATE_D_EXPECTED_DATABASE_DEV: "polluted-dev",
+        GATE_D_EXPECTED_DATABASE_INO: "polluted-ino"
+      }
+    });
+
+    expect(spec.options.env).toMatchObject({
+      GATE_D_EXPECTED_DATABASE_DEV: "101",
+      GATE_D_EXPECTED_DATABASE_INO: "202"
+    });
+  });
+
+  it("fails an actual child storage open before a swapped sentinel database can be mutated", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "openharness-gate-d-child-inode-"));
+    const databasePath = join(directory, "runtime.sqlite");
+    const movedClaimPath = join(directory, "runtime.claimed.sqlite");
+    const sentinelPath = join(directory, "sentinel.sqlite");
+    const mcpConfigPath = join(directory, "mcp.json");
+    const pauseScriptPath = join(directory, "pause-qualification.mjs");
+    const pauseReadyPath = join(directory, "pause.ready");
+    const pauseReleasePath = join(directory, "pause.release");
+    const serviceToken = "actual-child-service-token-do-not-echo";
+    const journalEntries: Record<string, unknown>[] = [];
+    const journal: GateDEvidenceJournal = {
+      append(entry) { journalEntries.push(entry); },
+      close() {}
+    };
+    let child: GateDManagedChild | undefined;
+
+    try {
+      writeFileSync(databasePath, "", { mode: 0o600 });
+      const claim = statSync(databasePath);
+      const sentinel = new Database(sentinelPath);
+      sentinel.exec("CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel(value) VALUES ('must-remain-unchanged')");
+      sentinel.close();
+      const before = fileInvariant(sentinelPath);
+      const qualificationFixture = fileURLToPath(
+        new URL("../fixtures/mcp/qualification-server.ts", import.meta.url)
+      );
+      writeFileSync(pauseScriptPath, `
+        import { existsSync, writeFileSync } from "node:fs";
+        import { setTimeout as delay } from "node:timers/promises";
+        import { pathToFileURL } from "node:url";
+        writeFileSync(process.env.GATE_D_TEST_PAUSE_READY, "ready");
+        while (!existsSync(process.env.GATE_D_TEST_PAUSE_RELEASE)) await delay(5);
+        await import(pathToFileURL(process.env.GATE_D_TEST_QUALIFICATION_FIXTURE).href);
+      `, { mode: 0o600 });
+      writeFileSync(mcpConfigPath, JSON.stringify({
+        mcpServers: {
+          qualification: {
+            command: process.execPath,
+            args: ["--import", "tsx", pauseScriptPath],
+            env: {
+              GATE_D_TEST_PAUSE_READY: pauseReadyPath,
+              GATE_D_TEST_PAUSE_RELEASE: pauseReleasePath,
+              GATE_D_TEST_QUALIFICATION_FIXTURE: qualificationFixture
+            }
+          }
+        }
+      }), { mode: 0o600 });
+
+      const childEntrypoint = fileURLToPath(
+        new URL("../src/baseline/formalSoakRuntimeChild.ts", import.meta.url)
+      );
+      const spec = buildGateDRuntimeChildSpawnSpec({
+        childEntrypoint,
+        databasePath,
+        mcpConfigPath,
+        javaBaseUrl: "http://127.0.0.1:8080",
+        runtimePort: 32_000 + (process.pid % 10_000),
+        serviceToken,
+        expectedDatabaseIdentity: { dev: claim.dev, ino: claim.ino }
+      });
+      child = await spawnGateDRuntimeManagedChild({
+        spec,
+        journal,
+        spawn: (command, args, options) => nodeSpawn(command, args, options) as never
+      });
+
+      await waitForPath(pauseReadyPath, 5_000);
+      renameSync(databasePath, movedClaimPath);
+      symlinkSync(sentinelPath, databasePath);
+      writeFileSync(pauseReleasePath, "release", { mode: 0o600 });
+
+      const childResult = await waitForManagedChildExit(child, 4_000);
+      const after = fileInvariant(sentinelPath);
+      const serializedJournal = JSON.stringify(journalEntries);
+
+      expect(childResult.timedOut).toBe(false);
+      expect(childResult.exit.code).not.toBe(0);
+      expect(after).toEqual(before);
+      expect(serializedJournal).not.toContain(serviceToken);
+      expect(serializedJournal).not.toContain(databasePath);
+      expect(serializedJournal).not.toContain(String(claim.dev));
+      expect(serializedJournal).not.toContain(String(claim.ino));
+    } finally {
+      child?.stop();
+      if (child) await waitForManagedChildExit(child, 2_000);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }, 15_000);
 
   it("targets Runtime child PID for RSS, FD, and MCP child probes", () => {
     const invocations: { command: string; args: string[] }[] = [];
@@ -283,6 +445,162 @@ describe("Gate D production executor primitives", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("preserves the original seven-query formal SQL contract and reports callback timings in order", () => {
+    const database = recordingDatabaseProbe();
+    const sqlCallbacks: string[] = [];
+    const timings: GateDDatabaseProbeTiming[] = [];
+
+    const observations = new GateDDatabaseObservationCursor({
+      mode: "formal-full",
+      now: sequenceClock(0, 2, 2, 5, 5, 9, 9, 14, 14, 20, 20, 27, 27, 35),
+      onSql: sql => sqlCallbacks.push(sql),
+      onTiming: timing => timings.push(timing)
+    }).read(database.probe);
+
+    expect(observations).toEqual({ eventObservations: [], hardFailures: [] });
+    expect(database.statements).toHaveLength(7);
+    expect(sqlCallbacks).toEqual(database.statements);
+    expect(timings).toEqual([
+      { probe: "incremental-events", durationMs: 2, rowCount: 0 },
+      { probe: "dead-letter", durationMs: 3, rowCount: 0 },
+      { probe: "orphaned-approval", durationMs: 4, rowCount: 0 },
+      { probe: "duplicate-event", durationMs: 5, rowCount: 0 },
+      { probe: "sqlite-busy", durationMs: 6, rowCount: 0 },
+      { probe: "event-secret-canary", durationMs: 7, rowCount: 0 },
+      { probe: "message-secret-canary", durationMs: 8, rowCount: 0 }
+    ]);
+    expect(database.statements.map(formalSqlKind)).toEqual([
+      "incremental-events",
+      "dead-letter",
+      "orphaned-approval",
+      "duplicate-event",
+      "sqlite-busy",
+      "event-secret-canary",
+      "message-secret-canary"
+    ]);
+    expect(database.statements[3]).toMatch(/event_id[\s\S]*UNION ALL[\s\S]*CAST\(cursor AS TEXT\)/);
+  });
+
+  it("preserves diagnostic cursor state across single-query observation windows", () => {
+    const database = recordingDatabaseProbe({
+      eventBatches: [
+        [{ rowId: 5, tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 2, eventId: "event-1" }],
+        [{ rowId: 8, tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 1, eventId: "event-2" }]
+      ]
+    });
+    const sqlCallbacks: string[] = [];
+    const timings: GateDDatabaseProbeTiming[] = [];
+    const cursor = new GateDDatabaseObservationCursor({
+      mode: "diagnostic-incremental",
+      now: incrementingClock(),
+      onSql: sql => sqlCallbacks.push(sql),
+      onTiming: timing => timings.push(timing)
+    });
+
+    const first = cursor.read(database.probe);
+    expect(database.statements).toHaveLength(1);
+    const second = cursor.read(database.probe);
+
+    expect(database.statements).toHaveLength(2);
+    expect(database.statements[0]).toMatch(/FROM runtime_events[\s\S]*WHERE rowid >/);
+    expect(database.statements[1]).toMatch(/WHERE rowid > 5/);
+    expect(first.eventObservations).toEqual([{
+      tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 2, eventId: "event-1"
+    }]);
+    expect(first.hardFailures).toEqual([]);
+    expect(second.eventObservations).toEqual([{
+      tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 1, eventId: "event-2"
+    }]);
+    expect(second.hardFailures).toEqual(["EVENT_ORDERING_FAILURE"]);
+    expect(sqlCallbacks).toEqual(database.statements);
+    expect(timings).toEqual([
+      { probe: "incremental-events", durationMs: 1, rowCount: 1 },
+      { probe: "incremental-events", durationMs: 1, rowCount: 1 }
+    ]);
+  });
+
+  it("fires onSql before a query and preserves the original error without emitting timing", () => {
+    const expectedError = new Error("database probe failed");
+    const sqlCallbacks: string[] = [];
+    const timings: GateDDatabaseProbeTiming[] = [];
+    const database = recordingDatabaseProbe({
+      queryEvents() { throw expectedError; }
+    });
+    const cursor = new GateDDatabaseObservationCursor({
+      mode: "formal-full",
+      now: incrementingClock(),
+      onSql: sql => sqlCallbacks.push(sql),
+      onTiming: timing => timings.push(timing)
+    });
+    let observedError: unknown;
+
+    try {
+      cursor.read(database.probe);
+    } catch (error) {
+      observedError = error;
+    }
+
+    expect(observedError).toBe(expectedError);
+    expect(sqlCallbacks).toHaveLength(1);
+    expect(sqlCallbacks[0]).toContain("WHERE rowid >");
+    expect(timings).toEqual([]);
+  });
+
+  it("reports the durable duplicate failure for event-id duplicates alone", () => {
+    const database = recordingDatabaseProbe({
+      countForSql: sql => sql.includes("GROUP BY tenant_id,user_id,conversation_id,event_id") ? 1 : 0
+    });
+
+    const observations = new GateDDatabaseObservationCursor().read(database.probe);
+
+    expect(observations.hardFailures).toEqual(["DUPLICATE_DURABLE_EVENT"]);
+  });
+
+  it("reports the durable duplicate failure for cursor duplicates alone", () => {
+    const database = recordingDatabaseProbe({
+      countForSql: sql => sql.includes("GROUP BY tenant_id,user_id,conversation_id,cursor") ? 1 : 0
+    });
+
+    const observations = new GateDDatabaseObservationCursor().read(database.probe);
+
+    expect(observations.hardFailures).toEqual(["DUPLICATE_DURABLE_EVENT"]);
+  });
+
+  it("preserves secret-canary short-circuiting and emits callbacks only for executed queries", () => {
+    const database = recordingDatabaseProbe({
+      countForSql: sql => sql.includes("FROM runtime_events WHERE payload_json LIKE '%OPENHARNESS_SECRET_CANARY%'") ? 1 : 0
+    });
+    const sqlCallbacks: string[] = [];
+    const timings: GateDDatabaseProbeTiming[] = [];
+
+    const observations = new GateDDatabaseObservationCursor({
+      now: incrementingClock(),
+      onSql: sql => sqlCallbacks.push(sql),
+      onTiming: timing => timings.push(timing)
+    }).read(database.probe);
+
+    expect(observations.hardFailures).toEqual(["SECRET_CANARY_LEAK"]);
+    expect(database.statements).toHaveLength(6);
+    expect(sqlCallbacks).toEqual(database.statements);
+    expect(timings.map(timing => timing.probe)).toEqual([
+      "incremental-events",
+      "dead-letter",
+      "orphaned-approval",
+      "duplicate-event",
+      "sqlite-busy",
+      "event-secret-canary"
+    ]);
+    expect(database.statements.some(sql => sql.includes("FROM messages WHERE content_json"))).toBe(false);
+  });
+
+  it("keeps the production executor on the no-options formal cursor", () => {
+    const source = readFileSync(fileURLToPath(new URL("../src/baseline/formalSoakExecution.ts", import.meta.url)), "utf8");
+    const productionBody = source.slice(source.indexOf("export async function executeGateDProductionSoak"));
+
+    expect(productionBody).toContain("const databaseCursor = new GateDDatabaseObservationCursor();");
+    expect(productionBody).not.toContain("diagnostic-incremental");
   });
 
   it("proves the exact 10,000 Gate D scopes while ignoring unrelated conversations", () => {
@@ -846,6 +1164,62 @@ describe("Gate D production executor primitives", () => {
   });
 });
 
+function recordingDatabaseProbe(options: {
+  eventBatches?: unknown[][];
+  queryEvents?: (sql: string) => unknown[];
+  countForSql?: (sql: string) => number;
+} = {}) {
+  const statements: string[] = [];
+  let eventBatchIndex = 0;
+  return {
+    statements,
+    probe: {
+      all<T>(sql: string) {
+        statements.push(sql);
+        const rows = options.queryEvents?.(sql) ?? options.eventBatches?.[eventBatchIndex++] ?? [];
+        return rows as T[];
+      },
+      get<T>(sql: string) {
+        statements.push(sql);
+        return { count: options.countForSql?.(sql) ?? 0 } as T;
+      },
+      run: () => ({ changes: 0 }),
+      close() {},
+      path: "/tmp/read-only.sqlite"
+    }
+  };
+}
+
+function incrementingClock(): () => number {
+  let now = 0;
+  return () => now++;
+}
+
+function sequenceClock(...values: number[]): () => number {
+  let index = 0;
+  return () => {
+    const value = values[index];
+    if (value === undefined) throw new Error("deterministic clock exhausted");
+    index += 1;
+    return value;
+  };
+}
+
+function formalSqlKind(sql: string): string {
+  if (sql.includes("WHERE rowid >")) return "incremental-events";
+  if (sql.includes("delivery_status = 'dead_letter'")) return "dead-letter";
+  if (sql.includes("FROM approvals a")) return "orphaned-approval";
+  if (sql.includes("UNION ALL")) return "duplicate-event";
+  if (sql.includes("LIKE '%SQLITE_BUSY%'")) return "sqlite-busy";
+  if (sql.includes("FROM runtime_events WHERE payload_json LIKE '%OPENHARNESS_SECRET_CANARY%'")) {
+    return "event-secret-canary";
+  }
+  if (sql.includes("FROM messages WHERE content_json LIKE '%OPENHARNESS_SECRET_CANARY%'")) {
+    return "message-secret-canary";
+  }
+  return "unknown";
+}
+
 function validEnvironment(): NodeJS.ProcessEnv {
   return {
     AGENT_RUNTIME_PROFILE: "production",
@@ -878,5 +1252,53 @@ function response(status: number, body: unknown): Response {
   return new Response(typeof body === "string" ? body : JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json" }
+  });
+}
+
+function fileInvariant(path: string): {
+  bytes: Buffer;
+  sha256: string;
+  size: number;
+  mtimeMs: number;
+} {
+  const bytes = readFileSync(path);
+  const metadata = statSync(path);
+  return {
+    bytes,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    size: metadata.size,
+    mtimeMs: metadata.mtimeMs
+  };
+}
+
+async function waitForPath(path: string, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!existsSync(path)) {
+    if (Date.now() >= deadline) throw new Error("actual child pause fixture did not become ready");
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+}
+
+async function waitForManagedChildExit(
+  child: GateDManagedChild,
+  timeoutMs: number
+): Promise<{
+  exit: { code: number | null; signal: NodeJS.Signals | null };
+  timedOut: boolean;
+}> {
+  return await new Promise(resolve => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.stop();
+      void child.exited.then(exit => resolve({ exit, timedOut: true }));
+    }, timeoutMs);
+    void child.exited.then(exit => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ exit, timedOut: false });
+    });
   });
 }

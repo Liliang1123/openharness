@@ -2,9 +2,14 @@ import { isAbsolute } from "node:path";
 import { pathToFileURL } from "node:url";
 import { loadMcpConfigFile, McpRegistry } from "../mcpRegistry";
 import { createProductionServer } from "../server";
+import type { RuntimeDatabaseIdentity } from "../storage/runtimeStorage";
+
+const EXPECTED_DATABASE_DEV_ENV = "GATE_D_EXPECTED_DATABASE_DEV";
+const EXPECTED_DATABASE_INO_ENV = "GATE_D_EXPECTED_DATABASE_INO";
 
 export interface GateDRuntimeChildConfig {
   databasePath: string;
+  expectedDatabaseIdentity?: RuntimeDatabaseIdentity;
   mcpConfigPath: string;
   javaBaseUrl: string;
   serviceToken: string;
@@ -28,6 +33,7 @@ export function resolveGateDRuntimeChildConfig(env: NodeJS.ProcessEnv): GateDRun
     throw new Error("AGENT_RUNTIME_PROFILE=production is required for the Gate D Runtime child");
   }
   const databasePath = requiredAbsolutePath(env.AGENT_RUNTIME_SQLITE_PATH, "SQLite");
+  const expectedDatabaseIdentity = parseExpectedDatabaseIdentity(env);
   const mcpConfigPath = requiredAbsolutePath(env.GATE_D_MCP_CONFIG_PATH, "MCP config");
   const serviceToken = env.OPENHARNESS_SERVICE_TOKEN?.trim();
   if (!serviceToken) throw new Error("Gate D Runtime child service token is required");
@@ -38,7 +44,15 @@ export function resolveGateDRuntimeChildConfig(env: NodeJS.ProcessEnv): GateDRun
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new Error("Gate D Runtime child port must be an integer from 1 to 65535");
   }
-  return { databasePath, mcpConfigPath, javaBaseUrl, serviceToken, host, port };
+  return {
+    databasePath,
+    ...(expectedDatabaseIdentity ? { expectedDatabaseIdentity } : {}),
+    mcpConfigPath,
+    javaBaseUrl,
+    serviceToken,
+    host,
+    port
+  };
 }
 
 export async function main(options: GateDRuntimeChildMainOptions = {}): Promise<GateDRuntimeChildApp> {
@@ -62,6 +76,7 @@ export async function main(options: GateDRuntimeChildMainOptions = {}): Promise<
       ? await options.createApp(config, registry)
       : await createProductionServer({
           databasePath: config.databasePath,
+          expectedDatabaseIdentity: config.expectedDatabaseIdentity,
           serviceToken: config.serviceToken,
           javaBaseUrl: config.javaBaseUrl,
           mcpRegistry: registry
@@ -89,6 +104,22 @@ export async function main(options: GateDRuntimeChildMainOptions = {}): Promise<
     await closePromise;
     throw error;
   }
+}
+
+function parseExpectedDatabaseIdentity(env: NodeJS.ProcessEnv): RuntimeDatabaseIdentity | undefined {
+  const rawDev = env[EXPECTED_DATABASE_DEV_ENV];
+  const rawIno = env[EXPECTED_DATABASE_INO_ENV];
+  if (rawDev === undefined && rawIno === undefined) return undefined;
+  if (!validIdentityInteger(rawDev) || !validIdentityInteger(rawIno)) {
+    throw new Error("Gate D Runtime child database identity is invalid");
+  }
+  return { dev: Number(rawDev), ino: Number(rawIno) };
+}
+
+function validIdentityInteger(value: string | undefined): value is string {
+  if (value === undefined || !/^(?:0|[1-9]\d*)$/.test(value)) return false;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed >= 0;
 }
 
 function requiredAbsolutePath(value: string | undefined, label: string): string {

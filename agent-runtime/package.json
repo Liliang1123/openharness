@@ -10,6 +10,7 @@
     "qualification:gate-c-provider": "tsx src/qualification/gateCProviderReconcileCli.ts",
     "qualification:gate-d-preflight": "tsx src/baseline/formalSoakCli.ts preflight",
     "qualification:gate-d-run": "tsx src/baseline/formalSoakCli.ts run",
+    "diagnostic:gate-d-performance": "tsx src/baseline/gateDPerformanceDiagnosticCli.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

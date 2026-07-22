@@ -10,7 +10,8 @@ import type { RuntimeEventReader } from "../runtimeEventStore";
 import {
   openProductionRuntimeStorage,
   type ProductionRuntimeStorage,
-  type RuntimeDatabase
+  type RuntimeDatabase,
+  type RuntimeDatabaseIdentity
 } from "./runtimeStorage";
 
 export interface ProductionRuntimeContext {
@@ -29,6 +30,7 @@ export interface ProductionRuntimeContext {
 }
 
 export interface ProductionRuntimeContextDependencies {
+  expectedDatabaseIdentity?: RuntimeDatabaseIdentity;
   verifyIntegrity?(database: RuntimeDatabase): void;
   reconcile?: typeof reconcileRuntimeStartup;
 }
@@ -43,7 +45,9 @@ export function openProductionRuntimeContext(
 
   let storage: ProductionRuntimeStorage | undefined;
   try {
-    storage = openProductionRuntimeStorage(databasePath);
+    storage = openProductionRuntimeStorage(databasePath, {
+      expectedDatabaseIdentity: dependencies.expectedDatabaseIdentity
+    });
     (dependencies.verifyIntegrity ?? verifyRuntimeIntegrity)(storage.database);
 
     const repositories = createSqliteRuntimeRepositories();

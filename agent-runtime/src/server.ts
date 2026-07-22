@@ -26,6 +26,7 @@ import { McpRegistry, loadMcpConfig } from "./mcpRegistry";
 import { InMemoryRuntimeEventStore, type RuntimeEventStore } from "./runtimeEventStore";
 import { InMemoryExecutionStateStore, ProcessExecutionStateStore, type ExecutionStateStore } from "./executionStateStore";
 import { openProductionRuntimeContext, type ProductionRuntimeContext } from "./storage/productionRuntimeContext";
+import type { RuntimeDatabaseIdentity } from "./storage/runtimeStorage";
 import { publishCommittedLifecycleEvents } from "./storage/lifecycleCommands";
 import { deriveRuntimeProgress } from "./runtimeProgress";
 import type { AgentChatRequest, AgentChatResponse, StopReason } from "./types";
@@ -69,6 +70,7 @@ export interface DevelopmentStoreFactories {
 
 export interface CreateProductionServerOptions {
   databasePath: string;
+  expectedDatabaseIdentity?: RuntimeDatabaseIdentity;
   serviceToken: string;
   javaClient?: JavaClient;
   javaBaseUrl?: string;
@@ -664,7 +666,9 @@ const defaultDevelopmentStoreFactories: DevelopmentStoreFactories = {
 
 export async function createProductionServer(options: CreateProductionServerOptions) {
   if (!options.serviceToken.trim()) throw new Error("Production Runtime service token is required");
-  const context = openProductionRuntimeContext(options.databasePath);
+  const context = openProductionRuntimeContext(options.databasePath, {
+    expectedDatabaseIdentity: options.expectedDatabaseIdentity
+  });
   try {
     const app = await createServer({
       runtimeContext: context,

@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { statSync } from "node:fs";
 import { acquireRuntimeSingletonLock, type RuntimeSingletonLock } from "./singletonLock";
 
 export interface RuntimeTransaction {
@@ -15,6 +16,12 @@ export interface RuntimeDatabase extends RuntimeTransaction {
 
 export interface RuntimeDatabaseOptions {
   contentionDeadlineMs?: number;
+  expectedDatabaseIdentity?: RuntimeDatabaseIdentity;
+}
+
+export interface RuntimeDatabaseIdentity {
+  dev: number;
+  ino: number;
 }
 
 export interface ProductionRuntimeStorage {
@@ -32,6 +39,14 @@ export function openRuntimeDatabase(
   options: RuntimeDatabaseOptions = {}
 ): RuntimeDatabase {
   const sqlite = new Database(path);
+  if (options.expectedDatabaseIdentity) {
+    try {
+      verifyOpenedDatabaseIdentity(sqlite, options.expectedDatabaseIdentity);
+    } catch {
+      sqlite.close();
+      throw new Error("Runtime database identity verification failed");
+    }
+  }
   const contentionDeadlineMs = options.contentionDeadlineMs ?? DEFAULT_CONTENTION_DEADLINE_MS;
 
   sqlite.pragma("journal_mode = WAL");
@@ -68,6 +83,29 @@ export function openRuntimeDatabase(
       sqlite.close();
     }
   };
+}
+
+function verifyOpenedDatabaseIdentity(
+  sqlite: Database.Database,
+  expected: RuntimeDatabaseIdentity
+): void {
+  if (!isDatabaseIdentity(expected)) throw new Error("invalid expected identity");
+  const main = (sqlite.prepare("PRAGMA database_list").all() as Array<{
+    name: string;
+    file: string;
+  }>).find(database => database.name === "main");
+  if (!main?.file) throw new Error("missing main database");
+  const actual = statSync(main.file);
+  if (actual.dev !== expected.dev || actual.ino !== expected.ino) {
+    throw new Error("database identity mismatch");
+  }
+}
+
+function isDatabaseIdentity(value: RuntimeDatabaseIdentity): boolean {
+  return Number.isSafeInteger(value.dev)
+    && value.dev >= 0
+    && Number.isSafeInteger(value.ino)
+    && value.ino >= 0;
 }
 
 export function openProductionRuntimeStorage(path: string, options: RuntimeDatabaseOptions = {}): ProductionRuntimeStorage {

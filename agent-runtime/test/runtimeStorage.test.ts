@@ -1,8 +1,63 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdtempSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import Database from "better-sqlite3";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { migrateRuntimeDatabase, openRuntimeDatabase } from "../src/storage/runtimeStorage";
+
+const databaseMock = vi.hoisted(() => ({
+  databaseListRows: undefined as unknown[] | undefined,
+  trackClose: false,
+  closeCalls: 0
+}));
+
+const fileSystemMock = vi.hoisted(() => ({
+  failStatPath: undefined as string | undefined
+}));
+
+vi.mock("better-sqlite3", async importOriginal => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  const ActualDatabase = actual.default as typeof Database;
+  function WrappedDatabase(...args: ConstructorParameters<typeof ActualDatabase>) {
+    const database = new ActualDatabase(...args);
+    const prepare = database.prepare.bind(database);
+    const close = database.close.bind(database);
+    Object.defineProperty(database, "prepare", {
+      configurable: true,
+      value(sql: string) {
+        if (databaseMock.databaseListRows !== undefined && sql.trim().toUpperCase() === "PRAGMA DATABASE_LIST") {
+          return { all: () => databaseMock.databaseListRows };
+        }
+        return prepare(sql);
+      }
+    });
+    Object.defineProperty(database, "close", {
+      configurable: true,
+      value() {
+        if (databaseMock.trackClose) databaseMock.closeCalls += 1;
+        close();
+      }
+    });
+    return database;
+  }
+  Object.setPrototypeOf(WrappedDatabase, ActualDatabase);
+  WrappedDatabase.prototype = ActualDatabase.prototype;
+  return { ...actual, default: WrappedDatabase };
+});
+
+vi.mock("node:fs", async importOriginal => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    statSync(...args: Parameters<typeof actual.statSync>) {
+      if (fileSystemMock.failStatPath !== undefined && args[0] === fileSystemMock.failStatPath) {
+        throw new Error("stat-sensitive-detail");
+      }
+      return actual.statSync(...args);
+    }
+  };
+});
 
 const dirs: string[] = [];
 
@@ -13,6 +68,10 @@ function databasePath(): string {
 }
 
 afterEach(() => {
+  databaseMock.databaseListRows = undefined;
+  databaseMock.trackClose = false;
+  databaseMock.closeCalls = 0;
+  fileSystemMock.failStatPath = undefined;
   while (dirs.length > 0) rmSync(dirs.pop()!, { recursive: true, force: true });
 });
 
@@ -61,4 +120,103 @@ describe("runtime storage schema", () => {
     expect(() => migrateRuntimeDatabase(db)).toThrow(/newer schema version/i);
     db.close();
   });
+
+  it("allows a matching claimed zero-byte database identity to initialize and migrate", () => {
+    const path = databasePath();
+    writeFileSync(path, "", { mode: 0o600 });
+    const claimed = statSync(path);
+
+    const db = openRuntimeDatabase(path, {
+      expectedDatabaseIdentity: { dev: claimed.dev, ino: claimed.ino }
+    });
+    migrateRuntimeDatabase(db);
+
+    expect(db.get<{ version: number }>("SELECT version FROM schema_migrations")?.version).toBe(1);
+    db.close();
+  });
+
+  it("closes on identity mismatch before changing sentinel bytes, hash, size, or mtime", () => {
+    const path = databasePath();
+    const sentinel = new Database(path);
+    sentinel.exec("CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel(value) VALUES ('unchanged')");
+    sentinel.close();
+    const before = databaseInvariant(path);
+    databaseMock.trackClose = true;
+
+    const result = captureIdentityOpen(path, {
+      dev: before.dev + 1,
+      ino: before.ino + 1
+    });
+
+    expect(result.error?.message).toBe("Runtime database identity verification failed");
+    expect(result.error?.message).not.toContain(path);
+    expect(result.error?.message).not.toContain(String(before.dev + 1));
+    expect(result.error?.message).not.toContain(String(before.ino + 1));
+    expect(databaseMock.closeCalls).toBe(1);
+    expect(databaseInvariant(path)).toEqual(before);
+  });
+
+  it("closes with the same fixed error when database_list has no main database", () => {
+    const path = databasePath();
+    writeFileSync(path, "", { mode: 0o600 });
+    const claimed = statSync(path);
+    databaseMock.databaseListRows = [];
+    databaseMock.trackClose = true;
+
+    const result = captureIdentityOpen(path, { dev: claimed.dev, ino: claimed.ino });
+
+    expect(result.error?.message).toBe("Runtime database identity verification failed");
+    expect(result.error?.message).not.toContain(path);
+    expect(databaseMock.closeCalls).toBe(1);
+  });
+
+  it("closes with the same fixed error when the opened main database cannot be statted", () => {
+    const path = databasePath();
+    writeFileSync(path, "", { mode: 0o600 });
+    const claimed = statSync(path);
+    fileSystemMock.failStatPath = realpathSync(path);
+    databaseMock.trackClose = true;
+
+    const result = captureIdentityOpen(path, { dev: claimed.dev, ino: claimed.ino });
+
+    expect(result.error?.message).toBe("Runtime database identity verification failed");
+    expect(result.error?.message).not.toContain("stat-sensitive-detail");
+    expect(result.error?.message).not.toContain(path);
+    expect(databaseMock.closeCalls).toBe(1);
+  });
 });
+
+function captureIdentityOpen(
+  path: string,
+  expectedDatabaseIdentity: { dev: number; ino: number }
+): { error?: Error } {
+  let database: ReturnType<typeof openRuntimeDatabase> | undefined;
+  try {
+    database = openRuntimeDatabase(path, { expectedDatabaseIdentity });
+    return {};
+  } catch (error) {
+    return { error: error as Error };
+  } finally {
+    database?.close();
+  }
+}
+
+function databaseInvariant(path: string): {
+  bytes: Buffer;
+  sha256: string;
+  size: number;
+  mtimeMs: number;
+  dev: number;
+  ino: number;
+} {
+  const bytes = readFileSync(path);
+  const metadata = statSync(path);
+  return {
+    bytes,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    size: metadata.size,
+    mtimeMs: metadata.mtimeMs,
+    dev: metadata.dev,
+    ino: metadata.ino
+  };
+}

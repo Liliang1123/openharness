@@ -15,6 +15,7 @@ import {
 } from "node:fs";
 import { execFileSync, spawn as nodeSpawn } from "node:child_process";
 import { dirname, isAbsolute } from "node:path";
+import { performance } from "node:perf_hooks";
 import { fileURLToPath } from "node:url";
 import Database from "better-sqlite3";
 import {
@@ -29,8 +30,11 @@ import {
   evaluateFixedTwentyFourHourSoakPreflight,
   runFixedTwentyFourHourSoak
 } from "./formalSoakRunner";
+import type { RuntimeDatabaseIdentity } from "../storage/runtimeStorage";
 
 const FIXED_CONCURRENCY = 20;
+const EXPECTED_DATABASE_DEV_ENV = "GATE_D_EXPECTED_DATABASE_DEV";
+const EXPECTED_DATABASE_INO_ENV = "GATE_D_EXPECTED_DATABASE_INO";
 
 export interface BuildGateDRuntimeChildSpawnSpecInput {
   childEntrypoint: string;
@@ -39,6 +43,7 @@ export interface BuildGateDRuntimeChildSpawnSpecInput {
   javaBaseUrl: string;
   runtimePort: number;
   serviceToken: string;
+  expectedDatabaseIdentity?: RuntimeDatabaseIdentity;
   baseEnvironment?: NodeJS.ProcessEnv;
 }
 
@@ -88,7 +93,12 @@ export async function spawnGateDRuntimeManagedChild(
       kind: "runtime_child_output",
       pid,
       stream,
-      text: redactChildOutput(String(chunk), [input.spec.options.env.OPENHARNESS_SERVICE_TOKEN])
+      text: redactChildOutput(String(chunk), [
+        input.spec.options.env.OPENHARNESS_SERVICE_TOKEN,
+        input.spec.options.env.AGENT_RUNTIME_SQLITE_PATH,
+        input.spec.options.env[EXPECTED_DATABASE_DEV_ENV],
+        input.spec.options.env[EXPECTED_DATABASE_INO_ENV]
+      ])
     });
   };
   child.stdout?.on("data", chunk => capture("stdout", chunk));
@@ -191,6 +201,9 @@ export function buildGateDRuntimeChildSpawnSpec(
   if (!Number.isInteger(input.runtimePort) || input.runtimePort < 1 || input.runtimePort > 65_535) {
     throw new Error("Gate D Runtime port must be an integer from 1 to 65535");
   }
+  if (input.expectedDatabaseIdentity && !validDatabaseIdentity(input.expectedDatabaseIdentity)) {
+    throw new Error("Gate D Runtime expected database identity is invalid");
+  }
   return {
     command: process.execPath,
     args: ["--import", "tsx", input.childEntrypoint],
@@ -206,7 +219,11 @@ export function buildGateDRuntimeChildSpawnSpec(
         OPENHARNESS_SERVICE_TOKEN: serviceToken,
         MCP_REQUIRE_APPROVAL: "true",
         HOST: "127.0.0.1",
-        PORT: String(input.runtimePort)
+        PORT: String(input.runtimePort),
+        ...(input.expectedDatabaseIdentity ? {
+          [EXPECTED_DATABASE_DEV_ENV]: String(input.expectedDatabaseIdentity.dev),
+          [EXPECTED_DATABASE_INO_ENV]: String(input.expectedDatabaseIdentity.ino)
+        } : {})
       }
     }
   };
@@ -214,9 +231,18 @@ export function buildGateDRuntimeChildSpawnSpec(
 
 function sanitizeGateDChildEnvironment(environment: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(Object.entries(environment).filter(([name]) =>
-    !/(?:^|_)(?:API_KEY|API_TOKEN|AUTH_TOKEN|ACCESS_TOKEN|OAUTH_TOKEN|SESSION_TOKEN|PASSWORD|CLIENT_SECRET|SECRET_KEY|SECRET_ACCESS_KEY|CREDENTIAL|CREDENTIALS)$/i.test(name)
+    name !== EXPECTED_DATABASE_DEV_ENV
+    && name !== EXPECTED_DATABASE_INO_ENV
+    && !/(?:^|_)(?:API_KEY|API_TOKEN|AUTH_TOKEN|ACCESS_TOKEN|OAUTH_TOKEN|SESSION_TOKEN|PASSWORD|CLIENT_SECRET|SECRET_KEY|SECRET_ACCESS_KEY|CREDENTIAL|CREDENTIALS)$/i.test(name)
     && !/^(?:AWS_ACCESS_KEY_ID|GOOGLE_APPLICATION_CREDENTIALS)$/i.test(name)
   ));
+}
+
+function validDatabaseIdentity(identity: RuntimeDatabaseIdentity): boolean {
+  return Number.isSafeInteger(identity.dev)
+    && identity.dev >= 0
+    && Number.isSafeInteger(identity.ino)
+    && identity.ino >= 0;
 }
 
 export interface GateDChildProcessSnapshot {
@@ -316,18 +342,59 @@ export interface GateDDatabaseObservations {
   hardFailures: string[];
 }
 
+export type GateDDatabaseObservationMode = "formal-full" | "diagnostic-incremental";
+
+export type GateDDatabaseProbeName =
+  | "incremental-events"
+  | "dead-letter"
+  | "orphaned-approval"
+  | "duplicate-event"
+  | "sqlite-busy"
+  | "event-secret-canary"
+  | "message-secret-canary";
+
+export interface GateDDatabaseProbeTiming {
+  probe: GateDDatabaseProbeName;
+  durationMs: number;
+  rowCount?: number;
+}
+
+export interface GateDDatabaseObservationCursorOptions {
+  mode?: GateDDatabaseObservationMode;
+  now?: () => number;
+  onTiming?: (timing: GateDDatabaseProbeTiming) => void;
+  onSql?: (sql: string) => void;
+}
+
 export class GateDDatabaseObservationCursor {
   private lastRowId = 0;
   private readonly lastCursorByScope = new Map<string, number>();
+  private readonly mode: GateDDatabaseObservationMode;
+  private readonly now: () => number;
+  private readonly onTiming?: (timing: GateDDatabaseProbeTiming) => void;
+  private readonly onSql?: (sql: string) => void;
+
+  constructor(options: GateDDatabaseObservationCursorOptions = {}) {
+    this.mode = options.mode ?? "formal-full";
+    this.now = options.now ?? (() => performance.now());
+    this.onTiming = options.onTiming;
+    this.onSql = options.onSql;
+  }
 
   read(database: GateDReadOnlyDatabaseProbe): GateDDatabaseObservations {
-    const rows = database.all<GateDDatabaseEventRow>(`
+    const incrementalSql = `
       SELECT rowid AS rowId, tenant_id AS tenantId, user_id AS userId,
              conversation_id AS conversationId, cursor, event_id AS eventId
       FROM runtime_events
       WHERE rowid > ${this.lastRowId}
       ORDER BY rowid ASC
-    `);
+    `;
+    const rows = this.timed(
+      "incremental-events",
+      incrementalSql,
+      () => database.all<GateDDatabaseEventRow>(incrementalSql),
+      value => value.length
+    );
     if (rows.length > 0) this.lastRowId = rows[rows.length - 1]!.rowId;
     const hardFailures: string[] = [];
     for (const row of rows) {
@@ -338,20 +405,31 @@ export class GateDDatabaseObservationCursor {
       }
       this.lastCursorByScope.set(key, row.cursor);
     }
-    if (countQuery(database, "SELECT COUNT(*) AS count FROM runtime_events WHERE delivery_status = 'dead_letter' OR dead_letter_at IS NOT NULL") > 0) {
+    const eventObservations = rows.map(({ rowId: _rowId, ...observation }) => observation);
+    if (this.mode === "diagnostic-incremental") {
+      return { eventObservations, hardFailures };
+    }
+    const deadLetterSql = "SELECT COUNT(*) AS count FROM runtime_events WHERE delivery_status = 'dead_letter' OR dead_letter_at IS NOT NULL";
+    if (this.timed("dead-letter", deadLetterSql, () => countQuery(database, deadLetterSql), value => value) > 0) {
       hardFailures.push("DEAD_LETTER_OUTBOX");
     }
-    if (countQuery(database, `
+    const orphanedApprovalSql = `
       SELECT COUNT(*) AS count
       FROM approvals a
       LEFT JOIN executions e
         ON e.execution_id = a.execution_id AND e.tenant_id = a.tenant_id
        AND e.user_id = a.user_id AND e.conversation_id = a.conversation_id
       WHERE a.status = 'pending' AND (e.execution_id IS NULL OR e.status NOT IN ('running','waiting_approval'))
-    `) > 0) {
+    `;
+    if (this.timed(
+      "orphaned-approval",
+      orphanedApprovalSql,
+      () => countQuery(database, orphanedApprovalSql),
+      value => value
+    ) > 0) {
       hardFailures.push("ORPHANED_APPROVAL");
     }
-    if (countQuery(database, `
+    const duplicateEventSql = `
       SELECT COUNT(*) AS count FROM (
         SELECT tenant_id,user_id,conversation_id,event_id
         FROM runtime_events GROUP BY tenant_id,user_id,conversation_id,event_id HAVING COUNT(*) > 1
@@ -359,22 +437,55 @@ export class GateDDatabaseObservationCursor {
         SELECT tenant_id,user_id,conversation_id,CAST(cursor AS TEXT)
         FROM runtime_events GROUP BY tenant_id,user_id,conversation_id,cursor HAVING COUNT(*) > 1
       )
-    `) > 0) {
+    `;
+    if (this.timed(
+      "duplicate-event",
+      duplicateEventSql,
+      () => countQuery(database, duplicateEventSql),
+      value => value
+    ) > 0) {
       hardFailures.push("DUPLICATE_DURABLE_EVENT");
     }
-    if (countQuery(database, "SELECT COUNT(*) AS count FROM runtime_events WHERE payload_json LIKE '%SQLITE_BUSY%'") > 0) {
+    const sqliteBusySql = "SELECT COUNT(*) AS count FROM runtime_events WHERE payload_json LIKE '%SQLITE_BUSY%'";
+    if (this.timed("sqlite-busy", sqliteBusySql, () => countQuery(database, sqliteBusySql), value => value) > 0) {
       hardFailures.push("SQLITE_BUSY_RETRY_EXHAUSTED");
     }
+    const eventSecretCanarySql = "SELECT COUNT(*) AS count FROM runtime_events WHERE payload_json LIKE '%OPENHARNESS_SECRET_CANARY%'";
+    const messageSecretCanarySql = "SELECT COUNT(*) AS count FROM messages WHERE content_json LIKE '%OPENHARNESS_SECRET_CANARY%'";
     if (
-      countQuery(database, "SELECT COUNT(*) AS count FROM runtime_events WHERE payload_json LIKE '%OPENHARNESS_SECRET_CANARY%'") > 0 ||
-      countQuery(database, "SELECT COUNT(*) AS count FROM messages WHERE content_json LIKE '%OPENHARNESS_SECRET_CANARY%'") > 0
+      this.timed(
+        "event-secret-canary",
+        eventSecretCanarySql,
+        () => countQuery(database, eventSecretCanarySql),
+        value => value
+      ) > 0 ||
+      this.timed(
+        "message-secret-canary",
+        messageSecretCanarySql,
+        () => countQuery(database, messageSecretCanarySql),
+        value => value
+      ) > 0
     ) {
       hardFailures.push("SECRET_CANARY_LEAK");
     }
-    return {
-      eventObservations: rows.map(({ rowId: _rowId, ...observation }) => observation),
-      hardFailures
-    };
+    return { eventObservations, hardFailures };
+  }
+
+  private timed<T>(
+    probe: GateDDatabaseProbeName,
+    sql: string,
+    query: () => T,
+    rowCount?: (value: T) => number
+  ): T {
+    this.onSql?.(sql);
+    const startedAt = this.now();
+    const value = query();
+    this.onTiming?.({
+      probe,
+      durationMs: Math.max(0, this.now() - startedAt),
+      ...(rowCount ? { rowCount: rowCount(value) } : {})
+    });
+    return value;
   }
 }
 
@@ -888,24 +999,34 @@ export class GateDWorkloadDriver {
     operations: readonly RuntimeBaselineOperation[],
     phase: GateDOperationPhase
   ): Promise<void> {
+    let firstError: unknown;
+    let failed = false;
     await runWithFixedConcurrency(operations, FIXED_CONCURRENCY, async (operation, index) => {
       if (this.stopped) return;
       this.nextInvocationSequence += 1;
-      const observation = await this.transport.execute({
-        phase,
-        operation,
-        fixture: phase === "seed" ? "gate-d-no-tool" : gateDFixtureForKind(operation.kind),
-        decision: phase === "run" ? approvalDecision(operation.kind, index) : undefined,
-        invocationSequence: this.nextInvocationSequence
-      });
-      this.admissionLatenciesMs.push(observation.admissionLatencyMs);
-      this.durableReplayLatenciesMs.push(observation.durableReplayLatencyMs);
-      this.hardFailures.push(...observation.hardFailures);
-      this.eventObservations.push(...(observation.eventObservations ?? []));
+      try {
+        const observation = await this.transport.execute({
+          phase,
+          operation,
+          fixture: phase === "seed" ? "gate-d-no-tool" : gateDFixtureForKind(operation.kind),
+          decision: phase === "run" ? approvalDecision(operation.kind, index) : undefined,
+          invocationSequence: this.nextInvocationSequence
+        });
+        this.admissionLatenciesMs.push(observation.admissionLatencyMs);
+        this.durableReplayLatenciesMs.push(observation.durableReplayLatencyMs);
+        this.hardFailures.push(...observation.hardFailures);
+        this.eventObservations.push(...(observation.eventObservations ?? []));
+      } catch (error) {
+        if (!failed) firstError = error;
+        failed = true;
+        this.stop();
+      }
     });
+    if (failed) throw firstError;
   }
 
   stop(): void {
+    if (this.stopped) return;
     this.stopped = true;
     this.transport.stop?.();
   }
