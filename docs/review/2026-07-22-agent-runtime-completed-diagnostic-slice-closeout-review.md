@@ -4,7 +4,7 @@
 
 有风险：Task 3–5 的 Gate D performance diagnostic-only 实现、测试、实施计划与 Review 证据已完成并通过 fresh 验证，可以作为独立完成切片精确提交并推送至 GitHub 功能分支；但 active OpenSpec change `harden-agent-runtime-single-node-production` 仍为 `24/31`，正式 Gate D、生产证据审计、全量生产资格、契约冻结和最终 closeout 尚未完成，因此本轮不得执行 OpenSpec archive，也不得把 Dashboard 从 `proposed` 提升为 `verified` 或 `archived`。
 
-Task 6 / Gate R1 resume-004 的终局仍是 `需修改 / BLOCKED`，仅证明 observer `snapshot-failure`，没有 performance conclusion。对应 worktree 只有在未入 Git 的 SQLite、日志、PID、profile 与 partial report 被安全迁移出 worktree 并保留后才能关闭；不得把关闭 worktree 等同于 evidence cleanup 或 OpenSpec 完成。
+Task 6 / Gate R1 resume-004 的终局仍是 `需修改 / BLOCKED`，仅证明 observer `snapshot-failure`，没有 performance conclusion。未入 Git 的 SQLite、日志、PID、profile 与 partial report 已迁移出 worktree 并保留；不得把关闭 worktree 等同于 OpenSpec 完成。
 
 ## Review 范围
 
@@ -65,7 +65,9 @@ Task 6 / Gate R1 resume-004 的终局仍是 `需修改 / BLOCKED`，仅证明 ob
 
 当前未入 Git 的 Gate D / Gate R1 evidence 约 2.18 GB，包含约 1.84 GB 的 attempt-002 SQLite、约 241 MB 的 partial Gate R1 SQLite、被 `.gitignore` 忽略的 Java logs，以及 PID、profile、partial report 和 lock。GitHub 普通 Git 不能接收这些大文件；直接强制删除 worktree 会不可逆地移除本地失败诊断输入。
 
-影响：关闭 worktree 前必须把这些未入 Git/ignored evidence 迁移到 worktree 之外的本地保留目录，并记录最终位置。迁移不构成 Gate PASS、性能分析或 evidence cleanup；不得复用为新的正式 runId。
+影响：这些未入 Git/ignored evidence 已迁移到 worktree 之外的本地保留目录，并记录最终位置。迁移不构成 Gate PASS、性能分析或 Git 归档；不得复用为新的正式 runId。
+
+同卷 rename/move 保留了受保护 attempt-002 SQLite 的 device、inode、size 和 mtime，但更新了 ctime：原 tuple `16777232:165257457:1835978752:1784167299:1784167299`，迁移后为 `16777232:165257457:1835978752:1784167299:1784699200`。因此迁移件只能作为历史诊断保留，不能继续满足先前 strict identity binding，也不能在没有新计划、新 binding 和新审批时复用。
 
 ### Warning — 1：Git baseline 只能证明当前切片相对 HEAD 的变化
 
@@ -84,13 +86,20 @@ Task 6 / Gate R1 resume-004 的终局仍是 `需修改 / BLOCKED`，仅证明 ob
 | `pnpm dashboard:check` | PASS；36 entries，generated outputs current |
 | `git diff --check` | PASS |
 
+## GitHub 与本地证据保留结果
+
+- 已完成 diagnostic-only 切片提交并推送至 GitHub 功能分支，commit 为 `da86e08177593be4eaa4df2ef68892301abcd094`。
+- 远端 `add-openclacky-runtime-parity-roadmap` 已机械复核指向同一 commit。
+- 16 个未入 Git evidence 文件共 `2176696701` bytes，已迁移至 [本地 evidence 保留目录](file:///Users/elvis/file/develop/opensource/openharness-evidence/add-openclacky-runtime-parity-roadmap/2026-07-22-gate-d-gate-r1/)。
+- 保留目录的状态、identity 变化与复用边界记录在 [MANIFEST.md](file:///Users/elvis/file/develop/opensource/openharness-evidence/add-openclacky-runtime-parity-roadmap/2026-07-22-gate-d-gate-r1/MANIFEST.md)。
+
 未执行正式 Gate D、observer retry、第五次 resume、三个 30 分钟 variants、performance repair、OpenSpec archive、Dashboard 状态提升、main merge 或 release tag。未从 partial SQLite 推断性能趋势。
 
 ## 最终建议
 
 1. 精确暂存并提交 11 个 diagnostic-only source/test 文件、获批实施计划和完整 Review 证据链；明确排除所有 SQLite、logs、PID、profile、partial report 与 locks。
 2. 使用中文分段式提交信息将完成切片推送到现有 GitHub 功能分支；提交前执行 staged diff、文件大小、敏感信息和 whitespace 复核。
-3. 将未入 Git evidence 原样迁移到 worktree 之外的本地保留目录，复核源 worktree 不再包含需保留的 untracked/ignored evidence，再关闭对应 worktree。
+3. 未入 Git evidence 已迁移到 worktree 之外的本地保留目录并记录 identity 变化；复核源 worktree 不再包含需保留的 untracked/ignored evidence 后，关闭对应 worktree。
 4. 保持 active OpenSpec 与 Dashboard `proposed`；未来从远端功能分支重建新 worktree 后，先修复 admission 性能退化并完成新的准入与定向回归，再申请新的 Gate D runId 和审批。
 
 ## 项目学习收口
