@@ -49,7 +49,8 @@ import type {
   ToolCall,
   ToolDefinition,
   ToolCallRequest,
-  TraceEvent
+  TraceEvent,
+  Awaitable
 } from "./types";
 
 const DEFAULT_STEP_BUDGET = 25;
@@ -109,6 +110,8 @@ export interface AgentExecutionInput {
 
 export interface AgentExecutionHandle {
   executionId: ExecutionId;
+  /** Resolves only after durable execution admission has committed. */
+  admitted: Promise<void>;
   /** Resolves when the runner reaches a terminal state. */
   done: Promise<ExecutionState>;
 }
@@ -153,14 +156,25 @@ export class AgentExecutionRunner {
       tenantId: input.tenantId,
       userId: input.userId
     });
-    if (this.persistence) {
-      this.publishCommit(this.persistence.lifecycle.startExecution({
+    const admitted = (this.persistence
+      ? this.publishCommit(this.persistence.lifecycle.startExecution({
         ...this.lifecycleScope(executionId, input),
         message: input.message
-      }));
-    }
-    const done = this.runLoop(executionId, input);
-    return { executionId, done };
+      }))
+      : Promise.resolve()).catch(error => {
+        this.executionStateStore.transitionToTerminal(
+          input.tenantId,
+          input.userId,
+          input.conversationId,
+          executionId,
+          "errored",
+          admissionFailureReason(error)
+        );
+        throw error;
+      });
+    const done = admitted.then(() => this.runLoop(executionId, input));
+    void done.catch(() => undefined);
+    return { executionId, admitted, done };
   }
 
   // ── Loop ───────────────────────────────────────────────────────────────────
@@ -168,16 +182,16 @@ export class AgentExecutionRunner {
   private async runLoop(executionId: ExecutionId, input: AgentExecutionInput): Promise<ExecutionState> {
     const executionDeadline = Date.now() + resolveTimeoutMs("EXECUTION_TIMEOUT_MS", DEFAULT_EXECUTION_TIMEOUT_MS);
 
-    const send = (kind: RuntimeEventKind, payload: Record<string, unknown> = {}) => {
+    const send = async (kind: RuntimeEventKind, payload: Record<string, unknown> = {}): Promise<void> => {
       if (this.persistence) {
-        this.publishCommit(this.persistence.lifecycle.recordEvent({
+        await this.publishCommit(this.persistence.lifecycle.recordEvent({
           ...this.lifecycleScope(executionId, input),
           kind,
           data: payload
         }));
         return;
       }
-      this.runtimeEventStore.append(input.tenantId, input.userId, input.conversationId, {
+      await this.runtimeEventStore.append(input.tenantId, input.userId, input.conversationId, {
         executionId,
         conversationId: input.conversationId,
         tenantId: input.tenantId,
@@ -191,7 +205,8 @@ export class AgentExecutionRunner {
     };
 
     const emit = async (ev: TraceEvent) => {
-      send("trace", { ...ev });
+      await send("trace", { ...ev });
+      if (this.persistence) return;
       try { await this.javaClient.postTrace(ev, input.headers); } catch { /* trace must not break */ }
     };
 
@@ -201,12 +216,12 @@ export class AgentExecutionRunner {
     };
 
     try {
-      if (!this.persistence) send("agent_start", { traceId: input.traceId, conversationId: input.conversationId });
+      if (!this.persistence) await send("agent_start", { traceId: input.traceId, conversationId: input.conversationId });
       await emit(this.ev(input, TRACE_AGENT_START, "agent start"));
 
       if (!this.persistence) {
-        injectSessionContextIfNeeded(this.history, input.tenantId, input.userId, input.conversationId, this.selectedModel(input));
-        this.history.append(input.tenantId, input.userId, input.conversationId, { role: "user", content: input.message });
+        await injectSessionContextIfNeeded(this.history, input.tenantId, input.userId, input.conversationId, this.selectedModel(input));
+        await this.history.append(input.tenantId, input.userId, input.conversationId, { role: "user", content: input.message });
       }
       const catalog = await this.withExecutionDeadline(
         executionId,
@@ -232,7 +247,7 @@ export class AgentExecutionRunner {
         stepIndex += 1;
         await emit(this.ev(input, TRACE_STEP_START, "step start", { stepIndex }));
 
-        send("model_call_start", { stepIndex });
+        await send("model_call_start", { stepIndex });
         await emit(this.ev(input, TRACE_MODEL_NODE_START, "model call start", { stepIndex }));
         let resp = await this.withExecutionDeadline(
           executionId,
@@ -263,7 +278,7 @@ export class AgentExecutionRunner {
         }
 
         if (resp.error) {
-          send("model_call_end", { stepIndex, hasToolCalls: false });
+          await send("model_call_end", { stepIndex, hasToolCalls: false });
           throw new RuntimeTerminalFailure("MODEL_ERROR", resp.error.errorMessage, {
             upstreamErrorClass: resp.error.errorClass,
             stepIndex
@@ -271,31 +286,31 @@ export class AgentExecutionRunner {
         }
 
         if (!resp.message) {
-          send("model_call_end", { stepIndex, hasToolCalls: false });
+          await send("model_call_end", { stepIndex, hasToolCalls: false });
           throw new RuntimeTerminalFailure("EMPTY_MODEL_RESPONSE", "Model response did not include a message", { stepIndex });
         }
         const toolCalls = resp.message.toolCalls ?? [];
         this.assertToolCallsAllowed(input, toolCalls, stepIndex);
         if (toolCalls.length === 0) {
-          send("model_call_end", { stepIndex, hasToolCalls: false });
+          await send("model_call_end", { stepIndex, hasToolCalls: false });
           stopReason = "FINAL_ANSWER";
           answer = String(resp.message.content ?? "");
           finalAssistantMessage = resp.message;
           if (!this.persistence) {
-            this.history.append(input.tenantId, input.userId, input.conversationId, resp.message);
+            await this.history.append(input.tenantId, input.userId, input.conversationId, resp.message);
           }
           break;
         }
 
         if (this.persistence) {
-          this.publishCommit(this.persistence.lifecycle.recordToolPlan({
+          await this.publishCommit(this.persistence.lifecycle.recordToolPlan({
             ...this.lifecycleScope(executionId, input),
             assistantMessage: resp.message,
             stepIndex
           }));
         } else {
-          send("model_call_end", { stepIndex, hasToolCalls: true });
-          this.history.append(input.tenantId, input.userId, input.conversationId, resp.message);
+          await send("model_call_end", { stepIndex, hasToolCalls: true });
+          await this.history.append(input.tenantId, input.userId, input.conversationId, resp.message);
         }
 
         await this.withExecutionDeadline(
@@ -314,20 +329,20 @@ export class AgentExecutionRunner {
 
       if (stepIndex >= stepBudget && stopReason === "STEP_BUDGET_EXHAUSTED") {
         await emit(this.ev(input, TRACE_STEP_BUDGET_EXHAUSTED, "step budget exhausted", { stepBudget }));
-        send("step_budget_exhausted", { stepBudget });
+        await send("step_budget_exhausted", { stepBudget });
         throw new RuntimeTerminalFailure("STEP_BUDGET_EXHAUSTED", `Step budget exhausted: ${stepBudget}`, { stepBudget });
       }
 
-      if (!this.persistence) send("final_answer", usage ? { answer, usage } : { answer });
+      if (!this.persistence) await send("final_answer", usage ? { answer, usage } : { answer });
       await emit(this.ev(input, TRACE_FINAL_ANSWER, "final answer", { stopReason }));
-      if (!this.persistence) send("agent_end", { stopReason });
+      if (!this.persistence) await send("agent_end", { stopReason });
       await emit(this.ev(input, TRACE_AGENT_END, "agent end", { stopReason }));
 
       if (this.persistence) {
         if (!finalAssistantMessage) {
           throw new RuntimeTerminalFailure("EMPTY_MODEL_RESPONSE", "Final assistant message is missing");
         }
-        this.publishCommit(this.persistence.lifecycle.completeExecution({
+        await this.publishCommit(this.persistence.lifecycle.completeExecution({
           ...this.lifecycleScope(executionId, input),
           assistantMessage: finalAssistantMessage,
           stopReason,
@@ -341,7 +356,7 @@ export class AgentExecutionRunner {
       // Transition state to terminal BEFORE the terminal SSE event so that any client
       // reading `stream_done` can immediately observe a consistent terminal state.
       const final = this.executionStateStore.transitionToTerminal(input.tenantId, input.userId, input.conversationId, executionId, "completed", stopReason);
-      if (!this.persistence) send("stream_done", { stopReason });
+      if (!this.persistence) await send("stream_done", { stopReason });
       return final ?? this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId)!;
     } catch (e) {
       if (e instanceof RuntimeTerminalFailure && e.errorClass === "EXECUTION_ABORTED") {
@@ -353,26 +368,26 @@ export class AgentExecutionRunner {
       const errorMessage = e instanceof Error ? e.message : String(e);
       const details = e instanceof RuntimeTerminalFailure ? e.details : {};
       if (this.persistence) {
-        this.publishCommit(this.persistence.lifecycle.failExecution({
+        await this.publishCommit(this.persistence.lifecycle.failExecution({
           ...this.lifecycleScope(executionId, input),
           errorClass,
           errorMessage,
           details
         }));
       } else {
-        send("stream_error", { errorClass, errorMessage, ...details });
+        await send("stream_error", { errorClass, errorMessage, ...details });
       }
       const final = this.executionStateStore.transitionToTerminal(input.tenantId, input.userId, input.conversationId, executionId, "errored", errorClass);
       return final ?? this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId)!;
     }
   }
 
-  private finalizeAborted(
+  private async finalizeAborted(
     executionId: ExecutionId,
-    send: (kind: RuntimeEventKind, payload?: Record<string, unknown>) => void,
+    send: (kind: RuntimeEventKind, payload?: Record<string, unknown>) => Promise<void>,
     _emit: (ev: TraceEvent) => Promise<void>,
     input: AgentExecutionInput
-  ): ExecutionState {
+  ): Promise<ExecutionState> {
     // Ensure terminal state BEFORE emitting the SSE terminal event so subscribers
     // observing stream_error see a consistent ExecutionState.
     const current = this.executionStateStore.get(input.tenantId, input.userId, input.conversationId, executionId);
@@ -383,12 +398,12 @@ export class AgentExecutionRunner {
       this.executionStateStore.transitionToTerminal(input.tenantId, input.userId, input.conversationId, executionId, "aborted", "EXECUTION_ABORTED");
     }
     if (this.persistence) {
-      this.publishCommit(this.persistence.lifecycle.abortExecution({
+      await this.publishCommit(this.persistence.lifecycle.abortExecution({
         ...this.lifecycleScope(executionId, input),
         errorMessage: "Execution was aborted by client"
       }));
     } else {
-      send("stream_error", {
+      await send("stream_error", {
         errorClass: "EXECUTION_ABORTED",
         errorMessage: "Execution was aborted by client"
       });
@@ -465,7 +480,8 @@ export class AgentExecutionRunner {
     catalog: { catalogVersion: string; catalogHash: string; tools: unknown[] }
   ): Promise<ModelChatResponse> {
     const memoryFacts = await this.retrieveMemoryFacts(input);
-    const context = buildModelContext(this.history.get(input.tenantId, input.userId, input.conversationId), { memoryFacts });
+    const history = await this.history.get(input.tenantId, input.userId, input.conversationId);
+    const context = buildModelContext(history, { memoryFacts });
     const prompted = promptedMessages(context.messages, input.agentDefinition.promptRef);
     const messages = prompted.messages;
     const cacheHints = computeCacheHints(messages);
@@ -507,12 +523,13 @@ export class AgentExecutionRunner {
     catalog: { catalogVersion: string; catalogHash: string },
     toolCalls: ToolCall[],
     stepIndex: number,
-    send: (event: RuntimeEventKind, data: Record<string, unknown>) => void,
+    send: (event: RuntimeEventKind, data: Record<string, unknown>) => Promise<void>,
     emit: (ev: TraceEvent) => Promise<void>,
     isAborted: () => boolean,
     options: { persistHistory?: boolean; transientApproval?: boolean } = {}
   ): Promise<ToolBatchOutcome[]> {
     const outcomes: ToolBatchOutcome[] = [];
+    const history = await this.history.get(input.tenantId, input.userId, input.conversationId);
     const decisions = await beforeToolUse(toolCalls, {
       requestId: input.requestId,
       conversationId: input.conversationId,
@@ -522,7 +539,7 @@ export class AgentExecutionRunner {
       catalogVersion: catalog.catalogVersion,
       catalogHash: catalog.catalogHash,
       sources: this.toolRegistry.getSources(input.tenantId, input.conversationId),
-      untrustedToolOutputSinceLastUser: hasUntrustedToolOutputSinceLastUser(this.history.get(input.tenantId, input.userId, input.conversationId)),
+      untrustedToolOutputSinceLastUser: hasUntrustedToolOutputSinceLastUser(history),
       toolPermissions: this.toolRegistry.getPermissions(input.tenantId, input.conversationId)
     }, this.javaClient, input.headers);
 
@@ -547,7 +564,7 @@ export class AgentExecutionRunner {
           }, options.transientApproval || this.persistence ? { persist: false } : undefined);
           this.executionStateStore.transition(input.tenantId, input.userId, input.conversationId, pending.executionId, "waiting_approval");
           if (this.persistence) {
-            this.publishCommit(this.persistence.lifecycle.enterApproval({
+            await this.publishCommit(this.persistence.lifecycle.enterApproval({
               ...this.lifecycleScope(pending.executionId, input),
               approvalId: pending.askUserId,
               toolCallId: toolCall.id,
@@ -555,7 +572,7 @@ export class AgentExecutionRunner {
               argumentsRaw: toolCall.argumentsRaw,
               reason: decision.reason
             }));
-          } else send("approval_requested", options.transientApproval ? {
+          } else await send("approval_requested", options.transientApproval ? {
             askUserId: pending.askUserId,
             toolCallId: toolCall.id,
             toolName: toolCall.name,
@@ -576,7 +593,7 @@ export class AgentExecutionRunner {
             toolCall.name
           );
           if (this.persistence) {
-            this.publishCommit(this.persistence.lifecycle.decideApproval({
+            await this.publishCommit(this.persistence.lifecycle.decideApproval({
               ...this.lifecycleScope(pending.executionId, input),
               approvalId: pending.askUserId,
               nextStatus: approval.action === "approve" ? "approved" : approval.action === "revise" ? "revised" : "rejected"
@@ -594,17 +611,17 @@ export class AgentExecutionRunner {
             } as AgentMessage;
             if (options.persistHistory !== false) {
               if (this.persistence) {
-                this.publishCommit(this.persistence.lifecycle.completeTool({
+                await this.publishCommit(this.persistence.lifecycle.completeTool({
                   ...this.lifecycleScope(pending.executionId, input),
                   toolResult: rejected,
                   stepIndex,
                   status: "rejected"
                 }));
               } else {
-                this.history.append(input.tenantId, input.userId, input.conversationId, rejected);
+                await this.history.append(input.tenantId, input.userId, input.conversationId, rejected);
               }
             }
-            if (!this.persistence) send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "rejected", stepIndex });
+            if (!this.persistence) await send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "rejected", stepIndex });
             outcomes.push({
               toolCallId: toolCall.id,
               toolName: toolCall.name,
@@ -614,45 +631,45 @@ export class AgentExecutionRunner {
             continue;
           }
           const approvedToolCall = withApprovedArguments(toolCall, approval);
-          send("tool_call", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, stepIndex });
+          await send("tool_call", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, stepIndex });
           const toolResult = await this.executeTool(input, catalog, approvedToolCall, stepIndex, emit, pending.approvalToken);
           if (options.persistHistory !== false) {
             if (this.persistence) {
-              this.publishCommit(this.persistence.lifecycle.completeTool({
+              await this.publishCommit(this.persistence.lifecycle.completeTool({
                 ...this.lifecycleScope(pending.executionId, input),
                 toolResult,
                 stepIndex
               }));
             } else {
-              this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
+              await this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
             }
           }
-          if (!this.persistence) send("tool_result", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, status: "ok", stepIndex });
+          if (!this.persistence) await send("tool_result", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, status: "ok", stepIndex });
           outcomes.push(this.toolOutcome(approvedToolCall, toolResult));
           continue;
         }
         const status = decision?.decision === "REQUIRE_APPROVAL" ? "pending_approval" : "denied";
-        send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status, reason: decision?.reason, stepIndex });
+        await send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status, reason: decision?.reason, stepIndex });
         throw new RuntimeTerminalFailure("POLICY_DENY", decision?.reason ?? "Tool execution denied by policy", {
           toolCallId: toolCall.id,
           toolName: toolCall.name,
           stepIndex
         });
       }
-      send("tool_call", { toolCallId: toolCall.id, toolName: toolCall.name, stepIndex });
+      await send("tool_call", { toolCallId: toolCall.id, toolName: toolCall.name, stepIndex });
       const toolResult = await this.executeTool(input, catalog, toolCall, stepIndex, emit);
       if (options.persistHistory !== false) {
         if (this.persistence) {
-          this.publishCommit(this.persistence.lifecycle.completeTool({
+          await this.publishCommit(this.persistence.lifecycle.completeTool({
             ...this.lifecycleScope(this.currentExecutionId(input.tenantId, input.userId, input.conversationId), input),
             toolResult,
             stepIndex
           }));
         } else {
-          this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
+          await this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
         }
       }
-      if (!this.persistence) send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "ok", stepIndex });
+      if (!this.persistence) await send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "ok", stepIndex });
       outcomes.push(this.toolOutcome(toolCall, toolResult));
     }
     return outcomes;
@@ -675,7 +692,7 @@ export class AgentExecutionRunner {
     catalog: { catalogVersion: string; catalogHash: string; tools: unknown[] },
     initial: ModelChatResponse,
     stepIndex: number,
-    send: (event: RuntimeEventKind, data: Record<string, unknown>) => void,
+    send: (event: RuntimeEventKind, data: Record<string, unknown>) => Promise<void>,
     emit: (ev: TraceEvent) => Promise<void>,
     isAborted: () => boolean
   ): Promise<ModelChatResponse> {
@@ -1024,7 +1041,7 @@ export class AgentExecutionRunner {
   private async autoCompress(input: AgentExecutionInput): Promise<void> {
     if (process.env.COMPRESSION_AUTO === "false") return;
     try {
-      const messages = this.history.get(input.tenantId, input.userId, input.conversationId);
+      const messages = await this.history.get(input.tenantId, input.userId, input.conversationId);
       if (shouldCompress(messages)) {
         await compress(input.tenantId, input.userId, input.conversationId, this.history, this.javaClient, input.headers);
       }
@@ -1105,13 +1122,13 @@ export class AgentExecutionRunner {
       }
     }
     if (this.persistence) {
-      this.publishCommit(this.persistence.lifecycle.recordInjectedMessages({
+      await this.publishCommit(this.persistence.lifecycle.recordInjectedMessages({
         ...this.lifecycleScope(this.currentExecutionId(input.tenantId, input.userId, input.conversationId), input),
         messages: injectedMessages
       }));
     } else {
       for (const message of injectedMessages) {
-        this.history.append(input.tenantId, input.userId, input.conversationId, message);
+        await this.history.append(input.tenantId, input.userId, input.conversationId, message);
       }
     }
   }
@@ -1127,14 +1144,25 @@ export class AgentExecutionRunner {
     };
   }
 
-  private publishCommit(commit: LifecycleCommit): void {
+  private async publishCommit(commit: Awaitable<LifecycleCommit>): Promise<void> {
     if (!this.persistence) return;
+    const durableCommit = await commit;
     try {
-      publishCommittedLifecycleEvents(this.persistence.liveEvents, commit);
+      publishCommittedLifecycleEvents(this.persistence.liveEvents, durableCommit);
     } catch {
       // Durable state is already committed; replay remains authoritative.
     }
   }
+}
+
+function admissionFailureReason(error: unknown): string {
+  if (
+    error instanceof Error
+    && /^[A-Z0-9_]+$/.test(error.message)
+  ) {
+    return error.message;
+  }
+  return "RUNTIME_STORAGE_UNAVAILABLE";
 }
 
 function wrapUntrustedToolOutput(toolName: string, content: string): string {

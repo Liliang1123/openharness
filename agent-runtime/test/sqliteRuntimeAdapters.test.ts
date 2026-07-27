@@ -1,26 +1,27 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { openProductionRuntimeContext } from "../src/storage/productionRuntimeContext";
 
 const workspaces: string[] = [];
 
-function openContext() {
+async function openContext() {
   const workspace = mkdtempSync(join(tmpdir(), "openharness-sqlite-adapters-"));
   workspaces.push(workspace);
   return openProductionRuntimeContext(join(workspace, "runtime.sqlite"));
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const workspace of workspaces.splice(0)) rmSync(workspace, { recursive: true, force: true });
 });
 
-describe("scoped SQLite Runtime adapters", () => {
-  it("pushes history and memory ownership scope into the shared database", async () => {
-    const context = openContext();
-    context.history.append("tenant-a", "user-a", "conversation-a", { role: "user", content: "alpha" });
-    context.history.append("tenant-a", "user-b", "conversation-a", { role: "user", content: "beta" });
+describe("scoped SQLite Runtime worker adapters", () => {
+  it("pushes history and memory ownership scope into Worker semantic commands", async () => {
+    const context = await openContext();
+    await context.history.append("tenant-a", "user-a", "conversation-a", { role: "user", content: "alpha" });
+    await context.history.append("tenant-a", "user-b", "conversation-a", { role: "user", content: "beta" });
     await context.memory.upsert({
       memoryId: "memory-shared",
       tenantId: "tenant-a",
@@ -29,16 +30,18 @@ describe("scoped SQLite Runtime adapters", () => {
       tags: []
     });
 
-    expect(context.history.get("tenant-a", "user-a", "conversation-a").map(message => message.content)).toEqual(["alpha"]);
-    expect(context.history.get("tenant-a", "user-b", "conversation-a").map(message => message.content)).toEqual(["beta"]);
+    expect((await context.history.get("tenant-a", "user-a", "conversation-a"))
+      .map(message => message.content)).toEqual(["alpha"]);
+    expect((await context.history.get("tenant-a", "user-b", "conversation-a"))
+      .map(message => message.content)).toEqual(["beta"]);
     expect(await context.history.list("tenant-a", "user-a")).toHaveLength(1);
     expect(await context.memory.list("tenant-a", "user-b")).toEqual([]);
     expect(await context.memory.list("tenant-a", "user-a")).toHaveLength(1);
-    context.close();
+    await context.close();
   });
 
-  it("returns executions, approvals, and events only for the complete owner scope", () => {
-    const context = openContext();
+  it("returns executions, approvals, and events only for the complete owner scope", async () => {
+    const context = await openContext();
     const scope = {
       tenantId: "tenant-a",
       userId: "user-a",
@@ -47,8 +50,8 @@ describe("scoped SQLite Runtime adapters", () => {
       traceId: "trace-a",
       requestId: "request-a"
     };
-    context.lifecycle.startExecution({ ...scope, message: "hello" });
-    context.lifecycle.enterApproval({
+    await context.lifecycle.startExecution({ ...scope, message: "hello" });
+    await context.lifecycle.enterApproval({
       ...scope,
       approvalId: "approval-a",
       toolCallId: "call-a",
@@ -56,15 +59,49 @@ describe("scoped SQLite Runtime adapters", () => {
       argumentsRaw: "{}"
     });
 
-    expect(context.executions.getActive("tenant-a", "user-a", "conversation-a")?.executionId).toBe("execution-a");
-    expect(context.executions.getActive("tenant-a", "user-b", "conversation-a")).toBeNull();
-    expect(context.approvals.listPending("tenant-a", "user-a", "conversation-a")).toHaveLength(1);
-    expect(context.approvals.listPending("tenant-a", "user-b", "conversation-a")).toEqual([]);
-    expect(context.approvals.get("tenant-a", "user-a", "conversation-a", "execution-a", "call-a")?.askUserId).toBe("approval-a");
-    expect(context.approvals.get("tenant-a", "user-b", "conversation-a", "execution-a", "call-a")).toBeNull();
-    expect(context.events.since("tenant-a", "user-a", "conversation-a", null).map(event => event.kind))
-      .toEqual(["agent_start", "approval_requested"]);
-    expect(context.events.since("tenant-a", "user-b", "conversation-a", null)).toEqual([]);
-    context.close();
+    expect(await context.executions.getActive("tenant-a", "user-a", "conversation-a"))
+      .toMatchObject({ executionId: "execution-a" });
+    expect(await context.executions.getActive("tenant-a", "user-b", "conversation-a")).toBeNull();
+    expect(await context.approvals.listPending("tenant-a", "user-a", "conversation-a")).toHaveLength(1);
+    expect(await context.approvals.listPending("tenant-a", "user-b", "conversation-a")).toEqual([]);
+    expect(await context.approvals.get(
+      "tenant-a",
+      "user-a",
+      "conversation-a",
+      "execution-a",
+      "call-a"
+    )).toMatchObject({ askUserId: "approval-a" });
+    expect(await context.events.since("tenant-a", "user-a", "conversation-a", null))
+      .toMatchObject([{ kind: "agent_start" }, { kind: "approval_requested" }]);
+    await context.close();
+  });
+
+  it("uses only named domain operations and never exposes raw database capabilities", async () => {
+    const context = await openContext();
+    const execute = vi.spyOn(context.storage, "execute");
+    try {
+      await context.history.append("tenant-a", "user-a", "conversation-a", {
+        role: "user",
+        content: "alpha"
+      });
+      await context.history.get("tenant-a", "user-a", "conversation-a");
+      await context.memory.list("tenant-a", "user-a");
+      await context.executions.getActive("tenant-a", "user-a", "conversation-a");
+      await context.approvals.listPending("tenant-a", "user-a", "conversation-a");
+      await context.events.since("tenant-a", "user-a", "conversation-a", null);
+
+      expect(execute.mock.calls.map(call => call[1])).toEqual([
+        "history.append",
+        "history.get",
+        "memory.list",
+        "execution.getActive",
+        "approval.listPending",
+        "event.since"
+      ]);
+      expect("database" in context).toBe(false);
+      expect("repositories" in context).toBe(false);
+    } finally {
+      await context.close();
+    }
   });
 });

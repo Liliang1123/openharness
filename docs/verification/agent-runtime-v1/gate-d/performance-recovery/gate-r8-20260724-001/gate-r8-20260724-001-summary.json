@@ -1,0 +1,57 @@
+{
+  "runId": "gate-r8-20260724-001",
+  "result": "fail",
+  "decision": "abandon-separate-passive-checkpoint-worker-candidate",
+  "executionOrder": [
+    {
+      "runId": "gate-r8-control-a1",
+      "result": "pass"
+    },
+    {
+      "runId": "gate-r8-candidate-b1",
+      "result": "blocked",
+      "errorCode": "wal_size_limit_exceeded"
+    },
+    {
+      "runId": "gate-r8-candidate-b2",
+      "result": "not_executed"
+    },
+    {
+      "runId": "gate-r8-control-a2",
+      "result": "not_executed"
+    }
+  ],
+  "bindings": {
+    "databaseStartSha256": "f4a8e3b227b9947828c19cca45151635e43657e4b1fc22a95e3ff1c2f5a7ec7a",
+    "databaseStartBytes": 4092854272,
+    "runnerSha256": "30ad9a2012969610c858ecfbc0d9ae8648e2b50272de486ed71242cd188d7630",
+    "workerSha256": "f5a97573e86011994a0f37c21d1438b7ada149037a7dae97ad7414bce2b11290",
+    "planSha256": "9ce6f98a4768fa9cf9d88c1b2499ca9614f04c66214eccab6e43ac1e4e0faf64",
+    "sourceStateSha256": "177958470736e6c96b66779cda1fb5d17863190b05d726971c000f868b7b135c"
+  },
+  "controlA1": {
+    "throughputPerSecond": 88.58286723521924,
+    "lastHalfP95Ms": 5.994874999996682,
+    "maximumLatencyMs": 1922.4791659999973,
+    "operationsOver100Ms": 81,
+    "longestConsecutiveOver100Ms": 1,
+    "traceAckIntervals": 80,
+    "maximumWalBytes": 4412552,
+    "shutdownWalBytes": 0,
+    "integrity": "ok"
+  },
+  "candidateB1": {
+    "hardFailure": "wal_size_limit_exceeded",
+    "maximumAllowedWalBytes": 67108864,
+    "workloadCompleted": true,
+    "integrityAfterClose": "ok",
+    "pendingTraceEventsAfterClose": 0,
+    "sidecarsAfterClose": "removed"
+  },
+  "newEvidence": {
+    "controlOperationsOver100Ms": 81,
+    "configuredTraceAckIntervals": 80,
+    "inference": "The periodic trace acknowledgement transaction is the strongest remaining writer-lock suspect. This is an inference from exact cadence and must be verified by a dedicated transition-batch diagnostic."
+  },
+  "next": "Do not implement checkpoint ownership. Diagnose bounded trace-outbox acknowledgement transaction chunking with production-equivalent 100-event transition batches."
+}

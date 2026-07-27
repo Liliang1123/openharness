@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "track": "local",
+  "evidenceKind": "gate-r1-targeted-performance-diagnosis",
+  "generatedAt": "2026-07-24T02:06:37Z",
+  "sourceDatabaseBasename": "gate-r1-20260723-incremental-001.sqlite",
+  "sourceIntegrityPreserved": true,
+  "replay": {
+    "iterations": 2000,
+    "rowsPerRead": 360,
+    "singleReadMedianMs": 0.9150830000000951,
+    "singleReadP95Ms": 0.9889579999999114,
+    "doubleReadMedianMs": 1.8327500000004875,
+    "doubleReadP95Ms": 1.971667000000025,
+    "medianRatio": 2.002823787569321,
+    "p95Ratio": 1.993681228121115,
+    "decision": "confirmed-direct-amplification"
+  },
+  "outboxIndex": {
+    "rounds": 6,
+    "insertsPerRound": 10000,
+    "withIndexDurationsMs": [
+      36.55254100000457,
+      38.21833399999741,
+      36.0958329999994,
+      36.609583999997994,
+      36.25837500000489,
+      36.11091699999815
+    ],
+    "withoutIndexDurationsMs": [
+      31.917958000005456,
+      32.05333300000348,
+      32.14425000000483,
+      32.17262500000652,
+      32.52233399999386,
+      32.604999999995925
+    ],
+    "withIndexMedianMs": 36.25837500000489,
+    "withIndexP95Ms": 38.21833399999741,
+    "withoutIndexMedianMs": 32.14425000000483,
+    "withoutIndexP95Ms": 32.604999999995925,
+    "medianOverheadRatio": 1.1279894537903183,
+    "p95OverheadRatio": 1.1721617543322247,
+    "decision": "contributing-not-primary"
+  },
+  "temporaryCloneDisposition": {
+    "kind": "moved-to-trash",
+    "recoverable": true,
+    "basename": "openharness-gate-r1-outbox.EtkNsC"
+  },
+  "decision": {
+    "primaryCause": "session-replay-growth",
+    "contributingCauses": [
+      "outbox-index-growth",
+      "formal-full-oracle-growth"
+    ],
+    "correctnessGaps": [
+      "production-trace-outbox-dispatcher-absent",
+      "non-trace-events-enter-pending-outbox",
+      "trace-claim-can-be-starved-by-non-trace-events"
+    ],
+    "nextOpenSpecDecision": "existing-change"
+  }
+}

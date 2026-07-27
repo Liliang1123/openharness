@@ -15,6 +15,11 @@ import { InMemoryRuntimeEventStore } from "../src/runtimeEventStore";
 import { InMemoryExecutionStateStore } from "../src/executionStateStore";
 import { InMemoryApprovalStore } from "../src/approvalStore";
 import { McpRegistry } from "../src/mcpRegistry";
+import type {
+  RuntimeStorageMonitorFactory,
+  RuntimeStorageMonitorLifecycle,
+  RuntimeStorageReadinessReason
+} from "../src/storage/runtimeStorageMonitor";
 
 const workspaces: string[] = [];
 
@@ -40,6 +45,202 @@ describe("production server lifecycle", () => {
       serviceToken: "",
       javaClient: new FinalAnswerJavaClient()
     })).rejects.toThrow(/service token/i);
+  });
+
+  it("exposes authenticated readiness and degrades it for durable trace dead letters", async () => {
+    const healthyTarget = workspace();
+    const healthy = await createProductionServer({
+      databasePath: healthyTarget.databasePath,
+      serviceToken: "service-token",
+      javaClient: new FinalAnswerJavaClient(),
+      disableMcp: true
+    });
+    const healthyResponse = await healthy.inject({
+      method: "GET",
+      url: "/api/v1/health/ready",
+      headers: productionHeaders()
+    });
+    expect(healthyResponse.statusCode).toBe(200);
+    expect(healthyResponse.json()).toEqual({ status: "ready" });
+    await healthy.close();
+
+    const degradedTarget = workspace();
+    await seedTraceEvent(degradedTarget.databasePath, true);
+    const degraded = await createProductionServer({
+      databasePath: degradedTarget.databasePath,
+      serviceToken: "service-token",
+      javaClient: new FinalAnswerJavaClient(),
+      disableMcp: true
+    });
+    const degradedResponse = await degraded.inject({
+      method: "GET",
+      url: "/api/v1/health/ready",
+      headers: productionHeaders()
+    });
+    expect(degradedResponse.statusCode).toBe(503);
+    expect(degradedResponse.json()).toEqual({
+      status: "not_ready",
+      reason: "TRACE_OUTBOX_DEAD_LETTER"
+    });
+    await degraded.close();
+  });
+
+  it("waits for an in-flight trace dispatch before closing SQLite and releasing the lock", async () => {
+    const target = workspace();
+    await seedTraceEvent(target.databasePath, false);
+    const javaClient = new DeferredTraceJavaClient();
+    const app = await createProductionServer({
+      databasePath: target.databasePath,
+      serviceToken: "service-token",
+      javaClient,
+      disableMcp: true
+    });
+    await javaClient.started;
+    expect(javaClient.headers).toEqual({
+      Authorization: "Bearer service-token",
+      "X-Tenant-Id": "tenant-a",
+      "X-User-Id": "user-a",
+      "X-Trace-Id": "trace-a",
+      "X-Request-Id": "request-a"
+    });
+
+    let closeSettled = false;
+    const closing = app.close().then(() => { closeSettled = true; });
+    await Promise.resolve();
+    expect(closeSettled).toBe(false);
+
+    javaClient.release();
+    await closing;
+    expect(closeSettled).toBe(true);
+    const lock = acquireRuntimeSingletonLock(`${target.databasePath}.lock`);
+    lock.release();
+  });
+
+  it("owns the storage monitor, exposes its readiness, and blocks only external mutations", async () => {
+    const target = workspace();
+    const monitor = new ControlledStorageMonitor("RUNTIME_STORAGE_LOW");
+    const app = await createProductionServer({
+      databasePath: target.databasePath,
+      serviceToken: "service-token",
+      javaClient: new FinalAnswerJavaClient(),
+      disableMcp: true,
+      storageMonitorFactory: () => monitor
+    });
+
+    expect(monitor.startCount).toBe(1);
+    const readiness = await app.inject({
+      method: "GET",
+      url: "/api/v1/health/ready",
+      headers: productionHeaders()
+    });
+    expect(readiness.statusCode).toBe(503);
+    expect(readiness.json()).toEqual({
+      status: "not_ready",
+      reason: "RUNTIME_STORAGE_LOW"
+    });
+
+    const read = await app.inject({
+      method: "GET",
+      url: "/api/v1/sessions",
+      headers: productionHeaders()
+    });
+    expect(read.statusCode).toBe(200);
+
+    const mutation = await app.inject({
+      method: "POST",
+      url: "/api/v1/agent/chat",
+      headers: productionHeaders(),
+      payload: { conversationId: "conversation-a", message: "hello" }
+    });
+    expect(mutation.statusCode).toBe(503);
+    expect(mutation.json()).toEqual({
+      error: {
+        errorClass: "RUNTIME_STORAGE_LOW",
+        errorMessage: "Runtime is not accepting external mutations"
+      }
+    });
+
+    await app.close();
+    expect(monitor.closeCount).toBe(1);
+    const lock = acquireRuntimeSingletonLock(`${target.databasePath}.lock`);
+    lock.release();
+  });
+
+  it("drains an in-flight execution and closes production resources on critical disk", async () => {
+    const target = workspace();
+    const javaClient = new DeferredChatJavaClient();
+    let monitor!: ControlledStorageMonitor;
+    const storageMonitorFactory: RuntimeStorageMonitorFactory = dependencies => {
+      monitor = new ControlledStorageMonitor(undefined, dependencies.onCritical);
+      return monitor;
+    };
+    const app = await createProductionServer({
+      databasePath: target.databasePath,
+      serviceToken: "service-token",
+      javaClient,
+      disableMcp: true,
+      storageMonitorFactory
+    });
+
+    const request = app.inject({
+      method: "POST",
+      url: "/api/v1/agent/chat",
+      headers: productionHeaders(),
+      payload: { conversationId: "critical-conversation", message: "hello" }
+    });
+    await javaClient.started;
+
+    monitor.triggerCritical();
+    javaClient.release();
+    await request;
+    await app.close();
+
+    expect(monitor.closeCount).toBe(1);
+    const context = await openProductionRuntimeContext(target.databasePath);
+    const criticalEvents = await context.events.since(
+      "tenant-a", "user-a", "critical-conversation", null
+    );
+    const criticalExecutionId = criticalEvents.find(event => event.kind === "agent_start")?.executionId;
+    expect(criticalExecutionId).toBeTypeOf("string");
+    expect(await context.executions.getActive(
+      "tenant-a", "user-a", "critical-conversation"
+    )).toBeNull();
+    expect(await context.executions.get(
+      "tenant-a", "user-a", "critical-conversation", criticalExecutionId!
+    )).toMatchObject({
+      status: "errored",
+      stopReason: "EXECUTION_INTERRUPTED"
+    });
+    expect(criticalEvents.some(event =>
+      event.kind === "stream_error"
+      && event.data.errorClass === "EXECUTION_INTERRUPTED"
+    )).toBe(true);
+    await context.close();
+  });
+
+  it("fails initial critical storage preflight and releases the production lock", async () => {
+    const target = workspace();
+    let monitor!: ControlledStorageMonitor;
+
+    await expect(createProductionServer({
+      databasePath: target.databasePath,
+      serviceToken: "service-token",
+      javaClient: new FinalAnswerJavaClient(),
+      disableMcp: true,
+      storageMonitorFactory: dependencies => {
+        monitor = new ControlledStorageMonitor(
+          "RUNTIME_STORAGE_CRITICAL",
+          dependencies.onCritical,
+          true
+        );
+        return monitor;
+      }
+    })).rejects.toThrow(/critically low/i);
+
+    expect(monitor.startCount).toBe(1);
+    expect(monitor.closeCount).toBe(1);
+    const lock = acquireRuntimeSingletonLock(`${target.databasePath}.lock`);
+    lock.release();
   });
 
   it("uses SQLite as sole production authority and releases the lock on close", async () => {
@@ -91,7 +292,7 @@ describe("production server lifecycle", () => {
 
   it("commits approval and abort API mutations before returning", async () => {
     const target = workspace();
-    const context = openProductionRuntimeContext(target.databasePath);
+    const context = await openProductionRuntimeContext(target.databasePath);
     const approvalScope = {
       tenantId: "tenant-a",
       userId: "user-a",
@@ -100,8 +301,8 @@ describe("production server lifecycle", () => {
       traceId: "trace-a",
       requestId: "request-a"
     };
-    context.lifecycle.startExecution({ ...approvalScope, message: "hello" });
-    context.lifecycle.enterApproval({
+    await context.lifecycle.startExecution({ ...approvalScope, message: "hello" });
+    await context.lifecycle.enterApproval({
       ...approvalScope,
       approvalId: "approval-a",
       toolCallId: "tool-a",
@@ -113,8 +314,8 @@ describe("production server lifecycle", () => {
       conversationId: "abort-conversation",
       executionId: "abort-execution"
     };
-    context.lifecycle.startExecution({ ...abortScope, message: "hello" });
-    context.lifecycle.enterApproval({
+    await context.lifecycle.startExecution({ ...abortScope, message: "hello" });
+    await context.lifecycle.enterApproval({
       ...abortScope,
       approvalId: "approval-abort",
       toolCallId: "tool-abort",
@@ -143,9 +344,9 @@ describe("production server lifecycle", () => {
       payload: { action: "approve" }
     });
     expect(approval.statusCode).toBe(200);
-    expect(context.database.transaction(tx => context.repositories.approval.get(
-      tx, "tenant-a", "user-a", "approval-conversation", "approval-a"
-    ))?.status).toBe("approved");
+    expect(await context.approvals.listPending(
+      "tenant-a", "user-a", "approval-conversation"
+    )).toEqual([]);
 
     const abort = await app.inject({
       method: "POST",
@@ -153,15 +354,15 @@ describe("production server lifecycle", () => {
       headers
     });
     expect(abort.statusCode).toBe(200);
-    expect(context.database.transaction(tx => context.repositories.execution.get(
-      tx, "tenant-a", "user-a", "abort-conversation", "abort-execution"
-    ))?.status).toBe("aborted");
-    expect(context.database.transaction(tx => context.repositories.approval.get(
-      tx, "tenant-a", "user-a", "abort-conversation", "approval-abort"
-    ))?.status).toBe("invalidated");
+    expect(await context.executions.get(
+      "tenant-a", "user-a", "abort-conversation", "abort-execution"
+    )).toMatchObject({ status: "aborted" });
+    expect(await context.approvals.listPending(
+      "tenant-a", "user-a", "abort-conversation"
+    )).toEqual([]);
 
     await app.close();
-    context.close();
+    await context.close();
   });
 
   it("releases the production lock when listen fails", async () => {
@@ -206,7 +407,7 @@ describe("production server lifecycle", () => {
     await development.close();
 
     const target = workspace();
-    const context = openProductionRuntimeContext(target.databasePath);
+    const context = await openProductionRuntimeContext(target.databasePath);
     const production = await createServer({
       runtimeContext: context,
       javaClient: new FinalAnswerJavaClient(),
@@ -220,7 +421,7 @@ describe("production server lifecycle", () => {
       }
     });
     await production.close();
-    context.close();
+    await context.close();
   });
 
   it("owns an explicitly injected Gate D MCP registry in production", async () => {
@@ -269,8 +470,138 @@ class FinalAnswerJavaClient implements JavaClient {
       result: {}
     };
   }
-  async postTrace(_event: TraceEvent) {}
+  async postTrace(_event: TraceEvent, _headers: Record<string, string>) {}
   async evaluatePolicy(request: Parameters<JavaClient["evaluatePolicy"]>[0]) {
     return { requestId: request.requestId, conversationId: request.conversationId, decisions: [] };
+  }
+}
+
+class DeferredTraceJavaClient extends FinalAnswerJavaClient {
+  headers?: Record<string, string>;
+  private signalStarted!: () => void;
+  private signalReleased!: () => void;
+  readonly started = new Promise<void>(resolve => { this.signalStarted = resolve; });
+  private readonly released = new Promise<void>(resolve => { this.signalReleased = resolve; });
+
+  override async postTrace(_event: TraceEvent, headers: Record<string, string>): Promise<void> {
+    this.headers = headers;
+    this.signalStarted();
+    await this.released;
+  }
+
+  release(): void {
+    this.signalReleased();
+  }
+}
+
+class DeferredChatJavaClient extends FinalAnswerJavaClient {
+  private signalStarted!: () => void;
+  private signalReleased!: () => void;
+  readonly started = new Promise<void>(resolve => { this.signalStarted = resolve; });
+  private readonly released = new Promise<void>(resolve => { this.signalReleased = resolve; });
+
+  override async chat(request: ModelChatRequest) {
+    this.signalStarted();
+    await this.released;
+    return super.chat(request);
+  }
+
+  release(): void {
+    this.signalReleased();
+  }
+}
+
+class ControlledStorageMonitor implements RuntimeStorageMonitorLifecycle {
+  startCount = 0;
+  closeCount = 0;
+
+  constructor(
+    private reason?: RuntimeStorageReadinessReason,
+    private readonly onCritical: () => void | Promise<void> = () => undefined,
+    private readonly criticalOnStart = false
+  ) {}
+
+  async start(): Promise<void> {
+    this.startCount += 1;
+    if (this.criticalOnStart) await this.onCritical();
+  }
+
+  async close(): Promise<void> {
+    this.closeCount += 1;
+  }
+
+  readiness() {
+    return this.reason
+      ? { ready: false as const, reason: this.reason }
+      : { ready: true as const };
+  }
+
+  admission() {
+    return this.reason
+      ? { allowed: false as const, reason: this.reason }
+      : { allowed: true as const };
+  }
+
+  triggerCritical(): void {
+    this.reason = "RUNTIME_STORAGE_CRITICAL";
+    void this.onCritical();
+  }
+}
+
+function productionHeaders(): Record<string, string> {
+  return {
+    authorization: "Bearer service-token",
+    "x-tenant-id": "tenant-a",
+    "x-user-id": "user-a",
+    "x-trace-id": "trace-a",
+    "x-request-id": "request-a"
+  };
+}
+
+async function seedTraceEvent(databasePath: string, deadLetter: boolean): Promise<void> {
+  const context = await openProductionRuntimeContext(databasePath);
+  try {
+    const scope = {
+      tenantId: "tenant-a",
+      userId: "user-a",
+      conversationId: "conversation-a",
+      executionId: "execution-a",
+      traceId: "trace-a",
+      requestId: "request-a"
+    };
+    await context.lifecycle.startExecution({ ...scope, message: "hello" });
+    await context.lifecycle.recordEvent({
+      ...scope,
+      kind: "trace",
+      data: {
+        traceId: "trace-a",
+        spanId: "span-a",
+        runtime: "agent-runtime",
+        eventType: "MODEL_CALL_END",
+        name: "model call end",
+        status: "ok",
+        startTime: 1
+      }
+    });
+    if (deadLetter) {
+      const [candidate] = await context.storage.execute("p2", "outbox.claim", {
+        now: Number.MAX_SAFE_INTEGER,
+        limit: 1
+      });
+      if (!candidate) throw new Error("missing seeded trace candidate");
+      await context.storage.execute("p2", "outbox.applyOutcomes", {
+        outcomes: [{
+          event: {
+            tenantId: candidate.event.tenantId,
+            userId: candidate.event.userId,
+            conversationId: candidate.event.conversationId,
+            eventId: candidate.event.eventId
+          },
+          transition: "dead_letter"
+        }]
+      });
+    }
+  } finally {
+    await context.close();
   }
 }

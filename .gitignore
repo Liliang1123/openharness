@@ -30,6 +30,10 @@ out/
 
 # Logs and temporary files
 *.log
+docs/verification/**/*.sqlite
+docs/verification/**/*.sqlite-shm
+docs/verification/**/*.sqlite-wal
+docs/verification/**/*.sqlite.lock
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

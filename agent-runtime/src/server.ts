@@ -28,6 +28,18 @@ import { InMemoryExecutionStateStore, ProcessExecutionStateStore, type Execution
 import { openProductionRuntimeContext, type ProductionRuntimeContext } from "./storage/productionRuntimeContext";
 import type { RuntimeDatabaseIdentity } from "./storage/runtimeStorage";
 import { publishCommittedLifecycleEvents } from "./storage/lifecycleCommands";
+import { dispatchTraceOutboxStoreBatch } from "./storage/traceOutbox";
+import {
+  TraceOutboxDispatcher,
+  type TraceOutboxReadiness
+} from "./storage/traceOutboxDispatcher";
+import {
+  RuntimeStorageMonitor,
+  type RuntimeStorageMonitorFactory,
+  type RuntimeStorageMonitorLifecycle,
+  type RuntimeStorageAdmission,
+  type RuntimeStorageReadinessReason
+} from "./storage/runtimeStorageMonitor";
 import { deriveRuntimeProgress } from "./runtimeProgress";
 import type { AgentChatRequest, AgentChatResponse, StopReason } from "./types";
 
@@ -40,6 +52,8 @@ export interface CreateServerOptions {
   mcpRegistry?: McpRegistry;
   /** Skip MCP init even if mcp.json exists. Useful for tests. */
   disableMcp?: boolean;
+  /** Preserve production MCP config discovery when a shared Java client is explicitly injected. */
+  initializeMcpFromConfig?: boolean;
   /** Optional runtime event store (Phase 1: defaults to InMemoryRuntimeEventStore). */
   runtimeEventStore?: RuntimeEventStore;
   /** Optional execution state store (Phase 2: defaults to InMemoryExecutionStateStore). */
@@ -58,6 +72,15 @@ export interface CreateServerOptions {
   runtimeContext?: ProductionRuntimeContext;
   /** Injectable development-only fallbacks; production context must bypass every factory. */
   developmentStoreFactories?: DevelopmentStoreFactories;
+  /** Read-only readiness provider. Development defaults to ready. */
+  readiness?: () => RuntimeReadiness;
+  /** External-mutation admission provider. Development defaults to allowed. */
+  admission?: () => RuntimeStorageAdmission;
+}
+
+export interface RuntimeReadiness {
+  ready: boolean;
+  reason?: TraceOutboxReadiness["reason"] | RuntimeStorageReadinessReason;
 }
 
 export interface DevelopmentStoreFactories {
@@ -77,6 +100,10 @@ export interface CreateProductionServerOptions {
   frontendUrl?: string;
   mcpRegistry?: McpRegistry;
   disableMcp?: boolean;
+  /** Deterministic test seam; the production entrypoint always uses the default monitor. */
+  storageMonitorFactory?: RuntimeStorageMonitorFactory;
+  /** Test seam for fail-closed Worker termination. Production exits with status 1. */
+  terminateRuntime?: (code: 1) => void;
 }
 
 export async function createServer(options: CreateServerOptions = {}) {
@@ -114,7 +141,8 @@ export async function createServer(options: CreateServerOptions = {}) {
 
   // Initialize MCP registry if not disabled
   let mcpRegistry: McpRegistry | undefined = options.mcpRegistry;
-  if (!mcpRegistry && !options.disableMcp && !options.javaClient) {
+  const initializeMcpFromConfig = options.initializeMcpFromConfig ?? !options.javaClient;
+  if (!mcpRegistry && !options.disableMcp && initializeMcpFromConfig) {
     const config = loadMcpConfig();
     if (config) {
       mcpRegistry = new McpRegistry(config);
@@ -155,25 +183,37 @@ export async function createServer(options: CreateServerOptions = {}) {
       });
       return;
     }
-    if (!requireServiceAuth) return;
-    if (!validBearer(header(request.headers.authorization), serviceToken)) {
-      reply.status(401).send({ error: { errorClass: "UNAUTHORIZED", errorMessage: "Missing or invalid service credential" } });
-      return;
+    if (requireServiceAuth) {
+      if (!validBearer(header(request.headers.authorization), serviceToken)) {
+        reply.status(401).send({ error: { errorClass: "UNAUTHORIZED", errorMessage: "Missing or invalid service credential" } });
+        return;
+      }
+      const missing = requiredIdentityHeaders(request.headers);
+      if (missing.length > 0) {
+        reply.status(400).send({
+          error: {
+            errorClass: "MISSING_IDENTITY_HEADER",
+            errorMessage: `Missing required identity header: ${missing.join(",")}`
+          }
+        });
+        return;
+      }
     }
-    const missing = requiredIdentityHeaders(request.headers);
-    if (missing.length > 0) {
-      reply.status(400).send({
-        error: {
-          errorClass: "MISSING_IDENTITY_HEADER",
-          errorMessage: `Missing required identity header: ${missing.join(",")}`
-        }
-      });
-      return;
+    if (isExternalMutation(request.method)) {
+      const admission = options.admission?.() ?? { allowed: true };
+      if (!admission.allowed) {
+        reply.status(503).send({
+          error: {
+            errorClass: admission.reason ?? "RUNTIME_STORAGE_MONITOR_ERROR",
+            errorMessage: "Runtime is not accepting external mutations"
+          }
+        });
+      }
     }
   });
 
-  const activeConflict = (tenantId: string, userId: string, conversationId: string) => {
-    const active = executionReader.getActive(tenantId, userId, conversationId);
+  const activeConflict = async (tenantId: string, userId: string, conversationId: string) => {
+    const active = await executionReader.getActive(tenantId, userId, conversationId);
     if (!active) return null;
     const errorClass = active.status === "waiting_approval"
       ? "EXECUTION_WAITING_APPROVAL"
@@ -188,7 +228,7 @@ export async function createServer(options: CreateServerOptions = {}) {
         executionId: active.executionId,
         status: active.status,
         pendingApprovals: active.status === "waiting_approval"
-          ? sanitizePendingApprovals(approvalReader.listPending(tenantId, userId, conversationId))
+          ? sanitizePendingApprovals(await approvalReader.listPending(tenantId, userId, conversationId))
           : []
       }
     };
@@ -215,6 +255,14 @@ export async function createServer(options: CreateServerOptions = {}) {
     });
   }
 
+  app.get("/api/v1/health/ready", async (_request, reply) => {
+    const readiness = options.readiness?.() ?? { ready: true };
+    reply.status(readiness.ready ? 200 : 503).send({
+      status: readiness.ready ? "ready" : "not_ready",
+      ...(readiness.reason ? { reason: readiness.reason } : {})
+    });
+  });
+
   app.post<{ Body: AgentChatRequest }>("/api/v1/agent/chat", async (request, reply) => {
     const body = request.body;
     const { tenantId, userId, traceId, requestId } = requestIdentity(request.headers);
@@ -234,7 +282,7 @@ export async function createServer(options: CreateServerOptions = {}) {
       return;
     }
 
-    const conflict = activeConflict(tenantId, userId, body.conversationId);
+    const conflict = await activeConflict(tenantId, userId, body.conversationId);
     if (conflict) {
       reply.status(conflict.statusCode).send(conflict.body);
       return;
@@ -252,7 +300,7 @@ export async function createServer(options: CreateServerOptions = {}) {
       stepBudget: body.stepBudget
     });
     const finalState = await handle.done;
-    const response = buildSyncResponse(
+    const response = await buildSyncResponse(
       tenantId,
       userId,
       body.conversationId,
@@ -284,7 +332,7 @@ export async function createServer(options: CreateServerOptions = {}) {
       return;
     }
 
-    const conflict = activeConflict(tenantId, userId, body.conversationId);
+    const conflict = await activeConflict(tenantId, userId, body.conversationId);
     if (conflict) {
       reply.status(conflict.statusCode).send(conflict.body);
       return;
@@ -315,7 +363,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     askUserStore.remove(askUserId);
 
     if (body.action === "reject") {
-      history.append(pending.tenantId, pending.userId, pending.conversationId, {
+      await history.append(pending.tenantId, pending.userId, pending.conversationId, {
         role: "tool",
         toolCallId: pending.pendingToolCall.id,
         content: "USER_REJECTED"
@@ -352,7 +400,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     }, execHeaders);
 
     const content = result.status === "ok" ? JSON.stringify(result.result ?? {}) : JSON.stringify(result.error);
-    history.append(pending.tenantId, pending.userId, pending.conversationId, {
+    await history.append(pending.tenantId, pending.userId, pending.conversationId, {
       role: "tool", toolCallId: toolCall.id, content
     });
     reply.send({ askUserId, status: "approved", toolResult: result });
@@ -417,8 +465,19 @@ export async function createServer(options: CreateServerOptions = {}) {
     const { conversationId } = request.params;
     const lastEventId = request.query.last_event_id ?? null;
 
-    const scopedEvents = runtimeEventStore.since(tenantId, userId, conversationId, null);
+    const bufferedLive: SessionEvent[] = [];
+    let liveHandler = (event: SessionEvent) => {
+      bufferedLive.push(event);
+    };
+    const preReplayUnsubscribe = runtimeEventStore.subscribe(
+      tenantId,
+      userId,
+      conversationId,
+      event => liveHandler(event)
+    );
+    const scopedEvents = await runtimeEventStore.since(tenantId, userId, conversationId, null);
     if (lastEventId && scopedEvents.length === 0) {
+      preReplayUnsubscribe();
       reply.status(404).send({
         error: { errorClass: "SESSION_EVENTS_NOT_FOUND", errorMessage: "Session events not found" }
       });
@@ -438,7 +497,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     };
 
     let closed = false;
-    let unsubscribe: (() => void) | null = null;
+    let unsubscribe: (() => void) | null = preReplayUnsubscribe;
     let heartbeat: NodeJS.Timeout | null = null;
     const close = () => {
       if (closed) return;
@@ -450,7 +509,7 @@ export async function createServer(options: CreateServerOptions = {}) {
 
     // Gap detection: cursor unknown but store has events for this conversation.
     if (lastEventId && !scopedEvents.some((event) => event.eventId === lastEventId)) {
-      const latest = latestScopedEventId(runtimeEventStore, tenantId, userId, conversationId);
+      const latest = await latestScopedEventId(runtimeEventStore, tenantId, userId, conversationId);
       if (latest != null) {
         writeEvent("stream_resync_required", {
           durability: "durable",
@@ -490,22 +549,32 @@ export async function createServer(options: CreateServerOptions = {}) {
 
     const isTerminal = (kind: string) => kind === "stream_done" || kind === "stream_error" || kind === "stream_resync_required";
 
-    // Subscribe BEFORE replay to avoid losing fast-arriving live events; JS single-thread
-    // guarantees no append can interleave between since() and subscribe() in this same tick.
-    unsubscribe = runtimeEventStore.subscribe(tenantId, userId, conversationId, (event) => {
-      if (closed) return;
+    // Subscription was established before awaiting replay. Drain replay first,
+    // then buffered live events; emitStored de-duplicates stable event identities.
+    const seen = new Set<string>();
+    const emitStoredOnce = (event: SessionEvent) => {
+      if (seen.has(event.eventId)) return;
+      seen.add(event.eventId);
       emitStored(event);
+    };
+    liveHandler = (event) => {
+      if (closed) return;
+      emitStoredOnce(event);
       if (isTerminal(event.kind)) close();
-    });
+    };
 
     const replayed = eventsAfter(scopedEvents, lastEventId);
     for (const e of replayed) {
       if (closed) break;
-      emitStored(e);
+      emitStoredOnce(e);
       if (isTerminal(e.kind)) {
         close();
         return;
       }
+    }
+    for (const event of bufferedLive) {
+      if (closed) break;
+      liveHandler(event);
     }
 
     // Heartbeat to keep proxies from closing the connection during idle periods.
@@ -527,12 +596,17 @@ export async function createServer(options: CreateServerOptions = {}) {
   app.get<{ Params: { conversationId: string } }>("/api/v1/sessions/:conversationId", async (request, reply) => {
     const { tenantId, userId } = requestIdentity(request.headers);
     const { conversationId } = request.params;
-    const active = executionReader.getActive(tenantId, userId, conversationId);
-    const pendingApprovals = approvalReader.listPending(tenantId, userId, conversationId);
-    const scopedEvents = runtimeEventStore.since(tenantId, userId, conversationId, null);
+    const active = await executionReader.getActive(tenantId, userId, conversationId);
+    const pendingApprovals = await approvalReader.listPending(tenantId, userId, conversationId);
+    const scopedEvents = await runtimeEventStore.forExecution(
+      tenantId,
+      userId,
+      conversationId,
+      active?.executionId
+    );
     const hasScopedRuntimeState = active != null || pendingApprovals.length > 0 || scopedEvents.length > 0;
-    const messages = history.get(tenantId, userId, conversationId);
-    const runtimeProgress = progressForSession(runtimeEventStore, executionStateStore, tenantId, userId, conversationId, active?.executionId);
+    const messages = await history.get(tenantId, userId, conversationId);
+    const runtimeProgress = progressForSession(scopedEvents, executionStateStore, tenantId, userId, conversationId, active?.executionId);
     if (messages.length === 0 && !hasScopedRuntimeState) {
       reply.status(404).send({
         error: { errorClass: "SESSION_NOT_FOUND", errorMessage: `Session not found: ${conversationId}` }
@@ -567,7 +641,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   }>("/api/v1/sessions/:conversationId/executions/:executionId/approvals/:toolCallId", async (request, reply) => {
     const { conversationId, executionId, toolCallId } = request.params;
     const { tenantId, userId, traceId, requestId } = requestIdentity(request.headers);
-    const pending = approvalReader.get(tenantId, userId, conversationId, executionId, toolCallId);
+    const pending = await approvalReader.get(tenantId, userId, conversationId, executionId, toolCallId);
     if (!pending) {
       reply.status(404).send({
         error: {
@@ -579,7 +653,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     }
     const decision = toApprovalDecision(request.body);
     if (options.runtimeContext) {
-      const committed = options.runtimeContext.lifecycle.decideApproval({
+      const committed = await options.runtimeContext.lifecycle.decideApproval({
         tenantId,
         userId,
         conversationId,
@@ -613,7 +687,7 @@ export async function createServer(options: CreateServerOptions = {}) {
   }>("/api/v1/sessions/:conversationId/executions/:executionId/abort", async (request, reply) => {
     const { conversationId, executionId } = request.params;
     const { tenantId, userId } = requestIdentity(request.headers);
-    const state = executionReader.get(tenantId, userId, conversationId, executionId);
+    const state = await executionReader.get(tenantId, userId, conversationId, executionId);
     if (!state) {
       reply.status(404).send({
         error: { errorClass: "EXECUTION_NOT_FOUND", errorMessage: `Execution not found: ${executionId}` }
@@ -623,7 +697,7 @@ export async function createServer(options: CreateServerOptions = {}) {
     // No-op if already terminal.
     if (options.runtimeContext) {
       const identity = requestIdentity(request.headers);
-      const committed = options.runtimeContext.lifecycle.abortExecution({
+      const committed = await options.runtimeContext.lifecycle.abortExecution({
         tenantId,
         userId,
         conversationId,
@@ -666,32 +740,132 @@ const defaultDevelopmentStoreFactories: DevelopmentStoreFactories = {
 
 export async function createProductionServer(options: CreateProductionServerOptions) {
   if (!options.serviceToken.trim()) throw new Error("Production Runtime service token is required");
-  const context = openProductionRuntimeContext(options.databasePath, {
-    expectedDatabaseIdentity: options.expectedDatabaseIdentity
+  let dispatcher: TraceOutboxDispatcher | undefined;
+  let storageMonitor: RuntimeStorageMonitorLifecycle | undefined;
+  let app: Awaited<ReturnType<typeof createServer>> | undefined;
+  let unavailableArmed = false;
+  const terminateRuntime = options.terminateRuntime ?? ((code: 1) => process.exit(code));
+  const context = await openProductionRuntimeContext(options.databasePath, {
+    expectedDatabaseIdentity: options.expectedDatabaseIdentity,
+    onUnavailable: async () => {
+      if (!unavailableArmed) return;
+      if (app) await app.close().catch(() => undefined);
+      terminateRuntime(1);
+    }
   });
+  unavailableArmed = true;
+  const javaClient = options.javaClient
+    ?? new HttpJavaClient(options.javaBaseUrl ?? process.env.JAVA_BACKEND_URL ?? "http://localhost:8080");
   try {
-    const app = await createServer({
+    dispatcher = new TraceOutboxDispatcher({
+      hasDeadLetters: () => context.storage.execute("p2", "outbox.hasDeadLetters", {}),
+      dispatchBatch: batchOptions => dispatchTraceOutboxStoreBatch(
+        {
+          claim: (now, limit) =>
+            context.storage.execute("p2", "outbox.claim", { now, limit }),
+          applyOutcomes: outcomes =>
+            context.storage.execute("p2", "outbox.applyOutcomes", { outcomes }),
+          hasDeadLetters: () =>
+            context.storage.execute("p2", "outbox.hasDeadLetters", {})
+        },
+        javaClient,
+        event => ({
+          Authorization: `Bearer ${options.serviceToken}`,
+          "X-User-Id": event.userId,
+          "X-Tenant-Id": event.tenantId,
+          "X-Trace-Id": event.traceId,
+          "X-Request-Id": event.requestId
+        }),
+        batchOptions
+      )
+    });
+    let criticalDrainStarted = false;
+    const onCritical = async () => {
+      if (criticalDrainStarted) return;
+      criticalDrainStarted = true;
+      await drainCriticalRuntime(context);
+      if (app) await app.close().catch(() => undefined);
+    };
+    const storageMonitorFactory = options.storageMonitorFactory
+      ?? (dependencies => new RuntimeStorageMonitor(dependencies));
+    storageMonitor = storageMonitorFactory({
+      databasePath: context.databasePath,
+      checkpoint: () => context.storage.execute("p2", "storage.checkpoint", {}),
+      onCritical
+    });
+    app = await createServer({
       runtimeContext: context,
-      javaClient: options.javaClient,
-      javaBaseUrl: options.javaBaseUrl,
+      javaClient,
       frontendUrl: options.frontendUrl,
       mcpRegistry: options.mcpRegistry,
       disableMcp: options.disableMcp,
+      initializeMcpFromConfig: options.mcpRegistry === undefined,
       serviceToken: options.serviceToken,
-      requireServiceAuth: true
+      requireServiceAuth: true,
+      readiness: () => combineRuntimeReadiness(
+        storageMonitor!.readiness(),
+        dispatcher!.readiness(),
+        context.storage.readiness()
+      ),
+      admission: () => {
+        const worker = context.storage.readiness();
+        return worker.ready
+          ? storageMonitor!.admission()
+          : {
+              allowed: false,
+              reason: worker.reason ?? "RUNTIME_STORAGE_UNAVAILABLE"
+            };
+      }
     });
-    app.addHook("onClose", async () => context.close());
+    app.addHook("onClose", async () => {
+      await storageMonitor!.close();
+      await dispatcher!.close();
+      await context.close();
+    });
+    await storageMonitor.start();
+    if (storageMonitor.readiness().reason === "RUNTIME_STORAGE_CRITICAL") {
+      await app.close();
+      throw new Error("Production Runtime storage is critically low");
+    }
+    await dispatcher.start();
     return app;
   } catch (error) {
-    context.close();
+    if (app) {
+      await app.close().catch(() => undefined);
+    } else {
+      await storageMonitor?.close();
+      await dispatcher?.close();
+      await context.close();
+    }
     throw error;
+  }
+}
+
+function combineRuntimeReadiness(
+  storage: RuntimeReadiness,
+  traceOutbox: RuntimeReadiness,
+  worker: RuntimeReadiness = { ready: true }
+): RuntimeReadiness {
+  if (!storage.ready) return storage;
+  if (!traceOutbox.ready) return traceOutbox;
+  return worker;
+}
+
+async function drainCriticalRuntime(context: ProductionRuntimeContext): Promise<void> {
+  try {
+    const drained = await context.storage.execute("p0", "storage.criticalDrain", {
+      errorMessage: "Execution interrupted by critical Runtime storage pressure"
+    });
+    publishCommittedLifecycleEvents(context.liveEvents, { events: drained.events });
+  } catch {
+    console.warn("[agent-runtime-storage] RUNTIME_STORAGE_CRITICAL_DRAIN_WRITE_FAILED");
   }
 }
 
 function productionRuntimeEventStore(context: ProductionRuntimeContext): RuntimeEventStore {
   return {
-    append(tenantId, userId, conversationId, event) {
-      const committed = context.lifecycle.recordEvent({
+    async append(tenantId, userId, conversationId, event) {
+      const committed = await context.lifecycle.recordEvent({
         tenantId,
         userId,
         conversationId,
@@ -702,11 +876,15 @@ function productionRuntimeEventStore(context: ProductionRuntimeContext): Runtime
         data: event.data
       });
       publishCommittedLifecycleEvents(context.liveEvents, committed);
-      return committed.events[0];
+      const stored = committed.events[0];
+      if (!stored) throw new Error("RUNTIME_STORAGE_EVENT_COMMIT_EMPTY");
+      return stored;
     },
     publish: event => context.liveEvents.publish(event),
     subscribe: (tenantId, userId, conversationId, listener) => context.liveEvents.subscribe(tenantId, userId, conversationId, listener),
     since: (tenantId, userId, conversationId, afterEventId) => context.events.since(tenantId, userId, conversationId, afterEventId),
+    forExecution: (tenantId, userId, conversationId, executionId) =>
+      context.events.forExecution(tenantId, userId, conversationId, executionId),
     latestEventId: (tenantId, userId, conversationId) => context.events.latestEventId(tenantId, userId, conversationId),
     hasEvent: (tenantId, userId, conversationId, eventId) => context.events.hasEvent(tenantId, userId, conversationId, eventId)
   };
@@ -746,17 +924,24 @@ function validBearer(authorization: string | undefined, expectedToken: string): 
   return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
+function isExternalMutation(method: string): boolean {
+  return method === "POST"
+    || method === "PUT"
+    || method === "PATCH"
+    || method === "DELETE";
+}
+
 function sanitizePendingApprovals(approvals: ReturnType<ApprovalStore["listPending"]>) {
   return approvals.map(({ approvalToken: _approvalToken, ...approval }) => approval);
 }
 
-function latestScopedEventId(
+async function latestScopedEventId(
   runtimeEventStore: RuntimeEventStore,
   tenantId: string,
   userId: string,
   conversationId: string
-): string | null {
-  const events = runtimeEventStore.since(tenantId, userId, conversationId, null);
+): Promise<string | null> {
+  const events = await runtimeEventStore.since(tenantId, userId, conversationId, null);
   return events[events.length - 1]?.eventId ?? null;
 }
 
@@ -795,7 +980,7 @@ function approvalLifecycleStatus(action: ApprovalDecision["action"]): "approved"
   return approvalStatus(action);
 }
 
-function buildSyncResponse(
+async function buildSyncResponse(
   tenantId: string,
   userId: string,
   conversationId: string,
@@ -804,10 +989,13 @@ function buildSyncResponse(
   requestId: string,
   stopReason: StopReason | undefined,
   runtimeEventStore: RuntimeEventStore
-): AgentChatResponse {
-  const events = runtimeEventStore
-    .since(tenantId, userId, conversationId, null)
-    .filter((event) => event.executionId === executionId);
+): Promise<AgentChatResponse> {
+  const events = await runtimeEventStore.forExecution(
+    tenantId,
+    userId,
+    conversationId,
+    executionId
+  );
   const finalAnswer = [...events].reverse().find((event) => event.kind === "final_answer");
   const usage = isUsage(finalAnswer?.data.usage) ? finalAnswer.data.usage : undefined;
   return {
@@ -828,14 +1016,13 @@ function isUsage(value: unknown): value is { costUsdMicros?: number } {
 }
 
 function progressForSession(
-  runtimeEventStore: RuntimeEventStore,
+  allEvents: readonly SessionEvent[],
   executionStateStore: ExecutionStateStore,
   tenantId: string,
   userId: string,
   conversationId: string,
   activeExecutionId?: string
 ) {
-  const allEvents = runtimeEventStore.since(tenantId, userId, conversationId, null);
   const executionId = activeExecutionId ?? allEvents[allEvents.length - 1]?.executionId;
   if (!executionId) return null;
   const events = allEvents.filter((event) => event.executionId === executionId);

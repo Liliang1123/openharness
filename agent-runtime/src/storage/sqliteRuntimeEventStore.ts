@@ -1,7 +1,12 @@
 import type { SessionEvent } from "../types";
 import type { RuntimeTransaction } from "./runtimeStorage";
 
-export type RuntimeEventDeliveryStatus = "pending" | "retry" | "delivered" | "dead_letter";
+export type RuntimeEventDeliveryStatus =
+  | "not_applicable"
+  | "pending"
+  | "retry"
+  | "delivered"
+  | "dead_letter";
 
 export type SqliteRuntimeEventInput = SessionEvent & { cursor: number };
 
@@ -30,8 +35,9 @@ export class SqliteRuntimeEventStore {
   append(tx: RuntimeTransaction, event: SqliteRuntimeEventInput): SessionEvent {
     tx.run(
       `INSERT INTO runtime_events(
-         tenant_id,user_id,conversation_id,event_id,execution_id,cursor,kind,payload_json,created_at
-       ) VALUES (?,?,?,?,?,?,?,?,?)`,
+         tenant_id,user_id,conversation_id,event_id,execution_id,cursor,kind,payload_json,created_at,
+         delivery_status
+       ) VALUES (?,?,?,?,?,?,?,?,?,?)`,
       [
         event.tenantId,
         event.userId,
@@ -47,7 +53,8 @@ export class SqliteRuntimeEventStore {
             data: event.data
           }
         }),
-        event.createdAt
+        event.createdAt,
+        event.kind === "trace" ? "pending" : "not_applicable"
       ]
     );
     return stripCursor(event);
@@ -67,6 +74,32 @@ export class SqliteRuntimeEventStore {
        WHERE tenant_id = ? AND user_id = ? AND conversation_id = ? AND cursor > ?
        ORDER BY cursor ASC`,
       [tenantId, userId, conversationId, afterCursor ?? 0]
+    ).map(fromRow);
+  }
+
+  replayExecution(
+    tx: RuntimeTransaction,
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    executionId?: string
+  ): SessionEvent[] {
+    const targetExecutionId = executionId ?? tx.get<{ execution_id: string }>(
+      `SELECT execution_id
+       FROM runtime_events
+       WHERE tenant_id = ? AND user_id = ? AND conversation_id = ?
+       ORDER BY cursor DESC
+       LIMIT 1`,
+      [tenantId, userId, conversationId]
+    )?.execution_id;
+    if (!targetExecutionId) return [];
+    return tx.all<RuntimeEventRow>(
+      `SELECT tenant_id,user_id,conversation_id,event_id,execution_id,cursor,kind,payload_json,created_at,
+              delivery_status,delivery_attempts,next_attempt_at
+       FROM runtime_events
+       WHERE tenant_id = ? AND user_id = ? AND conversation_id = ? AND execution_id = ?
+       ORDER BY cursor ASC`,
+      [tenantId, userId, conversationId, targetExecutionId]
     ).map(fromRow);
   }
 
@@ -109,16 +142,31 @@ export class SqliteRuntimeEventStore {
     return row ? toOutboxStatus(row) : null;
   }
 
-  claimOutbox(tx: RuntimeTransaction, limit: number): SessionEvent[] {
+  claimOutbox(tx: RuntimeTransaction, now: number, limit: number): SessionEvent[] {
     return tx.all<RuntimeEventRow>(
       `SELECT tenant_id,user_id,conversation_id,event_id,execution_id,cursor,kind,payload_json,created_at,
               delivery_status,delivery_attempts,next_attempt_at
        FROM runtime_events
-       WHERE delivery_status IN ('pending','retry')
+       WHERE kind = 'trace'
+         AND delivery_status IN ('pending','retry')
+         AND (
+           delivery_status = 'pending'
+           OR (delivery_status = 'retry' AND next_attempt_at IS NOT NULL AND next_attempt_at <= ?)
+         )
        ORDER BY created_at ASC, event_id ASC
        LIMIT ?`,
-      [limit]
+      [now, limit]
     ).map(fromRow);
+  }
+
+  hasDeadLetters(tx: RuntimeTransaction): boolean {
+    return tx.get<{ event_id: string }>(
+      `SELECT event_id
+       FROM runtime_events
+       WHERE kind = 'trace' AND delivery_status = 'dead_letter'
+       ORDER BY dead_letter_at ASC
+       LIMIT 1`
+    ) !== undefined;
   }
 
   markRetry(

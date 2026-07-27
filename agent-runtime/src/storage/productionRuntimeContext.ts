@@ -1,24 +1,28 @@
 import { isAbsolute } from "node:path";
-import { InMemoryRuntimeEventPublisher, type RuntimeEventPublisher } from "../runtimeEventStore";
-import { RuntimeLifecycleCommands } from "./lifecycleCommands";
-import { reconcileRuntimeStartup, type ReconcileRuntimeStartupResult } from "./reconcile";
-import { createSqliteRuntimeRepositories, type SqliteRuntimeRepositories } from "./sqliteRuntimeRepositories";
-import { createSqliteRuntimeAdapters, type ScopedApprovalReader, type ScopedExecutionReader } from "./sqliteRuntimeAdapters";
 import type { HistoryStore } from "../history";
 import type { MemoryStore } from "../memoryStore";
-import type { RuntimeEventReader } from "../runtimeEventStore";
 import {
-  openProductionRuntimeStorage,
-  type ProductionRuntimeStorage,
-  type RuntimeDatabase,
-  type RuntimeDatabaseIdentity
-} from "./runtimeStorage";
+  InMemoryRuntimeEventPublisher,
+  type RuntimeEventPublisher,
+  type RuntimeEventReader
+} from "../runtimeEventStore";
+import type { RuntimeLifecycleWriter } from "./lifecycleCommands";
+import type { ReconcileRuntimeStartupResult } from "./reconcile";
+import type { RuntimeDatabaseIdentity } from "./runtimeStorage";
+import {
+  createRuntimeStorageWorkerAdapters,
+  type ScopedApprovalReader,
+  type ScopedExecutionReader
+} from "./sqliteRuntimeAdapters";
+import {
+  createRuntimeStorageWorkerClient,
+  type RuntimeStorageWorkerClient
+} from "./runtimeStorageWorkerClient";
 
 export interface ProductionRuntimeContext {
   readonly databasePath: string;
-  readonly database: RuntimeDatabase;
-  readonly repositories: SqliteRuntimeRepositories;
-  readonly lifecycle: RuntimeLifecycleCommands;
+  readonly storage: RuntimeStorageWorkerClient;
+  readonly lifecycle: RuntimeLifecycleWriter;
   readonly history: HistoryStore;
   readonly memory: MemoryStore;
   readonly executions: ScopedExecutionReader;
@@ -26,60 +30,75 @@ export interface ProductionRuntimeContext {
   readonly events: RuntimeEventReader;
   readonly liveEvents: RuntimeEventPublisher;
   readonly reconciliation: ReconcileRuntimeStartupResult;
-  close(): void;
+  close(): Promise<void>;
 }
 
 export interface ProductionRuntimeContextDependencies {
   expectedDatabaseIdentity?: RuntimeDatabaseIdentity;
-  verifyIntegrity?(database: RuntimeDatabase): void;
-  reconcile?: typeof reconcileRuntimeStartup;
+  createStorage?: typeof createRuntimeStorageWorkerClient;
+  onUnavailable?: (errorCode: "RUNTIME_STORAGE_UNAVAILABLE") => void | Promise<void>;
 }
 
-export function openProductionRuntimeContext(
+export async function openProductionRuntimeContext(
   databasePath: string,
   dependencies: ProductionRuntimeContextDependencies = {}
-): ProductionRuntimeContext {
+): Promise<ProductionRuntimeContext> {
   if (!isAbsolute(databasePath)) {
     throw new Error("Production Runtime SQLite path must be absolute");
   }
 
-  let storage: ProductionRuntimeStorage | undefined;
-  try {
-    storage = openProductionRuntimeStorage(databasePath, {
-      expectedDatabaseIdentity: dependencies.expectedDatabaseIdentity
-    });
-    (dependencies.verifyIntegrity ?? verifyRuntimeIntegrity)(storage.database);
+  const storage = await (dependencies.createStorage ?? createRuntimeStorageWorkerClient)(
+    databasePath,
+    {
+      expectedDatabaseIdentity: dependencies.expectedDatabaseIdentity,
+      onUnavailable: dependencies.onUnavailable
+    }
+  );
+  const adapters = createRuntimeStorageWorkerAdapters(storage);
+  const liveEvents = new InMemoryRuntimeEventPublisher();
+  const lifecycle = createWorkerLifecycle(storage);
+  let closed = false;
 
-    const repositories = createSqliteRuntimeRepositories();
-    const lifecycle = new RuntimeLifecycleCommands(storage.database, repositories);
-    const reconciliation = (dependencies.reconcile ?? reconcileRuntimeStartup)(storage.database, repositories);
-    const adapters = createSqliteRuntimeAdapters(storage.database, repositories);
-    const liveEvents = new InMemoryRuntimeEventPublisher();
-    let closed = false;
-
-    return {
-      databasePath,
-      database: storage.database,
-      repositories,
-      lifecycle,
-      ...adapters,
-      liveEvents,
-      reconciliation,
-      close() {
-        if (closed) return;
-        closed = true;
-        storage!.close();
-      }
-    };
-  } catch (error) {
-    storage?.close();
-    throw error;
-  }
+  return {
+    databasePath,
+    storage,
+    lifecycle,
+    ...adapters,
+    liveEvents,
+    reconciliation: storage.bootstrapResult.reconciliation,
+    async close() {
+      if (closed) return;
+      closed = true;
+      await storage.close();
+    }
+  };
 }
 
-function verifyRuntimeIntegrity(database: RuntimeDatabase): void {
-  const integrity = database.get<Record<string, string>>("PRAGMA integrity_check");
-  if (integrity?.integrity_check !== "ok") {
-    throw new Error(`SQLite integrity check failed: ${integrity?.integrity_check ?? "missing result"}`);
-  }
+function createWorkerLifecycle(
+  storage: RuntimeStorageWorkerClient
+): RuntimeLifecycleWriter {
+  return {
+    startExecution: input =>
+      storage.execute("p1", "lifecycle.startExecution", input),
+    enterApproval: input =>
+      storage.execute("p1", "lifecycle.enterApproval", input),
+    decideApproval: input =>
+      storage.execute("p1", "lifecycle.decideApproval", input),
+    recordToolPlan: input =>
+      storage.execute("p1", "lifecycle.recordToolPlan", input),
+    completeTool: input =>
+      storage.execute("p1", "lifecycle.completeTool", input),
+    completeExecution: input =>
+      storage.execute("p1", "lifecycle.completeExecution", input),
+    failExecution: input =>
+      storage.execute("p1", "lifecycle.failExecution", input),
+    abortExecution: input =>
+      storage.execute("p1", "lifecycle.abortExecution", input),
+    recordEvent: input =>
+      storage.execute("p1", "lifecycle.recordEvent", input),
+    recordInjectedMessages: input =>
+      storage.execute("p1", "lifecycle.recordInjectedMessages", input),
+    interruptExecution: input =>
+      storage.execute("p1", "lifecycle.interruptExecution", input)
+  };
 }

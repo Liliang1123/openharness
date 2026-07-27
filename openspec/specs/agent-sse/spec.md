@@ -4,26 +4,26 @@
 TBD - created by archiving change implement-p0b-hookable. Update Purpose after archive.
 ## Requirements
 ### Requirement: SSE Streaming Endpoint
-The agent-runtime SHALL expose `POST /api/v1/agent/chat/stream` that returns a `text/event-stream` response with structured SSE events for each agent loop step. Every event MUST carry `eventId` (per-conversation monotonically increasing), `executionId`, `conversationId`, `traceId`, `requestId`, and `createdAt` fields in its data payload.
+The agent-runtime SHALL expose `POST /api/v1/agent/chat/stream` as `text/event-stream` with two explicit envelopes. Durable lifecycle events MUST carry opaque durable `eventId`, `executionId`, `conversationId`, `traceId`, `requestId`, and `createdAt`, and MUST publish only after commit. Transient `preview_delta` events MAY appear only on the current main connection, MUST carry a connection-local `previewSeq`, MUST NOT carry durable `eventId`, and MUST NOT enter session replay.
 
-#### Scenario: Normal tool-call flow emits correct event sequence with ids
-- **WHEN** a user sends a message that triggers a tool call
-- **THEN** the SSE stream emits events in order: `agent_start`, `model_call_start`, `model_call_end`, `tool_call`, `tool_result`, `model_call_start`, `model_call_end`, `final_answer`, `agent_end`
-- **AND** every event data payload contains `eventId`, `executionId`, `conversationId`, `traceId`, `requestId`, `createdAt`
-- **AND** `eventId` values within the same conversation are strictly monotonically increasing
+#### Scenario: Normal tool flow emits committed lifecycle sequence
+- **WHEN** a user message triggers a tool call and completes normally
+- **THEN** the stream emits committed lifecycle events in order for agent start, model/tool work, final answer, agent end, and stream done
+- **AND** each durable event carries the required identity fields and monotonically increasing durable event identity
 
-#### Scenario: No tool call emits minimal sequence
-- **WHEN** a user sends a message that does not trigger a tool call
-- **THEN** the SSE stream emits: `agent_start`, `model_call_start`, `model_call_end`, `final_answer`, `agent_end`
+#### Scenario: Preview is connection-local
+- **WHEN** a provider emits streaming fragments
+- **THEN** the main stream may emit ordered `preview_delta` events with `previewSeq`, while session replay never returns them
 
-#### Scenario: Policy deny emits rejected tool_result
+#### Scenario: Policy deny emits rejected tool result
 - **WHEN** a tool call is denied by policy
-- **THEN** the SSE stream emits `tool_result` with `status: "denied"` and does not emit a `tool_call` event for that tool
+- **THEN** the durable stream emits a denied tool result and does not claim tool execution occurred
 
-#### Scenario: REQUIRE_APPROVAL emits approval_requested event
-- **WHEN** policy returns `REQUIRE_APPROVAL` for a tool call
-- **THEN** the SSE stream emits an `approval_requested` event carrying `toolCallId`, `toolName`, `argumentsRaw`, `reason`, `approvalToken`
-- **AND** the SSE stream does not emit a `tool_call` or `tool_result` for that tool until the approval is decided
+#### Scenario: REQUIRE_APPROVAL exposes approvalId only
+- **WHEN** policy returns `REQUIRE_APPROVAL`
+- **THEN** the durable `approval_requested` event carries non-sensitive `approvalId`, `toolCallId`, `toolName`, safe argument summary, and reason
+- **AND** it carries no raw Java approval token or full tool arguments
+- **AND** no tool execution/result event is emitted until a decision commits
 
 ### Requirement: Frontend SSE Rendering
 The frontend SHALL consume the SSE stream and render each event progressively, showing model thinking, tool execution, final answer, pending approvals, and terminal status as they arrive. The frontend MUST tolerate unknown event data fields without breaking parsing.
@@ -37,38 +37,49 @@ The frontend SHALL consume the SSE stream and render each event progressively, s
 - **THEN** the frontend ignores that field and continues to render the rest of the event
 
 ### Requirement: Session Events Replay SSE
-The agent-runtime SHALL expose `GET /api/v1/sessions/:conversationId/events?last_event_id=...` returning a `text/event-stream` connection that first replays missed events since `last_event_id` and then continues to push live events for the conversation. The connection is a subscriber, not an executor: it does NOT create a new agent execution.
+The agent-runtime SHALL expose `GET /api/v1/sessions/:conversationId/events?last_event_id=...` as a subscriber-only `text/event-stream` for durable events. With `last_event_id`, it replays committed events after that cursor and then switches to live; without it, it replays from the earliest retained event. Within one connection events MUST be ordered without gap or duplicate. Across reconnects delivery SHALL be at-least-once and clients MUST deduplicate by opaque durable `eventId`. Transient previews MUST NOT be replayed.
 
-#### Scenario: Replay then live
-- **WHEN** a client connects with `last_event_id=conv-1:5` and the latest stored event is `conv-1:8`
-- **THEN** the server first emits the events with `eventId` `conv-1:6`, `conv-1:7`, `conv-1:8` in order
-- **AND** then continues to emit subsequent events as they are appended
+#### Scenario: Replay then live preserves watermark
+- **WHEN** a client supplies a retained cursor and committed events exist after it
+- **THEN** the server replays later events in order and switches to live without missing a committed event
 
-#### Scenario: Connect without last_event_id replays from start
+#### Scenario: Connect without cursor replays retained history
 - **WHEN** a client connects without `last_event_id`
-- **THEN** the server replays all events available for the conversation from the earliest stored eventId, then continues live
+- **THEN** the server replays all retained durable events from the low watermark and continues live
 
-#### Scenario: No new events stays connected
-- **WHEN** the conversation has no new events
-- **THEN** the connection stays open and emits heartbeats; it does not close
+#### Scenario: Reconnect may repeat last durable event
+- **WHEN** a connection drops after delivery but before the client persists its cursor
+- **THEN** replay may deliver the same eventId again and the client deduplicates it
+
+#### Scenario: Idle replay connection stays open
+- **WHEN** no new durable event exists
+- **THEN** the connection stays open using heartbeat comments
 
 ### Requirement: Stream Resync on Cursor Gap
-When `last_event_id` references an event that has been evicted or never existed for the conversation, the server SHALL emit a `stream_resync_required` event and then close the connection. The frontend MUST treat this as a signal to refetch the full session via `GET /api/v1/sessions/:conversationId`.
+When a scoped `last_event_id` is below the retained low watermark or unknown for that same tenant, user, and conversation, the server SHALL emit one scoped `stream_resync_required` control event and close. Cross-scope cursors SHALL return no event or existence signal. The frontend MUST refetch the scoped session snapshot after resync.
 
-#### Scenario: Cursor too old emits resync
-- **WHEN** a client connects with `last_event_id=conv-1:1` but events before `conv-1:6` have been evicted
-- **THEN** the server emits one `stream_resync_required` event with `lastAvailableEventId` and closes the connection
+#### Scenario: Retention gap emits and closes
+- **WHEN** a caller supplies a valid scoped cursor older than the low watermark
+- **THEN** the server emits one `stream_resync_required` with safe watermark metadata and closes
+
+#### Scenario: Cross-scope cursor discloses nothing
+- **WHEN** a cursor belongs to another tenant or user
+- **THEN** no event identity or resource existence is disclosed
 
 ### Requirement: Stream Terminal Events
-Every SSE stream (main and session events) SHALL emit exactly one terminal event before closing: `stream_done` on normal completion, `stream_error` on a runtime terminal error, or `stream_resync_required` on cursor gap. The terminal event MUST carry `executionId` and (for `stream_error`) the `errorClass` from the `RuntimeTerminalError` enum.
+When the server closes a main or session-events SSE connection because execution reached terminal state or a cursor gap was detected, it SHALL emit exactly one terminal outcome before its close attempt: durable `stream_done`, durable `stream_error`, or scoped `stream_resync_required`. Client cancellation or transport loss does not guarantee terminal-frame delivery; clients recover through durable replay. `preview_delta` never counts as terminal. Normal/error terminal events carry `executionId`; errors carry `RuntimeTerminalError`. Resync closes immediately after its control event.
 
-#### Scenario: Normal completion emits stream_done
-- **WHEN** the agent execution reaches `FINAL_ANSWER`
-- **THEN** the SSE stream emits `stream_done` with `executionId` and `stopReason: "FINAL_ANSWER"` before closing
+#### Scenario: Normal completion emits one terminal event
+- **WHEN** execution reaches final answer
+- **THEN** the stream emits exactly one durable `stream_done` before closing
 
-#### Scenario: Terminal error emits stream_error
-- **WHEN** the agent execution fails with `MODEL_ERROR`
-- **THEN** the SSE stream emits `stream_error` with `executionId`, `errorClass: "MODEL_ERROR"`, and `errorMessage` before closing
+#### Scenario: Runtime error emits one terminal event
+- **WHEN** execution terminates with a runtime error
+- **THEN** the stream emits exactly one durable `stream_error` with its error class before closing
+
+#### Scenario: Restart interruption is replayable
+- **WHEN** Runtime restarts during transient streaming
+- **THEN** reconciliation commits one `stream_error/EXECUTION_INTERRUPTED`, and reconnect sees it without preview replay
 
 ### Requirement: Stream Heartbeat
 Every SSE stream SHALL emit a heartbeat comment line (`: heartbeat\n\n`) every 30 seconds when no other events have been emitted, to keep proxies and load balancers from idle-timing-out the connection.

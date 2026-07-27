@@ -25,12 +25,27 @@ The memory store SHALL support upsert, list, literal search, and delete operatio
 - **THEN** subsequent list and search calls for that scope do not return the fact
 
 ### Requirement: JSON Memory Persistence
-The Agent Runtime SHALL provide a JSON-file memory store for local durable memory facts.
+The `MemoryStore` SHALL persist memory facts across process restarts. In the single-node production profile, the authoritative store MUST be SQLite with tenant/user scope indexes and transactional upsert/delete behavior. Existing JSON memory files MAY be imported through a deterministic, idempotent migration path but MUST NOT remain a concurrent write authority after cutover.
 
-#### Scenario: Reload persisted facts
-- **GIVEN** a memory fact is saved by a JSON memory store
-- **WHEN** a new JSON memory store instance is created over the same data directory
-- **THEN** the memory fact is available from the new instance
+#### Scenario: Memory facts survive restart in SQLite
+- **WHEN** a memory fact is committed and the Runtime restarts with the same SQLite database
+- **THEN** a search using the same tenant and user scope returns the fact
+
+#### Scenario: Imported memory is not duplicated
+- **WHEN** the same JSON memory backup is imported more than once
+- **THEN** the SQLite store contains one logical copy of each fact
+
+#### Scenario: Corrupt memory input is quarantined
+- **WHEN** a legacy memory record fails schema validation
+- **THEN** its source hash and validation error are quarantined and valid records continue importing
+
+#### Scenario: Memory quarantine blocks automatic cutover
+- **WHEN** memory import leaves quarantined records
+- **THEN** automatic cutover requires explicit human acceptance, the manifest contains no record content or secret, and reruns remain idempotent
+
+#### Scenario: Memory scope remains isolated
+- **WHEN** a different tenant or user searches for an imported or newly written fact
+- **THEN** that fact is not returned outside its original scope
 
 ### Requirement: No Online Context Injection
 The Agent Runtime SHALL NOT inject memory facts into online model context unless an explicit MemoryStore-backed retrieval layer is configured.

@@ -252,12 +252,12 @@
 <body>
   <header>
     <h1>openharness — 开发导航台</h1>
-    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-16</div>
+    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-27</div>
     <div class="stats">
       <div class="stat"><div class="number">36</div><div class="label">Total</div></div>
-      <div class="stat"><div class="number">21</div><div class="label">Archived</div></div>
+      <div class="stat"><div class="number">22</div><div class="label">Archived</div></div>
       <div class="stat"><div class="number">13</div><div class="label">Partial</div></div>
-      <div class="stat"><div class="number">1</div><div class="label">Proposed</div></div>
+      <div class="stat"><div class="number">0</div><div class="label">Proposed</div></div>
       <div class="stat"><div class="number">1</div><div class="label">Verified</div></div>
     </div>
   </header>
@@ -308,9 +308,9 @@
         <div class="timeline-date">2026-07-03</div>
         <div class="timeline-items">
           <div class="timeline-item">
-            <span class="badge badge-proposed">proposed</span>
+            <span class="badge badge-archived">archived</span>
             <strong>harden-agent-runtime-single-node-production</strong>
-            <span class="summary">将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：Stage 1 / Gate B 已用真实 production backup/import/restore/cutover、单一 SQLite 写权和受控读写探针闭环；Gate C 模型轨改用官方 Codex OAuth 六行必选证据，API-key Provider 保持 advisory，Java/MCP/security 与 Gate D 正式 24 小时 production workload 仍按独立真实证据门禁推进。</span>
+            <span class="summary">Agent Runtime 已完成 Local Trial Ready 本地验证：dedicated SQLite Worker、High Review、全仓回归、心跳与成熟数据库 10 分钟性能回归均通过。用户决定先自行试用并持续打磨；正式 24 小时 Gate D Attempt005 未执行，Production Verified 保留为未来独立 OpenSpec change。</span>
           </div>
         </div>
       </div>
@@ -563,14 +563,14 @@
     </tr>
 <tr>
       <td><strong>harden-agent-runtime-single-node-production</strong></td>
-      <td><span class="badge badge-proposed">proposed</span></td>
+      <td><span class="badge badge-archived">archived</span></td>
       <td>2026-07-03</td>
       <td>agent-runtime, agent-sse, shared-schema, backend-gateway, message-history, long-term-memory, provider-adapter, mcp-tools</td>
-      <td><a href="docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md">2026-07-03-agent-runtime-single-node-production-final-plan.md</a></td>
-      <td>—</td>
-      <td>—</td>
-      <td>—</td>
-      <td>Diagnose and fix the sustained Gate D admission p95 degradation without weakening the fixed workload or thresholds<br>After a focused regression passes, prepare a new no-overwrite Gate D packet and obtain a new explicit start approval<br>After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive</td>
+      <td><a href="docs/superpowers/plans/2026-07-27-agent-runtime-archive-merge-local-cli.md">2026-07-27-agent-runtime-archive-merge-local-cli.md</a></td>
+      <td>runtimeStorageWorkerProtocol.ts, runtimeStorageWorkerClient.ts, runtimeStorageWorkerKernel.ts, runtimeStorageWorker.ts, runtimeStorageCommandScheduler.ts, runtimeStorageMonitor.ts, traceOutboxDispatcher.ts, productionRuntimeContext.ts, server.ts, AuthFilter.java, TraceService.java, agent-runtime-v1-production-runbook.md</td>
+      <td>runtimeStorageWorkerProtocol.test.ts, runtimeStorageWorkerClient.test.ts, runtimeStorageWorkerKernel.test.ts, runtimeStorageWorkerCrash.test.ts, runtimeStorageWorkerHeartbeat.test.ts, runtimeStorageAdmission.test.ts, traceOutboxDispatcher.test.ts, productionServerLifecycle.test.ts, AuthFilterTest.java, TraceServiceTest.java, p0a.integration.test.ts</td>
+      <td><a href="docs/review/2026-07-27-agent-runtime-local-trial-archive-closeout.md">2026-07-27-agent-runtime-local-trial-archive-closeout.md</a></td>
+      <td>Use the reviewed Runtime locally and capture reproducible workflow feedback without changing historical qualification evidence<br>Turn confirmed trial findings into small OpenSpec/TDD/Review optimization slices<br>Resume Production Verified only through a new decision, runId, no-overwrite packet, active preflight, start approval, and promotion approval</td>
     </tr>
 <tr>
       <td><strong>add-runtime-progress-panel</strong></td>
@@ -950,7 +950,7 @@
         <h3>agent-runtime</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
-<li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
+<li><span class="badge badge-archived">archived</span> harden-agent-runtime-single-node-production</li>
 <li><span class="badge badge-archived">archived</span> add-runtime-progress-panel</li>
 <li><span class="badge badge-archived">archived</span> add-runtime-cache-stability</li>
 <li><span class="badge badge-archived">archived</span> add-agent-definition-model-selection</li>
@@ -1374,7 +1374,7 @@
         <h3>production-readiness</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> defer-anthropic-from-gate-c</li>
-<li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
+<li><span class="badge badge-archived">archived</span> harden-agent-runtime-single-node-production</li>
         </ul>
       </div>
 
@@ -1430,14 +1430,14 @@
       <div class="tag-group">
         <h3>real-provider</h3>
         <ul>
-          <li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
+          <li><span class="badge badge-archived">archived</span> harden-agent-runtime-single-node-production</li>
         </ul>
       </div>
 
       <div class="tag-group">
         <h3>recovery</h3>
         <ul>
-          <li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
+          <li><span class="badge badge-archived">archived</span> harden-agent-runtime-single-node-production</li>
         </ul>
       </div>
 
@@ -1547,14 +1547,14 @@
       <div class="tag-group">
         <h3>soak-test</h3>
         <ul>
-          <li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
+          <li><span class="badge badge-archived">archived</span> harden-agent-runtime-single-node-production</li>
         </ul>
       </div>
 
       <div class="tag-group">
         <h3>sqlite</h3>
         <ul>
-          <li><span class="badge badge-proposed">proposed</span> harden-agent-runtime-single-node-production</li>
+          <li><span class="badge badge-archived">archived</span> harden-agent-runtime-single-node-production</li>
         </ul>
       </div>
 
@@ -1671,9 +1671,9 @@
 <li>Gate C still requires OpenAI-compatible real matrix required rows to PASS (timeout/retry/terminal_error/cancellation/reasoning remain evidence-gated) <em>(from defer-anthropic-from-gate-c)</em></li>
 <li>Keep Anthropic real matrix deferred; do not delete AnthropicAdapter or fake tests <em>(from defer-anthropic-from-gate-c)</em></li>
 <li>Continue Stage 0 only after the corresponding production evidence and business authorization are available <em>(from defer-anthropic-from-gate-c)</em></li>
-<li>Diagnose and fix the sustained Gate D admission p95 degradation without weakening the fixed workload or thresholds <em>(from harden-agent-runtime-single-node-production)</em></li>
-<li>After a focused regression passes, prepare a new no-overwrite Gate D packet and obtain a new explicit start approval <em>(from harden-agent-runtime-single-node-production)</em></li>
-<li>After Gate D PASS and promotion approval, run full production qualification, freeze Runtime v1 contracts, and complete closeout/archive <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>Use the reviewed Runtime locally and capture reproducible workflow feedback without changing historical qualification evidence <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>Turn confirmed trial findings into small OpenSpec/TDD/Review optimization slices <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>Resume Production Verified only through a new decision, runId, no-overwrite packet, active preflight, start approval, and promotion approval <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>真实 Java Gateway 联调与 trace tree 视图优化 <em>(from add-subagent-dispatcher)</em></li>
 <li>按独立 OpenSpec 评估子智能体系统级隔离能力 <em>(from add-subagent-dispatcher)</em></li>
 <li>如需更细粒度成本归因，扩展 token usage 聚合契约 <em>(from add-subagent-dispatcher)</em></li>
@@ -1751,6 +1751,7 @@
 <li>User login, tenant administration, browser sessions, or platform UI <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>Model configuration UI or provider credentials in TypeScript Runtime/Frontend <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>SDK or Agent Definition management UI <em>(from harden-agent-runtime-single-node-production)</em></li>
+<li>Treating Local Trial Ready as Production Verified or formal Gate D PASS <em>(from harden-agent-runtime-single-node-production)</em></li>
 <li>重写 AgentExecutionRunner、RuntimeEventStore 或 ExecutionStateStore <em>(from add-runtime-progress-panel)</em></li>
 <li>让 Java Backend 聚合 Agent 进度 <em>(from add-runtime-progress-panel)</em></li>
 <li>在进度快照中暴露 prompt、skill content、tool output、完整工具参数或认证 header <em>(from add-runtime-progress-panel)</em></li>

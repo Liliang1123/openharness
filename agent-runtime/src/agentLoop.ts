@@ -81,8 +81,8 @@ export class AgentLoop {
 
     await emit(this.event(input, TRACE_AGENT_START, "agent start"));
 
-    injectSessionContextIfNeeded(this.history, input.tenantId, input.userId, input.conversationId);
-    this.history.append(input.tenantId, input.userId, input.conversationId, { role: "user", content: input.message });
+    await injectSessionContextIfNeeded(this.history, input.tenantId, input.userId, input.conversationId);
+    await this.history.append(input.tenantId, input.userId, input.conversationId, { role: "user", content: input.message });
 
 
     const catalog = await this.toolRegistry.getFrozenCatalog(input.tenantId, input.conversationId, input.headers);
@@ -108,7 +108,7 @@ export class AgentLoop {
         stopReason = "EMPTY_MODEL_RESPONSE";
         break;
       }
-      this.history.append(input.tenantId, input.userId, input.conversationId, resp.message);
+      await this.history.append(input.tenantId, input.userId, input.conversationId, resp.message);
 
       const toolCalls = resp.message.toolCalls ?? [];
       if (toolCalls.length === 0) {
@@ -140,7 +140,7 @@ export class AgentLoop {
     emit: (event: TraceEvent) => Promise<void>
   ): Promise<ModelChatResponse> {
     await emit(this.event(input, TRACE_MODEL_NODE_START, "model call start", { stepIndex }));
-    const context = buildModelContext(this.history.get(input.tenantId, input.userId, input.conversationId));
+    const context = buildModelContext(await this.history.get(input.tenantId, input.userId, input.conversationId));
     const prompted = promptedMessages(context.messages);
     const messages = prompted.messages;
     const cacheHints = computeCacheHints(messages);
@@ -193,7 +193,7 @@ export class AgentLoop {
       const decision = decisionMap.get(toolCall.id);
       if (!decision || decision.decision !== "ALLOW") {
         const errorClass = decision?.decision === "REQUIRE_APPROVAL" ? "APPROVAL_REQUIRED" : "POLICY_DENY";
-        this.history.append(input.tenantId, input.userId, input.conversationId, {
+        await this.history.append(input.tenantId, input.userId, input.conversationId, {
           role: "tool",
           toolCallId: toolCall.id,
           content: JSON.stringify({
@@ -205,7 +205,7 @@ export class AgentLoop {
         continue;
       }
       const toolResult = await this.executeTool(input, catalog, toolCall, stepIndex, emit);
-      this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
+      await this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
     }
   }
 
@@ -387,7 +387,7 @@ export class AgentLoop {
   private async autoCompress(input: AgentLoopInput): Promise<void> {
     if (process.env.COMPRESSION_AUTO === "false") return;
     try {
-      const messages = this.history.get(input.tenantId, input.userId, input.conversationId);
+      const messages = await this.history.get(input.tenantId, input.userId, input.conversationId);
       if (shouldCompress(messages)) {
         await compress(input.tenantId, input.userId, input.conversationId, this.history, this.javaClient, input.headers);
       }
@@ -407,19 +407,19 @@ export class AgentLoop {
 
     for (const inj of pending) {
       if (capabilities.supportsSyntheticAssistantInjection) {
-        this.history.append(input.tenantId, input.userId, input.conversationId, {
+        await this.history.append(input.tenantId, input.userId, input.conversationId, {
           role: "assistant",
           content: `[SYSTEM] Skill loaded:\n${inj.expandedContent}`,
           systemInjected: true
         } as AgentMessage);
 
-        this.history.append(input.tenantId, input.userId, input.conversationId, {
+        await this.history.append(input.tenantId, input.userId, input.conversationId, {
           role: "user",
           content: `[SYSTEM] The skill instructions above have been loaded. Please proceed to execute the task now.`,
           systemInjected: true
         } as AgentMessage);
       } else {
-        this.history.append(input.tenantId, input.userId, input.conversationId, {
+        await this.history.append(input.tenantId, input.userId, input.conversationId, {
           role: "user",
           content: `[SYSTEM] Skill instructions for ${inj.skillName} loaded:\n${inj.expandedContent}\nPlease proceed.`,
           systemInjected: true

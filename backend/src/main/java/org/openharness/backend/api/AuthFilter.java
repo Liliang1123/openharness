@@ -6,19 +6,33 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import org.openharness.backend.model.Contracts.ErrorResponse;
 import org.openharness.backend.model.Contracts.StructuredError;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 @Component
 public class AuthFilter extends OncePerRequestFilter {
-  private static final String TOKEN = "Bearer dev-service-token";
   private final ObjectMapper objectMapper;
+  private final byte[] expectedAuthorization;
 
-  public AuthFilter(ObjectMapper objectMapper) {
+  public AuthFilter(
+      ObjectMapper objectMapper,
+      @Value("${openharness.service-token:${OPENHARNESS_SERVICE_TOKEN:dev-service-token}}")
+          String serviceToken) {
+    if (serviceToken == null
+        || serviceToken.isBlank()
+        || serviceToken.chars().anyMatch(Character::isWhitespace)
+        || serviceToken.regionMatches(true, 0, "Bearer", 0, "Bearer".length())) {
+      throw new IllegalArgumentException("Java service token configuration is invalid");
+    }
     this.objectMapper = objectMapper;
+    this.expectedAuthorization =
+        ("Bearer " + serviceToken).getBytes(StandardCharsets.UTF_8);
   }
 
   @Override
@@ -30,7 +44,7 @@ public class AuthFilter extends OncePerRequestFilter {
     }
 
     String authorization = request.getHeader("Authorization");
-    if (!TOKEN.equals(authorization)) {
+    if (!validAuthorization(authorization)) {
       writeError(response, "AUTH_SERVICE_TOKEN_INVALID", "Service token is missing or invalid.");
       return;
     }
@@ -43,6 +57,13 @@ public class AuthFilter extends OncePerRequestFilter {
     }
 
     filterChain.doFilter(request, response);
+  }
+
+  private boolean validAuthorization(String authorization) {
+    if (authorization == null) return false;
+    return MessageDigest.isEqual(
+        expectedAuthorization,
+        authorization.getBytes(StandardCharsets.UTF_8));
   }
 
   private void writeError(HttpServletResponse response, String errorClass, String message) throws IOException {

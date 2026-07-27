@@ -5,7 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServer } from "../../agent-runtime/src/server";
 import { HttpJavaClient } from "../../agent-runtime/src/javaClient";
 
-const backendUrl = "http://127.0.0.1:18080";
+const backendPort = Number(process.env.P0A_BACKEND_PORT ?? 18080);
+const backendUrl = `http://127.0.0.1:${backendPort}`;
 const serviceHeaders = {
   Authorization: "Bearer dev-service-token",
   "X-User-Id": "user-001",
@@ -21,7 +22,10 @@ const backendDir = fileURLToPath(new URL("../../backend/", import.meta.url));
 
 describe("P0a integration", () => {
   beforeAll(async () => {
-    backend = spawn("mvn", ["spring-boot:run", "-Dspring-boot.run.arguments=--server.port=18080"], {
+    backend = spawn("mvn", [
+      "spring-boot:run",
+      `-Dspring-boot.run.arguments=--server.port=${backendPort} --logging.level.org.openharness.backend.service.TraceService=DEBUG`
+    ], {
       cwd: backendDir,
       detached: true
     });
@@ -32,9 +36,11 @@ describe("P0a integration", () => {
       const text = chunk.toString();
       backendLogs.push(text);
       for (const line of text.split(/\r?\n/)) {
-        if (line.startsWith("{") && line.includes("\"traceId\"")) {
+        const marker = "trace_event=";
+        const markerIndex = line.indexOf(marker);
+        if (markerIndex >= 0) {
           try {
-            traceLines.push(JSON.parse(line));
+            traceLines.push(JSON.parse(line.slice(markerIndex + marker.length)));
           } catch {
             // Ignore non-JSON log lines.
           }

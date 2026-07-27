@@ -1,0 +1,70 @@
+{
+  "runId": "gate-r6-20260724-001",
+  "result": "fail",
+  "decision": "abandon-page-cache-and-mmap-candidate",
+  "reason": "Candidate did not reach the required 10% aggregate improvement, replicate direction was inconsistent, and aggregate peak RSS increased by 130.84%.",
+  "executionOrder": [
+    "gate-r6-control-a1",
+    "gate-r6-candidate-b1",
+    "gate-r6-candidate-b2",
+    "gate-r6-control-a2"
+  ],
+  "bindings": {
+    "databaseStartSha256": "f4a8e3b227b9947828c19cca45151635e43657e4b1fc22a95e3ff1c2f5a7ec7a",
+    "databaseStartBytes": 4092854272,
+    "runnerSha256": "bcf77ca97178db7437a779edc87841d1a579aad3cc07c621ab7abd58ba549b4b",
+    "planSha256": "651ab938bb6e57fc8ac15e7c034aa3fa4d3b26e2ada2beb259465e796799506b",
+    "sourceStateSha256": "2ad9a19565bfacf96f924189e7e6861c4721e231d43b195e036028a2f1c73604"
+  },
+  "aggregate": {
+    "control": {
+      "throughputPerSecond": 88.74197833943279,
+      "lastHalfP95Ms": 6.226249999999709,
+      "maxRssBytes": 256983040,
+      "durationMs": 90309.6994375,
+      "databaseGrowthBytes": 46714880
+    },
+    "candidate": {
+      "throughputPerSecond": 89.58277129691677,
+      "lastHalfP95Ms": 6.28099949999887,
+      "maxRssBytes": 593215488,
+      "durationMs": 89306.4009375,
+      "databaseGrowthBytes": 47161344
+    },
+    "candidateVsControl": {
+      "throughputImprovementPercent": 0.9474579823631979,
+      "lastHalfP95ImprovementPercent": -0.8793334671618469,
+      "maxRssIncreasePercent": 130.83838061842522,
+      "durationReductionPercent": 1.1109532046381654,
+      "databaseGrowthIncreasePercent": 0.9557211749232852
+    }
+  },
+  "replicateDirection": {
+    "candidateB1VsControlA1": {
+      "throughputImprovementPercent": 6.054597684513596,
+      "lastHalfP95ImprovementPercent": -6.592005906550491,
+      "maxRssIncreasePercent": 134.33637481395198
+    },
+    "candidateB2VsControlA2": {
+      "throughputImprovementPercent": -3.7462417400877634,
+      "lastHalfP95ImprovementPercent": 4.597683792642493,
+      "maxRssIncreasePercent": 127.44235722812087
+    }
+  },
+  "safety": {
+    "allIntegrityChecks": "ok",
+    "allCounterDeltasMatch": true,
+    "sourceDrift": false,
+    "schemaDrift": false,
+    "durabilityPragmaDrift": false
+  },
+  "nonCountedInvocation": {
+    "runId": "gate-r6-candidate-b1",
+    "result": "blocked",
+    "reason": "An extra unsupported --expected-database-bytes argument caused parseCli to reject the invocation before opening the database.",
+    "workloadStarted": false,
+    "databaseOpened": false,
+    "includedInAbba": false
+  },
+  "next": "Diagnose lifecycle event transaction batching. This result does not authorize production source changes or Attempt005."
+}

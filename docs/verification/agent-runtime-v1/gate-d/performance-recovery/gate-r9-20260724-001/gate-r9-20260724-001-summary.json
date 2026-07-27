@@ -1,0 +1,121 @@
+{
+  "runId": "gate-r9-20260724-001",
+  "result": "fail",
+  "decision": "reject-transition-chunking-candidate",
+  "reason": "control_did_not_reproduce_over_100ms_admission_tail",
+  "executionOrder": [
+    {
+      "runId": "gate-r9-control-a1",
+      "result": "pass"
+    },
+    {
+      "runId": "gate-r9-candidate-b1",
+      "result": "pass"
+    },
+    {
+      "runId": "gate-r9-candidate-b2",
+      "result": "pass"
+    },
+    {
+      "runId": "gate-r9-control-a2",
+      "result": "pass"
+    }
+  ],
+  "bindings": {
+    "databaseStartSha256": "f4a8e3b227b9947828c19cca45151635e43657e4b1fc22a95e3ff1c2f5a7ec7a",
+    "databaseStartBytes": 4092854272,
+    "runnerSha256": "756411702c9c2098511dfabc9725acc2eebdbb702c2a2d5c2debf06107aca909",
+    "planSha256": "b4b30680df6f324ec4d93603f4253695401bfd0d112ddbe2ebd069fc52bb626b",
+    "sourceStateSha256": "0aecf1019b7eab0e1ea3eb33e143d33a4fe50e39bf521b6d4a42397d4e877bce"
+  },
+  "resultSha256": {
+    "controlA1": "6dd3a2a621fa91486f01bec57d8e65ebf4655ccc93a62a3ff4e3e965c6fbf5ba",
+    "candidateB1": "c76968d9134e2ba73e4939dc764bd2c3b18d1cfad40c97a4dd76233719f33481",
+    "candidateB2": "b79b775cc14e32766c1faa7b0f0059e06f14e4d5f353100f84dd2dc7bb9f9109",
+    "controlA2": "a3bbb951590f26ea19b9c24f001dbe727d03ddf37fa9fab030711c92c0dc96d9"
+  },
+  "runs": {
+    "controlA1": {
+      "admissionP95Ms": 3.3720419999990554,
+      "admissionOver100Ms": 0,
+      "maximumAdmissionMs": 17.94695800000045,
+      "throughputPerSecond": 33152.406396095095,
+      "maximumWalBytes": 4177712
+    },
+    "candidateB1": {
+      "admissionP95Ms": 1.1934590000018943,
+      "admissionOver100Ms": 0,
+      "maximumAdmissionMs": 11.03862499999741,
+      "throughputPerSecond": 35911.70389363693,
+      "maximumWalBytes": 4165352
+    },
+    "candidateB2": {
+      "admissionP95Ms": 1.3488330000000133,
+      "admissionOver100Ms": 0,
+      "maximumAdmissionMs": 7.9603749999987485,
+      "throughputPerSecond": 38428.495497981756,
+      "maximumWalBytes": 4157112
+    },
+    "controlA2": {
+      "admissionP95Ms": 2.3935419999979786,
+      "admissionOver100Ms": 0,
+      "maximumAdmissionMs": 12.297500000000582,
+      "throughputPerSecond": 38828.991997698,
+      "maximumWalBytes": 4177712
+    }
+  },
+  "replicates": [
+    {
+      "control": "controlA1",
+      "candidate": "candidateB1",
+      "p95ImprovementPercent": 64.60723205694862,
+      "controlOver100Ms": 0,
+      "candidateOver100Ms": 0
+    },
+    {
+      "control": "controlA2",
+      "candidate": "candidateB2",
+      "p95ImprovementPercent": 43.646988438007256,
+      "controlOver100Ms": 0,
+      "candidateOver100Ms": 0
+    }
+  ],
+  "aggregate": {
+    "control": {
+      "admissionP50Ms": 1.5544579999987036,
+      "admissionP95Ms": 3.306291999997484,
+      "minimumAdmissionMs": 1.2631250000013097,
+      "maximumAdmissionMs": 17.94695800000045,
+      "admissionOver100Ms": 0,
+      "throughputPerSecond": 35766.86620107145
+    },
+    "candidate": {
+      "admissionP50Ms": 0.50145799999882,
+      "admissionP95Ms": 1.2501660000016273,
+      "minimumAdmissionMs": 0.40625,
+      "maximumAdmissionMs": 11.03862499999741,
+      "admissionOver100Ms": 0,
+      "throughputPerSecond": 37127.496635610834
+    },
+    "p95ImprovementPercent": 62.188276171536614,
+    "throughputChangePercent": 3.804164521684106,
+    "over100ReductionPercent": null
+  },
+  "hardConstraints": {
+    "allRunsIntegrityOk": true,
+    "allRunsFinalWalZero": true,
+    "allRunsCountersAndOrderValid": true,
+    "allRunsTransactionAndYieldShapeValid": true,
+    "allRunsWalBelow64MiB": true
+  },
+  "gateDecision": {
+    "aggregateP95ImprovementAtLeast30Percent": true,
+    "aggregateOver100ReductionAtLeast80Percent": false,
+    "candidateP95AtMost100Ms": true,
+    "replicateDirectionConsistent": true,
+    "throughputRegressionAtMost20Percent": true,
+    "allSafetyConstraintsPass": true,
+    "candidateMayBeImplemented": false
+  },
+  "next": "Do not modify production source or OpenSpec crash boundaries. Treat Attempt003 admission tail as the current mature single-connection capacity blocker and stop evidence-free micro-tuning."
+}

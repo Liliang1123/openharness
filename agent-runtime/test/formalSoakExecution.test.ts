@@ -483,6 +483,140 @@ describe("Gate D production executor primitives", () => {
     expect(database.statements[3]).toMatch(/event_id[\s\S]*UNION ALL[\s\S]*CAST\(cursor AS TEXT\)/);
   });
 
+  it("keeps seven formal-incremental probes while bounding event and message history scans", () => {
+    const database = recordingDatabaseProbe({
+      eventBatches: [[{
+        rowId: 5,
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-a",
+        cursor: 1,
+        eventId: "event-a"
+      }]],
+      getForSql: sql => sql.includes("FROM messages")
+        ? { count: 0, maxRowId: 9 }
+        : { count: 0 }
+    });
+    const timings: GateDDatabaseProbeTiming[] = [];
+    const cursor = new GateDDatabaseObservationCursor({
+      mode: "formal-incremental",
+      now: incrementingClock(),
+      onTiming: timing => timings.push(timing)
+    });
+
+    expect(cursor.read(database.probe)).toEqual({
+      eventObservations: [{
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-a",
+        cursor: 1,
+        eventId: "event-a"
+      }],
+      hardFailures: []
+    });
+
+    expect(timings.map(timing => timing.probe)).toEqual([
+      "incremental-events",
+      "dead-letter",
+      "orphaned-approval",
+      "duplicate-event",
+      "sqlite-busy",
+      "event-secret-canary",
+      "message-secret-canary"
+    ]);
+    expect(database.statements).toHaveLength(6);
+    expect(database.statements.join("\n")).not.toMatch(/GROUP BY[\s\S]*runtime_events|UNION ALL/i);
+    const busySql = database.statements.find(sql => sql.includes("SQLITE_BUSY"))!;
+    const eventCanarySql = database.statements.find(sql => sql.includes("OPENHARNESS_SECRET_CANARY") && sql.includes("runtime_events"))!;
+    const messageCanarySql = database.statements.find(sql => sql.includes("OPENHARNESS_SECRET_CANARY") && sql.includes("messages"))!;
+    expect(busySql).toMatch(/rowid > 0[\s\S]*rowid <= 5/);
+    expect(eventCanarySql).toMatch(/rowid > 0[\s\S]*rowid <= 5/);
+    expect(messageCanarySql).toMatch(/rowid > 0/);
+  });
+
+  it("preserves formal hard-failure classes with incremental duplicate checks", () => {
+    const database = recordingDatabaseProbe({
+      eventBatches: [[
+        {
+          rowId: 1,
+          tenantId: "tenant-a",
+          userId: "user-a",
+          conversationId: "conv-a",
+          cursor: 1,
+          eventId: "event-duplicate"
+        },
+        {
+          rowId: 2,
+          tenantId: "tenant-a",
+          userId: "user-a",
+          conversationId: "conv-a",
+          cursor: 2,
+          eventId: "event-duplicate"
+        }
+      ]],
+      getForSql: sql => {
+        if (sql.includes("delivery_status = 'dead_letter'")) return { count: 1 };
+        if (sql.includes("FROM approvals a")) return { count: 1 };
+        if (sql.includes("SQLITE_BUSY")) return { count: 1 };
+        if (sql.includes("FROM messages")) return { count: 1, maxRowId: 1 };
+        if (sql.includes("OPENHARNESS_SECRET_CANARY")) return { count: 1 };
+        return { count: 0 };
+      }
+    });
+    const timings: GateDDatabaseProbeTiming[] = [];
+
+    const observations = new GateDDatabaseObservationCursor({
+      mode: "formal-incremental",
+      now: incrementingClock(),
+      onTiming: timing => timings.push(timing)
+    }).read(database.probe);
+
+    expect(observations.hardFailures).toEqual([
+      "DEAD_LETTER_OUTBOX",
+      "ORPHANED_APPROVAL",
+      "DUPLICATE_DURABLE_EVENT",
+      "SQLITE_BUSY_RETRY_EXHAUSTED",
+      "SECRET_CANARY_LEAK"
+    ]);
+    expect(timings.map(timing => timing.probe)).toEqual([
+      "incremental-events",
+      "dead-letter",
+      "orphaned-approval",
+      "duplicate-event",
+      "sqlite-busy",
+      "event-secret-canary",
+      "message-secret-canary"
+    ]);
+  });
+
+  it("advances independent event and message watermarks only across incremental windows", () => {
+    const database = recordingDatabaseProbe({
+      eventBatches: [
+        [{ rowId: 4, tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 1, eventId: "event-a" }],
+        [{ rowId: 7, tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 2, eventId: "event-b" }]
+      ],
+      getForSql: sql => {
+        if (!sql.includes("FROM messages")) return { count: 0 };
+        return sql.includes("rowid > 0")
+          ? { count: 0, maxRowId: 6 }
+          : { count: 0, maxRowId: 8 };
+      }
+    });
+    const cursor = new GateDDatabaseObservationCursor({ mode: "formal-incremental" });
+
+    cursor.read(database.probe);
+    cursor.read(database.probe);
+
+    const incrementalEventSql = database.statements.filter(sql =>
+      sql.includes("SELECT rowid AS rowId") && sql.includes("FROM runtime_events")
+    );
+    const messageSql = database.statements.filter(sql => sql.includes("FROM messages"));
+    expect(incrementalEventSql[0]).toMatch(/rowid > 0/);
+    expect(incrementalEventSql[1]).toMatch(/rowid > 4/);
+    expect(messageSql[0]).toMatch(/rowid > 0/);
+    expect(messageSql[1]).toMatch(/rowid > 6/);
+  });
+
   it("preserves diagnostic cursor state across single-query observation windows", () => {
     const database = recordingDatabaseProbe({
       eventBatches: [
@@ -595,11 +729,14 @@ describe("Gate D production executor primitives", () => {
     expect(database.statements.some(sql => sql.includes("FROM messages WHERE content_json"))).toBe(false);
   });
 
-  it("keeps the production executor on the no-options formal cursor", () => {
+  it("keeps the production executor on the explicit formal-incremental cursor", () => {
     const source = readFileSync(fileURLToPath(new URL("../src/baseline/formalSoakExecution.ts", import.meta.url)), "utf8");
     const productionBody = source.slice(source.indexOf("export async function executeGateDProductionSoak"));
 
-    expect(productionBody).toContain("const databaseCursor = new GateDDatabaseObservationCursor();");
+    expect(productionBody).toContain(
+      'const databaseCursor = new GateDDatabaseObservationCursor({ mode: "formal-incremental" });'
+    );
+    expect(productionBody).not.toContain("const databaseCursor = new GateDDatabaseObservationCursor();");
     expect(productionBody).not.toContain("diagnostic-incremental");
   });
 
@@ -686,15 +823,18 @@ describe("Gate D production executor primitives", () => {
     expect(JSON.stringify(journalRows)).not.toContain("OPENHARNESS_SECRET_CANARY");
 
     const readinessHeaders: Headers[] = [];
+    const readinessUrls: string[] = [];
     await waitUntilGateDRuntimeReady(managed, {
       runtimeUrl: "http://127.0.0.1:3101",
       serviceToken: "raw-gate-d-secret",
       delay: async () => undefined,
-      fetch: (async (_input, init) => {
+      fetch: (async (input, init) => {
+        readinessUrls.push(String(input));
         readinessHeaders.push(new Headers(init?.headers));
         return response(200, []);
       }) as typeof fetch
     });
+    expect(readinessUrls).toEqual(["http://127.0.0.1:3101/api/v1/health/ready"]);
     expect(readinessHeaders[0]?.get("Authorization")).toBe("Bearer raw-gate-d-secret");
     managed.stop();
     expect(signals).toEqual(["SIGTERM"]);
@@ -707,6 +847,27 @@ describe("Gate D production executor primitives", () => {
     processEvents.emit("close", 0, "SIGTERM");
     await expect(managed.exited).resolves.toEqual({ code: 0, signal: "SIGTERM" });
     expect(journalRows.at(-1)).toMatchObject({ text: "late output after exit" });
+  });
+
+  it("allows a mature Worker-owned database to become ready after the legacy 30-second window", async () => {
+    let readinessCalls = 0;
+    const managed = {
+      pid: 6161,
+      exited: new Promise<never>(() => undefined),
+      stop() {}
+    };
+
+    await waitUntilGateDRuntimeReady(managed, {
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "local-test-token",
+      delay: async () => undefined,
+      fetch: (async () => {
+        readinessCalls += 1;
+        return response(readinessCalls >= 122 ? 200 : 503, []);
+      }) as typeof fetch
+    });
+
+    expect(readinessCalls).toBe(122);
   });
 
   it("persists a mode-0600 append-only journal and no-overwrite report", () => {
@@ -1168,6 +1329,7 @@ function recordingDatabaseProbe(options: {
   eventBatches?: unknown[][];
   queryEvents?: (sql: string) => unknown[];
   countForSql?: (sql: string) => number;
+  getForSql?: (sql: string) => unknown;
 } = {}) {
   const statements: string[] = [];
   let eventBatchIndex = 0;
@@ -1181,7 +1343,7 @@ function recordingDatabaseProbe(options: {
       },
       get<T>(sql: string) {
         statements.push(sql);
-        return { count: options.countForSql?.(sql) ?? 0 } as T;
+        return (options.getForSql?.(sql) ?? { count: options.countForSql?.(sql) ?? 0 }) as T;
       },
       run: () => ({ changes: 0 }),
       close() {},

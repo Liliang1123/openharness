@@ -1,4 +1,5 @@
 import type { AgentMessage } from "./types";
+import type { Awaitable } from "./types";
 
 const RUNTIME_SENTINELS = new Set(["PENDING_APPROVAL", "POLICY_DENY"]);
 
@@ -20,9 +21,9 @@ export interface SessionMeta {
 // ── Interface ────────────────────────────────────────────────────────────────
 
 export interface HistoryStore {
-  append(tenantId: string, userId: string, conversationId: string, message: AgentMessage): void;
-  get(tenantId: string, userId: string, conversationId: string): AgentMessage[];
-  replace(tenantId: string, userId: string, conversationId: string, messages: AgentMessage[]): void;
+  append(tenantId: string, userId: string, conversationId: string, message: AgentMessage): Awaitable<void>;
+  get(tenantId: string, userId: string, conversationId: string): Awaitable<AgentMessage[]>;
+  replace(tenantId: string, userId: string, conversationId: string, messages: AgentMessage[]): Awaitable<void>;
   save(tenantId: string, userId: string, conversationId: string): Promise<void>;
   load(tenantId: string, userId: string, conversationId: string): Promise<void>;
   list(tenantId: string, userId: string): Promise<SessionMeta[]>;

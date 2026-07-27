@@ -1,0 +1,75 @@
+{
+  "runId": "gate-r7-20260724-001",
+  "result": "fail",
+  "decision": "abandon-lifecycle-event-transaction-batching-candidate",
+  "reason": "Candidate reduced ordinary-path p50 but failed the frozen throughput and last-half p95 decision metrics, with inconsistent replicate direction.",
+  "executionOrder": [
+    "gate-r7-control-a1",
+    "gate-r7-candidate-b1",
+    "gate-r7-candidate-b2",
+    "gate-r7-control-a2"
+  ],
+  "bindings": {
+    "databaseStartSha256": "f4a8e3b227b9947828c19cca45151635e43657e4b1fc22a95e3ff1c2f5a7ec7a",
+    "databaseStartBytes": 4092854272,
+    "runnerSha256": "afe8c504f0a249fbbd663f75c167e43f6d95181f64ad5d0793d840e771027875",
+    "planSha256": "bb249202dcfab98e4244f5510112f80570c268c4d0b67ac6c03ba56655315cd6",
+    "sourceStateSha256": "177958470736e6c96b66779cda1fb5d17863190b05d726971c000f868b7b135c"
+  },
+  "aggregate": {
+    "control": {
+      "transactionsPerExecution": 10,
+      "throughputPerSecond": 90.31544010641016,
+      "lastHalfP50Ms": 0.9663960000034422,
+      "lastHalfP95Ms": 6.6766664999959175,
+      "transactionDurationMs": 12329.958832499491,
+      "maxRssBytes": 255123456,
+      "durationMs": 88705.353583,
+      "databaseGrowthBytes": 46870528,
+      "walBytes": 4389892
+    },
+    "candidate": {
+      "transactionsPerExecution": 4,
+      "throughputPerSecond": 89.92041201907882,
+      "lastHalfP50Ms": 0.7194999999919673,
+      "lastHalfP95Ms": 7.502145999998902,
+      "transactionDurationMs": 10590.57397100061,
+      "maxRssBytes": 258375680,
+      "durationMs": 88967.60291700001,
+      "databaseGrowthBytes": 47292416,
+      "walBytes": 4243632
+    },
+    "candidateVsControl": {
+      "throughputImprovementPercent": -0.4373871033191201,
+      "lastHalfP50ImprovementPercent": 25.548118991655123,
+      "lastHalfP95ImprovementPercent": -12.363647338136307,
+      "transactionDurationReductionPercent": 14.106980283779901,
+      "maxRssIncreasePercent": 1.274764794656913,
+      "durationReductionPercent": -0.2956409319248454,
+      "databaseGrowthIncreasePercent": 0.9001136065716953,
+      "walReductionPercent": 3.3317448356360524
+    }
+  },
+  "replicateDirection": {
+    "candidateB1VsControlA1": {
+      "throughputImprovementPercent": -4.002659177919165,
+      "lastHalfP50ImprovementPercent": 23.917335792279758,
+      "lastHalfP95ImprovementPercent": -33.07575618362621
+    },
+    "candidateB2VsControlA2": {
+      "throughputImprovementPercent": 3.408210954106905,
+      "lastHalfP50ImprovementPercent": 27.123265935890284,
+      "lastHalfP95ImprovementPercent": 3.865032723297157
+    }
+  },
+  "safety": {
+    "allIntegrityChecks": "ok",
+    "allCounterDeltasMatch": true,
+    "allEventOrderSamplesMatch": true,
+    "allSampleCursorsContiguous": true,
+    "sourceDrift": false,
+    "schemaDrift": false,
+    "durabilityPragmaDrift": false
+  },
+  "next": "Do not implement this candidate. Diagnose WAL autocheckpoint scheduling and commit-frame tail latency without weakening durability."
+}

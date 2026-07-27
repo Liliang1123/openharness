@@ -1,0 +1,35 @@
+{
+  "runId": "gate-r8-candidate-b1",
+  "variant": "candidate",
+  "result": "blocked",
+  "errorClass": "Error",
+  "errorCode": "wal_size_limit_exceeded",
+  "maximumAllowedWalBytes": 67108864,
+  "reportEmitted": false,
+  "workloadCompleted": true,
+  "workloadCompletionEvidence": {
+    "databaseStartBytes": 4092854272,
+    "databaseEndBytesAfterConnectionClose": 4140146688,
+    "messages": 1035702,
+    "executions": 520351,
+    "runtimeEvents": 6245962,
+    "pendingTraceEvents": 0,
+    "deliveredTraceEvents": 3119606,
+    "expectedMessageDelta": 16000,
+    "expectedExecutionDelta": 8000,
+    "expectedRuntimeEventDelta": 96000,
+    "expectedDeliveredTraceDelta": 48000,
+    "integrity": "ok"
+  },
+  "closeRecovery": {
+    "walSidecarAfterClose": "missing",
+    "shmSidecarAfterClose": "missing",
+    "residualRunnerOrWorkerProcesses": 0
+  },
+  "includedInAggregate": false,
+  "nextRuns": {
+    "candidateB2": "not_executed",
+    "controlA2": "not_executed"
+  },
+  "reason": "The candidate violated the frozen bounded-WAL hard constraint. The plan requires immediate stop and does not allow increasing the limit."
+}

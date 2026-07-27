@@ -19,29 +19,37 @@ afterEach(() => {
 });
 
 describe("ProductionRuntimeContext", () => {
-  it("requires an absolute SQLite path before acquiring resources", () => {
-    expect(() => openProductionRuntimeContext("relative/runtime.sqlite")).toThrow(/absolute/i);
+  it("requires an absolute SQLite path before acquiring resources", async () => {
+    await expect(openProductionRuntimeContext("relative/runtime.sqlite"))
+      .rejects.toThrow(/absolute/i);
   });
 
-  it("owns one database, repositories, lifecycle, reconciliation, and idempotent close", () => {
+  it("owns one Worker storage client and exposes no raw database handles", async () => {
     const path = databasePath();
-    const context = openProductionRuntimeContext(path);
+    const context = await openProductionRuntimeContext(path);
 
     expect(context.databasePath).toBe(path);
-    expect(context.database.path).toBe(path);
-    expect(context.reconciliation).toEqual({ interruptedExecutions: 0, invalidatedApprovals: 0 });
-    expect(context.repositories.history).toBeDefined();
+    expect(context.storage.bootstrapResult).toMatchObject({
+      schemaVersion: 2,
+      integrity: "ok"
+    });
+    expect(context.reconciliation).toEqual({
+      interruptedExecutions: 0,
+      invalidatedApprovals: 0
+    });
     expect(context.lifecycle).toBeDefined();
     expect(context.liveEvents).toBeDefined();
+    expect("database" in context).toBe(false);
+    expect("repositories" in context).toBe(false);
 
-    expect(() => context.close()).not.toThrow();
-    expect(() => context.close()).not.toThrow();
+    await expect(context.close()).resolves.toBeUndefined();
+    await expect(context.close()).resolves.toBeUndefined();
   });
 
-  it("reconciles interrupted lifecycle state before returning the reopened context", () => {
+  it("reconciles interrupted lifecycle state before returning the reopened context", async () => {
     const path = databasePath();
-    const first = openProductionRuntimeContext(path);
-    first.lifecycle.startExecution({
+    const first = await openProductionRuntimeContext(path);
+    await first.lifecycle.startExecution({
       tenantId: "tenant-a",
       userId: "user-a",
       conversationId: "conversation-a",
@@ -50,50 +58,54 @@ describe("ProductionRuntimeContext", () => {
       requestId: "request-a",
       message: "hello"
     });
-    first.close();
+    await first.close();
 
-    const reopened = openProductionRuntimeContext(path);
-    expect(reopened.reconciliation).toEqual({ interruptedExecutions: 1, invalidatedApprovals: 0 });
-    expect(reopened.database.transaction((tx) => reopened.repositories.execution.get(
-      tx,
+    const reopened = await openProductionRuntimeContext(path);
+    expect(reopened.reconciliation).toEqual({
+      interruptedExecutions: 1,
+      invalidatedApprovals: 0
+    });
+    expect(await reopened.executions.get(
       "tenant-a",
       "user-a",
       "conversation-a",
       "execution-a"
-    ))?.stopReason).toBe("EXECUTION_INTERRUPTED");
-    reopened.close();
+    )).toMatchObject({ stopReason: "EXECUTION_INTERRUPTED" });
+    await reopened.close();
   });
 
-  it("fences a second production context before it can become ready", () => {
+  it("fences a second production context before it can become ready", async () => {
     const path = databasePath();
-    const first = openProductionRuntimeContext(path);
-    expect(() => openProductionRuntimeContext(path)).toThrow(/lock/i);
-    first.close();
+    const first = await openProductionRuntimeContext(path);
+    await expect(openProductionRuntimeContext(path)).rejects.toThrow(/lock/i);
+    await first.close();
 
-    const reopened = openProductionRuntimeContext(path);
-    reopened.close();
+    const reopened = await openProductionRuntimeContext(path);
+    await reopened.close();
   });
 
-  it("releases the singleton lock when database migration fails", () => {
+  it("releases the singleton lock when database migration fails", async () => {
     const path = databasePath();
     const database = openRuntimeDatabase(path);
     database.run("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
     database.run("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)", [999, Date.now()]);
     database.close();
 
-    expect(() => openProductionRuntimeContext(path)).toThrow(/newer schema version/i);
+    await expect(openProductionRuntimeContext(path))
+      .rejects.toThrow("RUNTIME_STORAGE_OPERATION_FAILED");
     const lock = acquireRuntimeSingletonLock(`${path}.lock`);
     lock.release();
   });
 
-  it.each(["integrity", "reconciliation"] as const)("closes storage and releases the lock when %s fails", (phase) => {
+  it("releases the singleton lock when expected identity verification fails", async () => {
     const path = databasePath();
-    expect(() => openProductionRuntimeContext(path, phase === "integrity"
-      ? { verifyIntegrity: () => { throw new Error("integrity failure"); } }
-      : { reconcile: () => { throw new Error("reconciliation failure"); } }
-    )).toThrow(new RegExp(`${phase} failure`));
+    const database = openRuntimeDatabase(path);
+    database.close();
 
-    const reopened = openProductionRuntimeContext(path);
-    reopened.close();
+    await expect(openProductionRuntimeContext(path, {
+      expectedDatabaseIdentity: { dev: 0, ino: 0 }
+    })).rejects.toThrow();
+    const reopened = await openProductionRuntimeContext(path);
+    await reopened.close();
   });
 });

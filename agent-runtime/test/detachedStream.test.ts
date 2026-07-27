@@ -95,8 +95,12 @@ describe("detached stream", () => {
       ac.abort();
       await reqP;
 
-      // Wait for runner (which keeps running detached) to complete.
-      await new Promise(r => setTimeout(r, 600));
+      // Wait for the durable terminal event instead of assuming a wall-clock delay.
+      await waitFor(() =>
+        store.since("t1", "u1", "conv-disc", null).some(e => e.kind === "stream_done")
+          ? true
+          : undefined
+      );
 
       // Verify final assistant message landed in HistoryStore.
       const sessionResp = await fetch(`${baseUrl}/api/v1/sessions/conv-disc`, {
@@ -146,8 +150,11 @@ describe("detached stream", () => {
       ac.abort();
       await reqP;
 
-      // Wait for runner to terminate.
-      await new Promise(r => setTimeout(r, 500));
+      await waitFor(() =>
+        store.since("t1", "u1", "conv-recon", null).some(e => e.kind === "stream_done")
+          ? true
+          : undefined
+      );
 
       // Reconnect via session events SSE — should replay buffered events and close on stream_done.
       const eventsResp = await fetch(`${baseUrl}/api/v1/sessions/conv-recon/events`, {
@@ -162,3 +169,16 @@ describe("detached stream", () => {
     }
   }, 15000);
 });
+
+// The full suite intentionally runs a separate five-second synchronous SQLite
+// contention probe. Keep this asynchronous lifecycle wait above that probe's
+// worst-case scheduling window while remaining inside each test's 15s budget.
+async function waitFor<T>(read: () => T | undefined, timeoutMs = 10_000): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = read();
+    if (value !== undefined) return value;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  throw new Error("timed out waiting for runtime state");
+}

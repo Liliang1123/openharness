@@ -137,6 +137,8 @@ export interface WaitUntilGateDRuntimeReadyOptions {
   maximumPolls?: number;
 }
 
+const DEFAULT_GATE_D_READINESS_MAXIMUM_POLLS = 720;
+
 export async function waitUntilGateDRuntimeReady(
   child: GateDManagedChild,
   options: WaitUntilGateDRuntimeReadyOptions
@@ -146,12 +148,15 @@ export async function waitUntilGateDRuntimeReady(
   if (!serviceToken) throw new Error("Gate D Runtime service token is required");
   const fetchFn = options.fetch ?? fetch;
   const delay = options.delay ?? sleepMs;
-  const maximumPolls = positiveInteger(options.maximumPolls ?? 120, "readiness maximum polls");
+  const maximumPolls = positiveInteger(
+    options.maximumPolls ?? DEFAULT_GATE_D_READINESS_MAXIMUM_POLLS,
+    "readiness maximum polls"
+  );
   const pollIntervalMs = positiveInteger(options.pollIntervalMs ?? 250, "readiness poll interval");
   const readiness = (async () => {
     for (let poll = 0; poll < maximumPolls; poll += 1) {
       try {
-        const response = await fetchFn(`${runtimeUrl}/api/v1/sessions`, {
+        const response = await fetchFn(`${runtimeUrl}/api/v1/health/ready`, {
           headers: {
             Authorization: `Bearer ${serviceToken}`,
             "X-Tenant-Id": "gate-d-readiness",
@@ -342,7 +347,10 @@ export interface GateDDatabaseObservations {
   hardFailures: string[];
 }
 
-export type GateDDatabaseObservationMode = "formal-full" | "diagnostic-incremental";
+export type GateDDatabaseObservationMode =
+  | "formal-full"
+  | "formal-incremental"
+  | "diagnostic-incremental";
 
 export type GateDDatabaseProbeName =
   | "incremental-events"
@@ -368,6 +376,7 @@ export interface GateDDatabaseObservationCursorOptions {
 
 export class GateDDatabaseObservationCursor {
   private lastRowId = 0;
+  private lastMessageRowId = 0;
   private readonly lastCursorByScope = new Map<string, number>();
   private readonly mode: GateDDatabaseObservationMode;
   private readonly now: () => number;
@@ -382,11 +391,12 @@ export class GateDDatabaseObservationCursor {
   }
 
   read(database: GateDReadOnlyDatabaseProbe): GateDDatabaseObservations {
+    const previousRowId = this.lastRowId;
     const incrementalSql = `
       SELECT rowid AS rowId, tenant_id AS tenantId, user_id AS userId,
              conversation_id AS conversationId, cursor, event_id AS eventId
       FROM runtime_events
-      WHERE rowid > ${this.lastRowId}
+      WHERE rowid > ${previousRowId}
       ORDER BY rowid ASC
     `;
     const rows = this.timed(
@@ -395,20 +405,55 @@ export class GateDDatabaseObservationCursor {
       () => database.all<GateDDatabaseEventRow>(incrementalSql),
       value => value.length
     );
-    if (rows.length > 0) this.lastRowId = rows[rows.length - 1]!.rowId;
+    const nextRowId = rows.at(-1)?.rowId ?? previousRowId;
     const hardFailures: string[] = [];
+    const stagedCursors = new Map<string, number>();
+    const batchEventIds = new Set<string>();
+    const batchCursors = new Set<string>();
+    let duplicateEvent = false;
     for (const row of rows) {
       const key = scopeKey(row);
-      const previous = this.lastCursorByScope.get(key);
+      const previous = stagedCursors.get(key) ?? this.lastCursorByScope.get(key);
       if (previous !== undefined && row.cursor <= previous) {
         hardFailures.push("EVENT_ORDERING_FAILURE");
       }
-      this.lastCursorByScope.set(key, row.cursor);
+      stagedCursors.set(key, row.cursor);
+      if (this.mode === "formal-incremental") {
+        const eventIdentity = `${key}\u0000${row.eventId}`;
+        const cursorIdentity = `${key}\u0000${row.cursor}`;
+        if (batchEventIds.has(eventIdentity) || batchCursors.has(cursorIdentity)) {
+          duplicateEvent = true;
+        }
+        batchEventIds.add(eventIdentity);
+        batchCursors.add(cursorIdentity);
+      }
     }
     const eventObservations = rows.map(({ rowId: _rowId, ...observation }) => observation);
     if (this.mode === "diagnostic-incremental") {
+      this.commitEventWatermark(nextRowId, stagedCursors);
       return { eventObservations, hardFailures };
     }
+    if (this.mode === "formal-incremental") {
+      const observations = this.readFormalIncremental(
+        database,
+        previousRowId,
+        nextRowId,
+        duplicateEvent,
+        eventObservations,
+        hardFailures
+      );
+      this.commitEventWatermark(nextRowId, stagedCursors);
+      return observations;
+    }
+    this.commitEventWatermark(nextRowId, stagedCursors);
+    return this.readFormalFull(database, eventObservations, hardFailures);
+  }
+
+  private readFormalFull(
+    database: GateDReadOnlyDatabaseProbe,
+    eventObservations: RuntimeBaselineEventObservation[],
+    hardFailures: string[]
+  ): GateDDatabaseObservations {
     const deadLetterSql = "SELECT COUNT(*) AS count FROM runtime_events WHERE delivery_status = 'dead_letter' OR dead_letter_at IS NOT NULL";
     if (this.timed("dead-letter", deadLetterSql, () => countQuery(database, deadLetterSql), value => value) > 0) {
       hardFailures.push("DEAD_LETTER_OUTBOX");
@@ -471,6 +516,101 @@ export class GateDDatabaseObservationCursor {
     return { eventObservations, hardFailures };
   }
 
+  private readFormalIncremental(
+    database: GateDReadOnlyDatabaseProbe,
+    previousRowId: number,
+    nextRowId: number,
+    duplicateEvent: boolean,
+    eventObservations: RuntimeBaselineEventObservation[],
+    hardFailures: string[]
+  ): GateDDatabaseObservations {
+    const deadLetterSql = `
+      SELECT EXISTS(
+        SELECT 1
+        FROM runtime_events
+        WHERE kind = 'trace' AND delivery_status = 'dead_letter'
+        LIMIT 1
+      ) AS count
+    `;
+    if (this.timed("dead-letter", deadLetterSql, () => countQuery(database, deadLetterSql), value => value) > 0) {
+      hardFailures.push("DEAD_LETTER_OUTBOX");
+    }
+    const orphanedApprovalSql = `
+      SELECT COUNT(*) AS count
+      FROM approvals a
+      LEFT JOIN executions e
+        ON e.execution_id = a.execution_id AND e.tenant_id = a.tenant_id
+       AND e.user_id = a.user_id AND e.conversation_id = a.conversation_id
+      WHERE a.status = 'pending' AND (e.execution_id IS NULL OR e.status NOT IN ('running','waiting_approval'))
+    `;
+    if (this.timed(
+      "orphaned-approval",
+      orphanedApprovalSql,
+      () => countQuery(database, orphanedApprovalSql),
+      value => value
+    ) > 0) {
+      hardFailures.push("ORPHANED_APPROVAL");
+    }
+    if (this.timedComputation(
+      "duplicate-event",
+      () => duplicateEvent,
+      value => value ? 1 : 0
+    )) {
+      hardFailures.push("DUPLICATE_DURABLE_EVENT");
+    }
+    const sqliteBusySql = `
+      SELECT COUNT(*) AS count
+      FROM runtime_events
+      WHERE rowid > ${previousRowId}
+        AND rowid <= ${nextRowId}
+        AND payload_json LIKE '%SQLITE_BUSY%'
+    `;
+    if (this.timed("sqlite-busy", sqliteBusySql, () => countQuery(database, sqliteBusySql), value => value) > 0) {
+      hardFailures.push("SQLITE_BUSY_RETRY_EXHAUSTED");
+    }
+    const eventSecretCanarySql = `
+      SELECT COUNT(*) AS count
+      FROM runtime_events
+      WHERE rowid > ${previousRowId}
+        AND rowid <= ${nextRowId}
+        AND payload_json LIKE '%OPENHARNESS_SECRET_CANARY%'
+    `;
+    const eventSecretCount = this.timed(
+      "event-secret-canary",
+      eventSecretCanarySql,
+      () => countQuery(database, eventSecretCanarySql),
+      value => value
+    );
+    const messageSecretCanarySql = `
+      SELECT COALESCE(MAX(rowid), ${this.lastMessageRowId}) AS maxRowId,
+             COALESCE(SUM(
+               CASE WHEN content_json LIKE '%OPENHARNESS_SECRET_CANARY%' THEN 1 ELSE 0 END
+             ), 0) AS count
+      FROM messages
+      WHERE rowid > ${this.lastMessageRowId}
+    `;
+    const messageObservation = this.timed(
+      "message-secret-canary",
+      messageSecretCanarySql,
+      () => database.get<{ count: number; maxRowId: number }>(messageSecretCanarySql)
+        ?? { count: 0, maxRowId: this.lastMessageRowId },
+      value => Math.max(0, Number(value.count ?? 0))
+    );
+    const observedMessageRowId = Number(messageObservation.maxRowId);
+    if (Number.isSafeInteger(observedMessageRowId) && observedMessageRowId >= this.lastMessageRowId) {
+      this.lastMessageRowId = observedMessageRowId;
+    }
+    if (eventSecretCount > 0 || Number(messageObservation.count) > 0) {
+      hardFailures.push("SECRET_CANARY_LEAK");
+    }
+    return { eventObservations, hardFailures };
+  }
+
+  private commitEventWatermark(nextRowId: number, stagedCursors: ReadonlyMap<string, number>): void {
+    this.lastRowId = nextRowId;
+    for (const [scope, cursor] of stagedCursors) this.lastCursorByScope.set(scope, cursor);
+  }
+
   private timed<T>(
     probe: GateDDatabaseProbeName,
     sql: string,
@@ -480,6 +620,21 @@ export class GateDDatabaseObservationCursor {
     this.onSql?.(sql);
     const startedAt = this.now();
     const value = query();
+    this.onTiming?.({
+      probe,
+      durationMs: Math.max(0, this.now() - startedAt),
+      ...(rowCount ? { rowCount: rowCount(value) } : {})
+    });
+    return value;
+  }
+
+  private timedComputation<T>(
+    probe: GateDDatabaseProbeName,
+    computation: () => T,
+    rowCount?: (value: T) => number
+  ): T {
+    const startedAt = this.now();
+    const value = computation();
     this.onTiming?.({
       probe,
       durationMs: Math.max(0, this.now() - startedAt),
@@ -1114,7 +1269,7 @@ export async function executeGateDProductionSoak(
   });
   const driver = new GateDWorkloadDriver(transport);
   const workload = buildDeterministicBaselineWorkload({ seededConversations: 10_000, concurrency: 20 });
-  const databaseCursor = new GateDDatabaseObservationCursor();
+  const databaseCursor = new GateDDatabaseObservationCursor({ mode: "formal-incremental" });
   let continuousWorkload: GateDContinuousWorkload | undefined;
   let operatorInterrupted = false;
   const interrupt = () => { operatorInterrupted = true; };

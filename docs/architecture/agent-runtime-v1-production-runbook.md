@@ -4,16 +4,18 @@ Status: operational procedure draft for the approved single-node production chan
 
 ## Scope
 
-- Active change: [harden-agent-runtime-single-node-production](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production)
-- Archived provider qualification policy change: [adopt-codex-oauth-regression-qualification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/archive/2026-07-15-adopt-codex-oauth-regression-qualification)
-- Design source: [design.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/design.md)
-- OpenSpec tasks: [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
-- SQLite storage boundary: [runtimeStorage.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/runtimeStorage.ts)
-- JSON import and quarantine boundary: [jsonImporter.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/jsonImporter.ts)
-- Startup reconciliation: [reconcile.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/storage/reconcile.ts)
-- Formal soak fixed runner: [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakRunner.ts)
-- Gate D supervisor/executor: [formalSoakExecution.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakExecution.ts)
-- Gate D fail-closed CLI: [formalSoakCli.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/agent-runtime/src/baseline/formalSoakCli.ts)
+- Active change: [harden-agent-runtime-single-node-production](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/openspec/changes/harden-agent-runtime-single-node-production)
+- Archived provider qualification policy change: [adopt-codex-oauth-regression-qualification](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/openspec/changes/archive/2026-07-15-adopt-codex-oauth-regression-qualification)
+- Design source: [design.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/openspec/changes/harden-agent-runtime-single-node-production/design.md)
+- OpenSpec tasks: [tasks.md](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/openspec/changes/harden-agent-runtime-single-node-production/tasks.md)
+- Worker protocol: [runtimeStorageWorkerProtocol.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/src/storage/runtimeStorageWorkerProtocol.ts)
+- Worker client and singleton owner: [runtimeStorageWorkerClient.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/src/storage/runtimeStorageWorkerClient.ts)
+- Worker-owned SQLite kernel: [runtimeStorageWorkerKernel.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/src/storage/runtimeStorageWorkerKernel.ts)
+- JSON import and quarantine boundary: [jsonImporter.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/src/storage/jsonImporter.ts)
+- Startup reconciliation: [reconcile.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/src/storage/reconcile.ts)
+- Formal soak fixed runner: [formalSoakRunner.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/src/baseline/formalSoakRunner.ts)
+- Gate D supervisor/executor: [formalSoakExecution.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/src/baseline/formalSoakExecution.ts)
+- Gate D fail-closed CLI: [formalSoakCli.ts](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/src/baseline/formalSoakCli.ts)
 
 ## Operator Gates
 
@@ -25,6 +27,31 @@ Status: operational procedure draft for the approved single-node production chan
 | Gate D promotion | Runtime v1 soak promotion | immutable 24-hour report, threshold audit, failed-partial-report check, and explicit promotion approval |
 
 Local evidence can support readiness, but it must remain `local_verified`. It must not be renamed to production evidence.
+
+## Local Trial Ready
+
+The project owner approved local self-use on 2026-07-27 after the dedicated SQLite Worker implementation, full local regression, security/recovery evidence, and the mature-database 10-minute regression passed. Formal Gate D Attempt005 is user-deferred.
+
+Local trial boundary:
+
+- The Runtime may be used locally for real workflows and iterative feedback.
+- Trial findings should capture the triggering workflow, expected/observed behavior, relevant execution/conversation identity, stable error code, and redacted logs before a new optimization slice begins.
+- `Local Trial Ready` is not `Production Verified`; do not claim Gate D PASS, production promotion, contract freeze, Dashboard `verified`, OpenSpec completion, or archive.
+- Do not reuse the parked Attempt005 runId. If production qualification resumes, prepare a fresh no-overwrite packet and obtain new start/promotion approvals.
+
+Start the reviewed persistent Runtime locally from the isolated worktree:
+
+```bash
+cd /Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion
+install -d -m 700 /Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/.local
+export AGENT_RUNTIME_SQLITE_PATH=/Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/.local/agent-runtime-trial.sqlite
+export OPENHARNESS_SERVICE_TOKEN='<local-owner-secret>'
+export JAVA_BACKEND_URL='http://127.0.0.1:8080'
+export PORT=3001
+./agent-runtime/scripts/start-production-runtime.sh
+```
+
+The SQLite parent directory must exist and remain owner-controlled. Keep the Java Backend independently available at the configured URL. Do not write the service token into repository files, shell scripts, logs, screenshots, or trial reports.
 
 ## Private-Service Deployment
 
@@ -78,11 +105,11 @@ After first SQLite write:
 
 Startup must remain fail-closed:
 
-1. Acquire the singleton lock beside the SQLite database.
-2. Run schema migration.
-3. Run `PRAGMA integrity_check`.
-4. Enable WAL and foreign keys.
-5. Execute startup reconciliation before readiness.
+1. Main thread acquires the singleton lock beside the SQLite database.
+2. Main thread starts exactly one storage Worker; only that Worker opens `better-sqlite3`.
+3. Worker verifies the expected database dev/inode identity, runs schema migration, and executes `PRAGMA integrity_check`.
+4. Worker enables WAL and foreign keys.
+5. Worker executes startup reconciliation before readiness.
 6. Mark `running` and `waiting_approval` executions as `EXECUTION_INTERRUPTED`.
 7. Invalidate pending approvals.
 8. Do not rebuild runners or replay model/tool side effects.
@@ -94,6 +121,66 @@ Failure handling:
 - Singleton lock failure: do not start a second Runtime; keep the process unready or exit.
 - Low disk warning: stop new admission and preserve emergency headroom for terminal writes.
 - Critical disk state: drain in-flight terminal writes where possible, then exit for startup reconciliation.
+
+## Dedicated SQLite Worker Operations
+
+### Ownership and readiness
+
+- The main thread owns Fastify/HTTP/SSE, Agent Loop, Java/MCP network I/O, transient event publication, and the singleton lock.
+- Exactly one dedicated Worker owns the only production `better-sqlite3` connection, migration, integrity and identity checks, reconciliation, lifecycle Unit of Work, scoped persistence, trace-outbox database transitions, checkpoint, critical drain, and close.
+- Raw SQL, callbacks, repository/database handles, executable values, unknown operations, extra payload fields, and invalid result shapes must not cross the Worker boundary.
+- Readiness becomes `ready` only after Worker bootstrap has returned schema version, integrity, database identity, and reconciliation evidence.
+- `RUNTIME_STORAGE_QUEUE_FULL` and `RUNTIME_STORAGE_UNAVAILABLE` are fail-closed readiness/admission reasons. They must not be translated to a successful or retry-hidden mutation.
+
+### Queue and saturation
+
+- The queue bound is 2,048 pending commands with one Worker request in flight.
+- P0 is exclusive bootstrap/critical-drain/shutdown work, P1 is lifecycle and scoped request work, and P2 is outbox/maintenance/checkpoint work.
+- When P2 is already waiting, at most 32 eligible P1 commands may be selected before one P2 command.
+- Saturation rejects the new command without enqueue or execution. New external mutations receive the existing authenticated storage-pressure `503` schema; a failed durable start must not expose HTTP 200/SSE headers.
+- Do not increase the bound, add an unbounded side queue, drop/coalesce lifecycle commands, or bypass durable admission as an incident workaround.
+
+### Worker exit and protocol corruption
+
+Unexpected Worker error/exit, request correlation mismatch, malformed response, or wrong operation-specific result shape has one outcome:
+
+1. Atomically latch storage unavailable.
+2. Reject current, queued, and new storage commands with `RUNTIME_STORAGE_UNAVAILABLE`.
+3. Make readiness false and stop external mutation admission.
+4. Close Fastify and its monitor/outbox resources.
+5. Join or terminate the failed Worker.
+6. Release the singleton lock only after that join/termination.
+7. Exit the Runtime process with status 1.
+
+Never create a replacement Worker or open a second SQLite connection in the same process. A supervisor may start a new Runtime process; that process must reacquire the lock and repeat migration, identity/integrity checks, and reconciliation. A transaction committed before a Worker crash remains authoritative even when its RPC response was lost.
+
+### Normal shutdown order
+
+1. Stop external admission by closing the Fastify listener.
+2. Let already accepted request/lifecycle work settle.
+3. Stop the storage monitor and trace-outbox dispatcher so no background command can be added.
+4. Enqueue exclusive P0 `storage.close`.
+5. Worker runs `PRAGMA wal_checkpoint(TRUNCATE)` and closes SQLite.
+6. Main thread waits for Worker exit/join.
+7. Main thread releases the singleton lock.
+
+Do not remove the lock, delete `-wal`/`-shm`, or kill the Worker separately during normal shutdown.
+
+### Diagnostics
+
+Use authenticated `GET /api/v1/health/ready` first and record only stable reason codes. For storage incidents capture:
+
+- Runtime PID/state and whether a child Worker is present;
+- SQLite, `-wal`, `-shm`, and `.lock` file existence, size, mode, dev, and inode;
+- free bytes/free ratio and current WAL size;
+- stable warnings such as `RUNTIME_WAL_CHECKPOINT_BUSY`, `RUNTIME_STORAGE_QUEUE_FULL`, `RUNTIME_STORAGE_UNAVAILABLE`, or trace dead-letter state;
+- the immutable qualification journal/report and SQLite integrity result after restart.
+
+Do not record bearer tokens, request payloads, SQL text, stacks returned from the Worker, or raw database contents in operator logs.
+
+### Rollback compatibility
+
+The Worker cutover does not change SQLite schema version 2 or public API/SSE contracts, so it needs no data migration rollback. Before the first production SQLite write, the approved Gate B restore/abort procedure remains available. After the first production SQLite write, rollback to an older binary remains forbidden: preserve the database/WAL/lock evidence and use forward-fix only.
 
 ## Provider Qualification
 
@@ -114,9 +201,9 @@ Before reuse, operators must verify production/PASS schema, report SHA-256, ever
 
 Required immutable inputs:
 
-- [Codex production report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-12-codex-app-server-production.json), expected SHA-256 `af2aee9aa03ed1d795599205936fe3f47e25bbfa3bdd3e16e317e6e0769bfad6`.
-- [Codex client source](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/backend/src/main/java/org/openharness/backend/service/provider/CodexAppServerClient.java), expected current SHA-256 `08b2aa0126f78ca45aad239e20981ad06b6e796539a1edc498706f2b81833ddc` for this decision.
-- [Zhipu advisory source report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/add-openclacky-runtime-parity-roadmap/docs/verification/agent-runtime-v1/providers/2026-07-14-zhipu-openai-compatible-production-real-runner-attempt-01.json), retained as observed `blocked` without row rewriting.
+- [Codex production report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/docs/verification/agent-runtime-v1/providers/2026-07-12-codex-app-server-production.json), expected SHA-256 `af2aee9aa03ed1d795599205936fe3f47e25bbfa3bdd3e16e317e6e0769bfad6`.
+- [Codex client source](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/backend/src/main/java/org/openharness/backend/service/provider/CodexAppServerClient.java), expected current SHA-256 `08b2aa0126f78ca45aad239e20981ad06b6e796539a1edc498706f2b81833ddc` for this decision.
+- [Zhipu advisory source report](file:///Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/docs/verification/agent-runtime-v1/providers/2026-07-14-zhipu-openai-compatible-production-real-runner-attempt-01.json), retained as observed `blocked` without row rewriting.
 
 From the Agent Runtime package context, generate exactly one new decision:
 
@@ -282,6 +369,8 @@ Compressed simulations used by unit tests or dry-run harnesses must be `track=lo
 | Incident | Required response |
 |---|---|
 | WAL exceeds threshold | Attempt checkpoint, stop new admission if blocked by readers, retain samples and logs. |
+| Storage queue full | Keep admission fail-closed, capture readiness reason and workload timing, allow accepted work to drain; never enlarge/bypass the queue during the incident. |
+| Worker unavailable/protocol corruption | Preserve files and stable reason codes, allow fail-closed process termination, then restart as a new process so normal lock/bootstrap/reconciliation runs. Never replace the Worker in-process. |
 | Low disk | Stop new admission, preserve emergency headroom, drain terminal writes, then reconcile on restart. |
 | Dead-letter outbox | Keep readiness degraded, inspect committed event identity, replay or resolve explicitly, never prune pending/retry rows. |
 | Integrity failure | Stop service, preserve database/WAL files, attach integrity output, restore only through approved Gate B/forward-fix path. |

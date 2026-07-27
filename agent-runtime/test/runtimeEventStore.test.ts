@@ -129,6 +129,54 @@ describe("InMemoryRuntimeEventStore", () => {
     expect(store.since("t1", "user-b", "conv-1", null).map(event => event.userId)).toEqual(["user-b"]);
   });
 
+  it("reads only the explicit or latest execution within the complete owner scope", () => {
+    const store = new InMemoryRuntimeEventStore();
+    store.append("t1", "user-a", "conv-1", makeEvent({
+      executionId: "exec-a1",
+      kind: "agent_start",
+      createdAt: 1
+    }));
+    store.append("t1", "user-a", "conv-1", makeEvent({
+      executionId: "exec-a1",
+      kind: "stream_done",
+      createdAt: 2
+    }));
+    store.append("t1", "user-a", "conv-1", makeEvent({
+      executionId: "exec-a2",
+      kind: "agent_start",
+      createdAt: 3
+    }));
+    store.append("t1", "user-a", "conv-1", makeEvent({
+      executionId: "exec-a2",
+      kind: "model_call_start",
+      createdAt: 4
+    }));
+    store.append("t1", "user-b", "conv-1", makeEvent({
+      userId: "user-b",
+      executionId: "exec-b1",
+      createdAt: 5
+    }));
+
+    const forExecution = (
+      store as InMemoryRuntimeEventStore & {
+        forExecution?: (
+          tenantId: string,
+          userId: string,
+          conversationId: string,
+          executionId?: string
+        ) => SessionEvent[];
+      }
+    ).forExecution;
+    expect(forExecution).toBeTypeOf("function");
+
+    expect(forExecution!.call(store, "t1", "user-a", "conv-1").map(event => event.executionId))
+      .toEqual(["exec-a2", "exec-a2"]);
+    expect(forExecution!.call(store, "t1", "user-a", "conv-1", "exec-a1").map(event => event.kind))
+      .toEqual(["agent_start", "stream_done"]);
+    expect(forExecution!.call(store, "t1", "user-b", "conv-1", "exec-a2")).toEqual([]);
+    expect(forExecution!.call(store, "tenant-other", "user-a", "conv-1", "exec-a2")).toEqual([]);
+  });
+
   it("subscribe + since invoked synchronously together has no gap (replay+live ordering)", () => {
     const store = new InMemoryRuntimeEventStore();
     const e1 = store.append("t1", "u1", "conv-1", makeEvent());

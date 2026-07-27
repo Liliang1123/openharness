@@ -1,4 +1,4 @@
-import type { AgentMessage, RuntimeEventKind, SessionEvent, StopReason } from "../types";
+import type { AgentMessage, Awaitable, RuntimeEventKind, SessionEvent, StopReason } from "../types";
 import type { RuntimeEventStore } from "../runtimeEventStore";
 import type { RuntimeDatabase, RuntimeTransaction } from "./runtimeStorage";
 import type { SqliteApprovalStatus } from "./sqliteApprovalStore";
@@ -87,17 +87,17 @@ export interface LifecycleCommit {
 }
 
 export interface RuntimeLifecycleWriter {
-  startExecution(input: StartExecutionInput): LifecycleCommit;
-  enterApproval(input: EnterApprovalInput): LifecycleCommit;
-  decideApproval(input: DecideApprovalInput): LifecycleCommit;
-  recordToolPlan(input: RecordToolPlanInput): LifecycleCommit;
-  completeTool(input: CompleteToolInput): LifecycleCommit;
-  completeExecution(input: CompleteExecutionInput): LifecycleCommit;
-  failExecution(input: FailExecutionInput): LifecycleCommit;
-  abortExecution(input: AbortExecutionInput): LifecycleCommit;
-  recordEvent(input: RecordRuntimeEventInput): LifecycleCommit;
-  recordInjectedMessages(input: RecordInjectedMessagesInput): LifecycleCommit;
-  interruptExecution(input: InterruptExecutionInput): LifecycleCommit;
+  startExecution(input: StartExecutionInput): Awaitable<LifecycleCommit>;
+  enterApproval(input: EnterApprovalInput): Awaitable<LifecycleCommit>;
+  decideApproval(input: DecideApprovalInput): Awaitable<LifecycleCommit>;
+  recordToolPlan(input: RecordToolPlanInput): Awaitable<LifecycleCommit>;
+  completeTool(input: CompleteToolInput): Awaitable<LifecycleCommit>;
+  completeExecution(input: CompleteExecutionInput): Awaitable<LifecycleCommit>;
+  failExecution(input: FailExecutionInput): Awaitable<LifecycleCommit>;
+  abortExecution(input: AbortExecutionInput): Awaitable<LifecycleCommit>;
+  recordEvent(input: RecordRuntimeEventInput): Awaitable<LifecycleCommit>;
+  recordInjectedMessages(input: RecordInjectedMessagesInput): Awaitable<LifecycleCommit>;
+  interruptExecution(input: InterruptExecutionInput): Awaitable<LifecycleCommit>;
 }
 
 export class RuntimeLifecycleCommands implements RuntimeLifecycleWriter {

@@ -9,6 +9,8 @@
 | **Frontend** | React/Vite 交互层。只调 TS Runtime，不直接调 Java Backend。负责输入、流式展示、Trace 可视化、Approval UI。 |
 | **Agent Runtime** (TS Runtime) | TypeScript Fastify 服务。Agent Harness Owner。拥有 Agent loop、MessageHistory、ToolRegistry、beforeToolUse hook、ask_user、streaming、step trace。 |
 | **Backend** (Java Backend) | Spring Boot 服务。Enterprise Gateway Owner。拥有 Model Gateway、Provider Adapter、Tool Catalog、Tool Execution、Policy、Auth、Idempotency、Trace Ingestion。 |
+| **Local Trial Ready** | Agent Runtime 已通过当前本地实现、回归、成熟数据库短时性能与安全/恢复证据，可由项目所有者在本地持续试用；不等于正式生产资格、promotion、契约冻结或 OpenSpec 完成。 |
+| **Production Verified** | Agent Runtime 完成仍适用的正式生产证据、promotion 与契约冻结后的资格状态。用户延期 Gate D 时不得从 Local Trial Ready 自动推断或改写为该状态。 |
 
 ## Agent Loop Concepts
 

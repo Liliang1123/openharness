@@ -61,52 +61,40 @@ The TS Runtime SHALL allow only `FRONTEND_URL` as CORS origin and SHALL expose `
 - **THEN** the response exposes `X-Trace-Id` and `X-Request-Id`
 
 ### Requirement: Execution Identifiers
-The agent-runtime SHALL generate a unique `executionId` for every agent turn started via `POST /api/v1/agent/chat` or `POST /api/v1/agent/chat/stream`. The agent-runtime SHALL also generate per-conversation monotonically increasing `eventId` values for every event recorded in the `RuntimeEventStore`. `executionId` MUST be distinct from `requestId`, `traceId`, and `conversationId`.
+The agent-runtime SHALL generate a unique `executionId` per turn and a durable event sequence per `(tenantId,userId,conversationId)`. Execution, request, trace, conversation, tenant, and user identities remain distinct, and every durable event carries the complete ownership scope.
 
-#### Scenario: Each agent turn has a unique executionId
-- **WHEN** the same conversation receives two sequential chat requests
-- **THEN** the two executions have different `executionId` values
-
-#### Scenario: eventId is monotonically increasing within a conversation
-- **WHEN** events `e1`, `e2`, `e3` are appended to the `RuntimeEventStore` for a conversation in that order
-- **THEN** the `eventId` values satisfy `e1.eventId < e2.eventId < e3.eventId`
+#### Scenario: Same conversationId under different users has independent sequences
+- **WHEN** two users in one tenant use the same conversationId
+- **THEN** their execution and event sequences remain isolated and cannot address each other
 
 ### Requirement: Runtime Event Store
-The agent-runtime SHALL provide a `RuntimeEventStore` interface supporting `append`, `since(afterEventId)`, `latestEventId`, and `subscribe(listener)` operations. The implementation MUST guarantee that a subscriber registered via `subscribe` receives both the events that exist at subscription time (replay) and all subsequent events (live), with no gap and in correct order.
+The agent-runtime SHALL provide scoped `append`, `since`, `latestEventId`, and `subscribe` operations requiring `(tenantId,userId,conversationId)`. Within one connection replay and live committed events MUST be ordered without gap or duplicate; across reconnects delivery is at-least-once and deduplicated by event identity.
 
-#### Scenario: Subscribe receives replay then live events
-- **WHEN** a subscriber calls `subscribe` while events `e1`, `e2` already exist and `e3`, `e4` are appended afterwards
-- **THEN** the subscriber receives `e1`, `e2`, `e3`, `e4` in order without duplicates or gaps
+#### Scenario: Scoped replay then live
+- **WHEN** a subscriber replays and subscribes with one tenant/user/conversation scope
+- **THEN** it receives only that scope's committed events without a gap during the replay-live transition
 
-#### Scenario: Since returns events after the cursor
-- **WHEN** a caller invokes `since(e2.eventId)` and events `e1`, `e2`, `e3`, `e4` are stored
-- **THEN** the result is `[e3, e4]` in order
+#### Scenario: Same conversationId does not merge users
+- **WHEN** two users append events using the same conversationId
+- **THEN** each scoped `since` call returns only its owner's events
 
 ### Requirement: Execution State Store
-The agent-runtime SHALL provide an `ExecutionStateStore` that tracks every active and recently terminal execution by `executionId`. State MUST include `conversationId`, `tenantId`, `status` (`running` / `waiting_approval` / `completed` / `aborted` / `errored`), `startedAt`, `updatedAt`, `endedAt`, and an `AbortController` reference. Terminal executions are retained for at least 5 minutes for client reconciliation.
+The agent-runtime SHALL track active and recently terminal executions with `tenantId`, `userId`, `conversationId`, status, timestamps, terminal reason, and runtime-only cancellation handle. Durable fields SHALL be persisted; process-only cancellation handles SHALL be recreated only for new executions and never treated as restart checkpoints.
 
-#### Scenario: Status transitions through running to completed
-- **WHEN** a runner starts and reaches FINAL_ANSWER without approval
-- **THEN** the execution status transitions `running` → `completed` and `endedAt` is set
-
-#### Scenario: REQUIRE_APPROVAL transitions to waiting_approval
-- **WHEN** the runner encounters a `REQUIRE_APPROVAL` decision for a tool call
-- **THEN** the execution status transitions to `waiting_approval` and stays there until the approval is decided or times out
+#### Scenario: Execution lookup enforces owner scope
+- **WHEN** a different user in the same tenant queries an executionId
+- **THEN** no state or existence signal is returned
 
 ### Requirement: Active Execution Lock
-The agent-runtime SHALL allow at most one non-terminal execution per `(tenantId, conversationId)`. New chat requests arriving while an existing execution is `running` SHALL be rejected with `409 EXECUTION_ALREADY_RUNNING`. New chat requests arriving while an existing execution is `waiting_approval` SHALL be rejected with `409 EXECUTION_WAITING_APPROVAL`. The `409` response MUST include the existing `executionId` so the client can subscribe to its events.
+The agent-runtime SHALL allow at most one non-terminal execution per `(tenantId,userId,conversationId)` and SHALL acquire that lock atomically in SQLite. Running and waiting executions reject another request for the same owner scope with the existing executionId; another user using the same conversationId has an independent lock.
 
-#### Scenario: Running execution rejects new request
-- **WHEN** conversation `conv-1` has a running execution and a second chat request arrives
-- **THEN** the second request returns `409` with `errorClass: "EXECUTION_ALREADY_RUNNING"` and the running `executionId`
+#### Scenario: Same owner is rejected while active
+- **WHEN** the same tenant, user, and conversation starts a second request while one is active
+- **THEN** the request returns the appropriate running or waiting `409` response
 
-#### Scenario: Waiting_approval rejects new request
-- **WHEN** conversation `conv-1` is `waiting_approval` and a second chat request arrives
-- **THEN** the second request returns `409` with `errorClass: "EXECUTION_WAITING_APPROVAL"`, the existing `executionId`, and a `pendingApprovals` list
-
-#### Scenario: Terminal execution allows new request
-- **WHEN** conversation `conv-1`'s last execution is `completed` and a new chat request arrives
-- **THEN** the new request creates a fresh execution and proceeds normally
+#### Scenario: Different user has independent lock
+- **WHEN** another user in the same tenant uses the same conversationId
+- **THEN** that user does not observe or conflict with the first user's active execution
 
 ### Requirement: Detached Runner
 The agent-runtime SHALL run agent executions through an `AgentExecutionRunner` whose lifecycle is independent of any HTTP connection. When the main stream HTTP connection disconnects, the runner MUST continue to completion. The final assistant message MUST be appended to `HistoryStore` regardless of whether any client was still connected at completion time.
@@ -131,15 +119,15 @@ The agent-runtime SHALL expose `POST /api/v1/sessions/:conversationId/executions
 - **THEN** the response is `200 OK` with no further state change
 
 ### Requirement: Runtime Terminal Errors
-The agent-runtime SHALL classify every execution termination using the `RuntimeTerminalError` enum: `EMPTY_MODEL_RESPONSE`, `MODEL_ERROR`, `TOOL_ERROR`, `POLICY_DENY`, `APPROVAL_TIMEOUT`, `STEP_BUDGET_EXHAUSTED`, `EVENT_REPLAY_GAP`, `EXECUTION_ABORTED`. The classification MUST appear in the terminal SSE event, in `ExecutionState.endReason`, and in trace events.
+The agent-runtime SHALL classify every terminal execution using `EMPTY_MODEL_RESPONSE`, `MODEL_ERROR`, `TOOL_ERROR`, `POLICY_DENY`, `APPROVAL_TIMEOUT`, `EXECUTION_TIMEOUT`, `STEP_BUDGET_EXHAUSTED`, `EVENT_REPLAY_GAP`, `EXECUTION_ABORTED`, or `EXECUTION_INTERRUPTED`. The class MUST appear consistently in durable `stream_error`, `ExecutionState.endReason`, session detail, and trace events.
 
-#### Scenario: Approval timeout produces correct terminal class
-- **WHEN** an execution sits in `waiting_approval` past `APPROVAL_TIMEOUT_MS`
-- **THEN** the execution transitions to `errored` with `endReason: "APPROVAL_TIMEOUT"` and emits `stream_error` carrying `errorClass: "APPROVAL_TIMEOUT"`
+#### Scenario: Restart interruption uses dedicated class
+- **WHEN** startup reconciles a persisted running or waiting execution
+- **THEN** state, session detail, trace, and durable terminal SSE use `EXECUTION_INTERRUPTED`
 
-#### Scenario: Tool error produces correct terminal class
-- **WHEN** a tool execution returns `status: "error"` and the model cannot continue
-- **THEN** the execution transitions to `errored` with `endReason: "TOOL_ERROR"` and emits `stream_error` carrying `errorClass: "TOOL_ERROR"`
+#### Scenario: Execution timeout remains supported
+- **WHEN** an execution exceeds its configured execution timeout
+- **THEN** state, session detail, trace, and durable terminal SSE use `EXECUTION_TIMEOUT`
 
 ### Requirement: Execution and Approval Timeouts
 The agent-runtime SHALL enforce two configurable timeouts: `EXECUTION_TIMEOUT_MS` (default 1800000, 30 minutes) limiting total execution wall time and `APPROVAL_TIMEOUT_MS` (default 3600000, 1 hour) limiting `waiting_approval` duration. Exceeding either timeout SHALL produce a corresponding `RuntimeTerminalError`.
@@ -321,4 +309,52 @@ The agent-runtime SHALL include `runtimeProgress` in `GET /api/v1/sessions/:conv
 #### Scenario: Session without execution remains compatible
 - **WHEN** a client fetches session detail for a conversation with messages but no known active or recent execution
 - **THEN** the response remains valid and may omit `runtimeProgress`
+
+### Requirement: Durable Trace Outbox
+Committed runtime events destined for Java trace/audit ingestion SHALL act as a durable outbox with delivery status, attempts, and next-attempt. Pending or retrying rows MUST NOT be pruned. Exhausted rows MUST enter durable dead-letter state, degrade readiness, and require explicit operator resolution. Java delivery is at-least-once and deduplicated by committed event identity.
+
+#### Scenario: Crash before acknowledgement retries
+- **WHEN** Runtime crashes after Java records an event but before acknowledgement is persisted
+- **THEN** restart retries the same event identity and Java retains one logical trace event
+
+#### Scenario: Dead letter is not pruned
+- **WHEN** delivery exhausts its retry policy
+- **THEN** the row remains durable, readiness is degraded, and retention does not delete it
+
+### Requirement: Dedicated Asynchronous SQLite Storage Worker
+Production Runtime SHALL acquire and retain the singleton database lock on the main thread while exactly one dedicated Worker Thread exclusively owns the `better-sqlite3` connection. Migration, identity/integrity verification, startup reconciliation, lifecycle transactions, scoped persistence queries and mutations, trace-outbox database state, checkpoint/monitor database operations, and close MUST execute through typed asynchronous semantic commands in that worker. Raw SQL, transaction callbacks, SQLite handles, and executable code MUST NOT cross the worker boundary. Existing database schema, public API/SSE contracts, tenant/user isolation, lifecycle atomicity, outbox semantics, and fixed qualification thresholds SHALL remain unchanged.
+
+#### Scenario: Durable admission does not execute SQLite on the main thread
+- **WHEN** an authenticated execution start is admitted under the fixed mature workload
+- **THEN** the main thread asynchronously awaits one worker lifecycle command, and durable events are published only after that command reports a successful commit
+
+#### Scenario: Typed boundary rejects executable database access
+- **WHEN** a caller attempts to submit raw SQL, a transaction callback, an unknown operation, or a malformed command payload
+- **THEN** the worker protocol rejects it without executing database work or weakening readiness evidence
+
+### Requirement: Bounded Priority Storage Scheduling
+The storage worker client SHALL bound pending commands at `2,048` and SHALL distinguish exclusive P0 bootstrap/drain/shutdown, P1 execution/lifecycle/scoped request work, and P2 outbox/retention/checkpoint/monitor work. P0 SHALL exclude normal work. During normal operation P1 MAY take priority, but after at most 32 consecutively selected P1 commands an already-waiting P2 command MUST be selected. Queue saturation MUST stop new execution/external mutation admission using the existing storage-pressure fail-closed response schema; commands MUST NOT be silently dropped and durable start MUST NOT be bypassed.
+
+#### Scenario: Foreground admission cannot starve maintenance forever
+- **WHEN** P1 commands remain continuously available while a P2 command is waiting
+- **THEN** the scheduler selects that P2 command after no more than 32 additional P1 selections
+
+#### Scenario: Queue saturation fails closed
+- **WHEN** the pending command count reaches 2,048
+- **THEN** new execution and external mutation admission is rejected without a database write while accepted terminal work follows the existing emergency-headroom policy
+
+### Requirement: Storage Worker Failure And Shutdown
+Unexpected worker exit or protocol corruption SHALL atomically make storage unavailable, reject pending and new storage commands, make Runtime unready, stop new admission, and terminate the Runtime process without opening a replacement SQLite connection. The next process start SHALL reacquire the singleton lock and run normal migration, integrity, and reconciliation. Normal shutdown SHALL stop external admission, drain accepted lifecycle work, stop background enqueue, checkpoint and close SQLite in the worker, join the worker, and only then release the singleton lock.
+
+#### Scenario: Worker exits after a committed lifecycle transaction
+- **WHEN** the storage worker exits after SQLite commit but before the main thread receives the response
+- **THEN** the Runtime process terminates and startup reconciliation/replay observes the committed state without replaying model or tool side effects
+
+#### Scenario: Worker exits before commit
+- **WHEN** the storage worker exits while a lifecycle transaction has not committed
+- **THEN** SQLite rolls back the transaction and the next startup reconciliation observes no partial lifecycle boundary
+
+#### Scenario: Normal close releases ownership last
+- **WHEN** Runtime performs a normal shutdown
+- **THEN** SQLite checkpoint and close plus worker join complete before the singleton lock is released
 

@@ -1,0 +1,114 @@
+{
+  "runId": "gate-r6-candidate-b2",
+  "variant": "candidate",
+  "result": "pass",
+  "generatedAt": "2026-07-24T09:36:36.539Z",
+  "databaseBasename": "candidate-b2.sqlite",
+  "databaseStartSha256": "f4a8e3b227b9947828c19cca45151635e43657e4b1fc22a95e3ff1c2f5a7ec7a",
+  "databaseStartBytes": 4092854272,
+  "databaseEndBytes": 4140015616,
+  "databaseGrowthBytes": 47161344,
+  "walBytes": 4519672,
+  "runnerSha256": "bcf77ca97178db7437a779edc87841d1a579aad3cc07c621ab7abd58ba549b4b",
+  "planSha256": "651ab938bb6e57fc8ac15e7c034aa3fa4d3b26e2ada2beb259465e796799506b",
+  "sourceStateSha256": "2ad9a19565bfacf96f924189e7e6861c4721e231d43b195e036028a2f1c73604",
+  "scopeCount": 4000,
+  "rounds": 2,
+  "iterations": 8000,
+  "eventsPerExecution": 12,
+  "messagesPerExecution": 2,
+  "traceAckIntervalExecutions": 100,
+  "durationMs": 89866.68575,
+  "throughputPerSecond": 89.02075260965101,
+  "latencyMs": {
+    "overall": {
+      "p50Ms": 0.971958000009181,
+      "p95Ms": 6.888500000000931,
+      "minMs": 0.8149999999986903,
+      "maxMs": 1023.0911250000008
+    },
+    "firstHalf": {
+      "p50Ms": 0.9947919999976875,
+      "p95Ms": 11.868166000000201,
+      "minMs": 0.8149999999986903,
+      "maxMs": 1023.0911250000008
+    },
+    "lastHalf": {
+      "p50Ms": 0.953417000004265,
+      "p95Ms": 6.065082999994047,
+      "minMs": 0.820917000004556,
+      "maxMs": 977.023874999999
+    },
+    "firstQuartile": {
+      "p50Ms": 1.020542000000205,
+      "p95Ms": 11.728792000001704,
+      "minMs": 0.8149999999986903,
+      "maxMs": 1023.0911250000008
+    },
+    "lastQuartile": {
+      "p50Ms": 0.9529160000092816,
+      "p95Ms": 5.958000000013271,
+      "minMs": 0.820917000004556,
+      "maxMs": 977.023874999999
+    },
+    "blocks": [
+      { "startIteration": 1, "endIteration": 1000, "p50Ms": 1.0274159999999029, "p95Ms": 13.71795800000109 },
+      { "startIteration": 1001, "endIteration": 2000, "p50Ms": 1.0129159999996773, "p95Ms": 10.903000000002066 },
+      { "startIteration": 2001, "endIteration": 3000, "p50Ms": 0.9656249999970896, "p95Ms": 11.778832999996666 },
+      { "startIteration": 3001, "endIteration": 4000, "p50Ms": 0.9791249999980209, "p95Ms": 12.091165999998339 },
+      { "startIteration": 4001, "endIteration": 5000, "p50Ms": 0.9584170000016456, "p95Ms": 7.479916000003868 },
+      { "startIteration": 5001, "endIteration": 6000, "p50Ms": 0.9504579999993439, "p95Ms": 5.8585000000020955 },
+      { "startIteration": 6001, "endIteration": 7000, "p50Ms": 0.9524999999994179, "p95Ms": 6.014040999987628 },
+      { "startIteration": 7001, "endIteration": 8000, "p50Ms": 0.9532080000062706, "p95Ms": 5.915500000002794 }
+    ]
+  },
+  "rssBytes": {
+    "start": 444022784,
+    "max": 593133568,
+    "end": 581533696
+  },
+  "pragmas": {
+    "beforeCandidate": {
+      "journalMode": "wal",
+      "foreignKeys": 1,
+      "walAutocheckpoint": 1000,
+      "synchronous": 1,
+      "cacheSize": -16000,
+      "mmapSize": 0,
+      "pageSize": 4096
+    },
+    "observed": {
+      "journalMode": "wal",
+      "foreignKeys": 1,
+      "walAutocheckpoint": 1000,
+      "synchronous": 1,
+      "cacheSize": -65536,
+      "mmapSize": 268435456,
+      "pageSize": 4096
+    }
+  },
+  "counters": {
+    "initial": {
+      "messages": 1019702,
+      "executions": 512351,
+      "runtimeEvents": 6149962,
+      "pendingTraceEvents": 0,
+      "deliveredTraceEvents": 3071606
+    },
+    "final": {
+      "messages": 1035702,
+      "executions": 520351,
+      "runtimeEvents": 6245962,
+      "pendingTraceEvents": 0,
+      "deliveredTraceEvents": 3119606
+    },
+    "delta": {
+      "messages": 16000,
+      "executions": 8000,
+      "runtimeEvents": 96000,
+      "pendingTraceEvents": 0,
+      "deliveredTraceEvents": 48000
+    }
+  },
+  "integrity": "ok"
+}

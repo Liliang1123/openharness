@@ -83,14 +83,11 @@ describe("abort execution API", () => {
         signal: ac.signal
       }).catch(e => { if (e.name === "AbortError") return null; throw e; });
 
-      // Wait for runner to start (agent_start emitted, model call in flight).
-      await new Promise(r => setTimeout(r, 100));
-
       // Read executionId from the first agent_start event in the store.
-      const events = store.since("t1", "u1", "conv-abort", null);
-      const agentStart = events.find(e => e.kind === "agent_start");
-      expect(agentStart).toBeDefined();
-      const executionId = agentStart!.executionId;
+      const agentStart = await waitFor(() =>
+        store.since("t1", "u1", "conv-abort", null).find(e => e.kind === "agent_start")
+      );
+      const executionId = agentStart.executionId;
 
       // Abort via API.
       const abortResp = await fetch(`${baseUrl}/api/v1/sessions/conv-abort/executions/${executionId}/abort`, {
@@ -102,17 +99,15 @@ describe("abort execution API", () => {
       expect(abortBody.executionId).toBe(executionId);
       expect(abortBody.status).toBe("aborted");
 
-      // Allow runner to detect abort and emit stream_error.
-      await new Promise(r => setTimeout(r, 700));
+      const errEvent = await waitFor(() =>
+        store.since("t1", "u1", "conv-abort", null).find(e => e.kind === "stream_error")
+      );
 
       // The runner releases the SSE stream after emitting stream_error.
       ac.abort();
       await reqP;
 
-      const finalEvents = store.since("t1", "u1", "conv-abort", null);
-      const errEvent = finalEvents.find(e => e.kind === "stream_error");
-      expect(errEvent).toBeDefined();
-      expect(errEvent?.data.errorClass).toBe("EXECUTION_ABORTED");
+      expect(errEvent.data.errorClass).toBe("EXECUTION_ABORTED");
 
       const state = executionStateStore.get("t1", "u1", "conv-abort", executionId);
       expect(state?.status).toBe("aborted");
@@ -186,3 +181,13 @@ describe("abort execution API", () => {
     }
   }, 15000);
 });
+
+async function waitFor<T>(read: () => T | undefined, timeoutMs = 5_000): Promise<T> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const value = read();
+    if (value !== undefined) return value;
+    await new Promise(resolve => setTimeout(resolve, 20));
+  }
+  throw new Error("timed out waiting for runtime state");
+}

@@ -29,3 +29,17 @@
 - 不变量：外层 `mcp_call` / `mcp:broker` 只表示稳定传输入口；name-based deny、Skill approval 与 `mcpAllowList` 必须使用有效 envelope 中的 nested tool/server。malformed envelope 不得通过外层 identity 命中 allow-list。
 - 反例：只比较 `ToolCallInput.name/source`，导致旧 `safe_tool` / `mcp:trusted-server` allow-list 静默失效，或用 `mcp_call` 全局放行 malformed target。
 - 机械门禁：`backend/src/test/java/org/openharness/backend/service/PolicyServiceTest.java` 覆盖 nested tool/server allow、nested deny 和 malformed fail closed。
+
+## Production SQLite is Worker-owned
+
+- 适用范围：生产 Runtime bootstrap、reconciliation、生命周期写入、scoped stores、trace outbox、checkpoint、critical drain 与 shutdown。
+- 不变量：`better-sqlite3` 句柄只能由专用 SQLite Worker 持有；主线程只能通过类型化语义命令和有界 P0/P1/P2 队列访问存储。Worker 饱和、协议损坏或退出必须 fail closed，不得在主线程或进程内静默替换为第二个数据库 owner。
+- 反例：在 Runtime 主线程直接创建或复用 SQLite connection，或在 Worker 崩溃后自动创建未受 singleton/lifecycle 约束的新 connection。
+- 机械门禁：`agent-runtime/test/runtimeStorageWorkerProtocol.test.ts`、`runtimeStorageWorkerClient.test.ts`、`runtimeStorageWorkerCrash.test.ts`、`runtimeStorageWorkerHeartbeat.test.ts` 与 `runtimeStorageAdmission.test.ts` 覆盖协议、优先级/背压、崩溃、心跳和 admission fail-closed；归档前负向扫描禁止生产 bootstrap 恢复主线程 SQLite ownership。
+
+## Local trial evidence cannot promote production state
+
+- 适用范围：OpenSpec tasks、Dashboard、qualification packet、Review 与 release/closeout 状态。
+- 不变量：`Local Trial Ready` 只证明本地功能、回归和已记录的短时性能门禁；不得改写为 `Production Verified` 或正式 Gate D PASS。生产资格必须绑定新的 runId、有效 active preflight、显式开跑批准、完整正式证据与显式结果晋级批准。
+- 反例：因 10 分钟成熟数据库回归通过，便把未执行的 24 小时 Attempt005 标记 PASS，或把 Dashboard 提升为 production。
+- 机械门禁：归档前同时校验 OpenSpec tasks、Dashboard summary/notes 与 closeout Review；负向扫描要求 Attempt005 保持 `deferred_by_user` 且不得出现对应 approval、preflight、journal、partial 或 final report。

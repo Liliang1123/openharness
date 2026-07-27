@@ -28,6 +28,30 @@ class StubJavaClient implements JavaClient {
   }
 }
 
+class CountingRuntimeEventStore extends InMemoryRuntimeEventStore {
+  sinceCalls = 0;
+  forExecutionCalls = 0;
+
+  override since(...args: Parameters<InMemoryRuntimeEventStore["since"]>) {
+    this.sinceCalls += 1;
+    return super.since(...args);
+  }
+
+  forExecution(
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    executionId?: string
+  ) {
+    this.forExecutionCalls += 1;
+    const events = super.since(tenantId, userId, conversationId, null);
+    const targetExecutionId = executionId ?? events.at(-1)?.executionId;
+    return targetExecutionId
+      ? events.filter((event) => event.executionId === targetExecutionId)
+      : [];
+  }
+}
+
 const TEST_DIR = "/tmp/openharness-sessions-api-test";
 
 async function postChat(app: Awaited<ReturnType<typeof createServer>>, tenantId: string, conversationId: string, message: string) {
@@ -165,7 +189,7 @@ describe("Sessions API", () => {
   });
 
   it("GET /api/v1/sessions/:id includes runtime progress for active execution", async () => {
-    const runtimeEventStore = new InMemoryRuntimeEventStore();
+    const runtimeEventStore = new CountingRuntimeEventStore();
     const executionStateStore = new InMemoryExecutionStateStore();
     const localApp = await createServer({
       javaClient: new StubJavaClient(),
@@ -205,6 +229,8 @@ describe("Sessions API", () => {
         currentActivity: "model_call",
         currentStep: 2
       });
+      expect(runtimeEventStore.sinceCalls).toBe(0);
+      expect(runtimeEventStore.forExecutionCalls).toBe(1);
     } finally {
       await localApp.close();
     }

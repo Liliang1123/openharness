@@ -16,6 +16,8 @@ export type {
 
 import type { ToolDefinition } from "@openharness/shared-schema";
 
+export type Awaitable<T> = T | Promise<T>;
+
 /** Unique identifier for one agent execution turn. */
 export type ExecutionId = string;
 

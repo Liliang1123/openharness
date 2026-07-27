@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "track": "local",
+  "evidenceKind": "gate-d-performance-diagnosis",
+  "generatedAt": "2026-07-24T01:52:15.906Z",
+  "result": "inconclusive",
+  "primaryCause": "combined",
+  "findings": [
+    {
+      "hypothesis": "database-oracle-contention",
+      "status": "unresolved",
+      "evidence": [
+        "full admission: first10Median=37.0230415 last10Median=124.424375 slopePerRuntimeEvent=0.00003666 sustainedThresholdBreach=true",
+        "full replay: first10Median=42.0979375 last10Median=127.3862295 slopePerRuntimeEvent=0.000048266 sustainedThresholdBreach=false",
+        "incremental admission: first10Median=31.2950625 last10Median=122.1147505 slopePerRuntimeEvent=0.000032247 sustainedThresholdBreach=true",
+        "incremental replay: first10Median=34.1489795 last10Median=125.123 slopePerRuntimeEvent=0.000050343 sustainedThresholdBreach=false",
+        "workload admission: first10Median=42.3400835 last10Median=121.114583 slopePerRuntimeEvent=0.000029354 sustainedThresholdBreach=true",
+        "workload replay: first10Median=47.2343125 last10Median=123.7376045 slopePerRuntimeEvent=0.000045182 sustainedThresholdBreach=false",
+        "material reduction rule: control latency or corresponding slope must be <= full * 0.8 (at least 20% lower), symmetrically for both controls",
+        "all three reports contain no hard failures"
+      ]
+    },
+    {
+      "hypothesis": "session-replay-growth",
+      "status": "contributing",
+      "evidence": [
+        "workload replay: first10Median=47.2343125 last10Median=123.7376045 slopePerRuntimeEvent=0.000045182 sustainedThresholdBreach=false",
+        "confirmation unavailable: analyze has no immutable-profile proof of rising scoped replay cost"
+      ]
+    },
+    {
+      "hypothesis": "outbox-backlog",
+      "status": "contributing",
+      "evidence": [
+        "workload pending first10Median=628208.5 last10Median=3278003",
+        "confirmation unavailable: analyze has no static-wiring proof that delivery lifecycle is absent or stalled"
+      ]
+    }
+  ],
+  "nextOpenSpecDecision": "human-decision-required"
+}

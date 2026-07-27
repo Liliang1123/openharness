@@ -32,7 +32,7 @@ export interface ProductionRuntimeStorage {
 
 const DEFAULT_CONTENTION_DEADLINE_MS = 5_000;
 const MAX_BEGIN_ATTEMPTS = 3;
-const LATEST_SCHEMA_VERSION = 1;
+const LATEST_SCHEMA_VERSION = 2;
 
 export function openRuntimeDatabase(
   path: string,
@@ -129,16 +129,30 @@ export function openProductionRuntimeStorage(path: string, options: RuntimeDatab
 
 export function migrateRuntimeDatabase(db: RuntimeDatabase): void {
   db.run("CREATE TABLE IF NOT EXISTS schema_migrations(version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
-  const current = db.get<{ version: number | null }>("SELECT MAX(version) AS version FROM schema_migrations")?.version ?? 0;
-  if (current > LATEST_SCHEMA_VERSION) {
-    throw new Error(`Database has newer schema version ${current}; runtime supports ${LATEST_SCHEMA_VERSION}`);
+  const applied = db.all<{ version: number }>("SELECT version FROM schema_migrations ORDER BY version");
+  const highestAppliedVersion = applied.at(-1)?.version ?? 0;
+  if (highestAppliedVersion > LATEST_SCHEMA_VERSION) {
+    throw new Error(
+      `Database has newer schema version ${highestAppliedVersion}; runtime supports ${LATEST_SCHEMA_VERSION}`
+    );
   }
-  if (current === LATEST_SCHEMA_VERSION) return;
-
-  db.transaction((tx) => {
-    for (const sql of INITIAL_SCHEMA) tx.run(sql);
-    tx.run("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)", [LATEST_SCHEMA_VERSION, Date.now()]);
-  });
+  for (let index = 0; index < applied.length; index += 1) {
+    if (applied[index]?.version !== index + 1) {
+      throw new Error("Runtime schema migration history is not contiguous");
+    }
+  }
+  let current = highestAppliedVersion;
+  for (const migration of RUNTIME_MIGRATIONS) {
+    if (migration.version <= current) continue;
+    if (migration.version !== current + 1) {
+      throw new Error(`Missing Runtime schema migration after version ${current}`);
+    }
+    db.transaction((tx) => {
+      for (const sql of migration.statements) tx.run(sql);
+      tx.run("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)", [migration.version, Date.now()]);
+    });
+    current = migration.version;
+  }
 }
 
 const INITIAL_SCHEMA = [
@@ -226,6 +240,37 @@ const INITIAL_SCHEMA = [
     updated_at INTEGER NOT NULL,
     PRIMARY KEY(tenant_id,user_id,memory_id)
   )`
+] as const;
+
+const OUTBOX_SCHEMA_V2 = [
+  "DROP INDEX IF EXISTS runtime_event_outbox",
+  `UPDATE runtime_events
+   SET delivery_status = 'not_applicable',
+       next_attempt_at = NULL
+   WHERE kind <> 'trace' AND delivery_status IN ('pending','retry')`,
+  `CREATE INDEX runtime_event_trace_outbox
+    ON runtime_events(created_at,event_id)
+    WHERE kind = 'trace' AND delivery_status IN ('pending','retry')`,
+  `CREATE INDEX runtime_event_trace_dead_letter
+    ON runtime_events(dead_letter_at,event_id)
+    WHERE kind = 'trace' AND delivery_status = 'dead_letter'`,
+  `CREATE TRIGGER runtime_event_non_trace_delivery
+   AFTER INSERT ON runtime_events
+   WHEN NEW.kind <> 'trace' AND NEW.delivery_status IN ('pending','retry')
+   BEGIN
+     UPDATE runtime_events
+     SET delivery_status = 'not_applicable',
+         next_attempt_at = NULL
+     WHERE tenant_id = NEW.tenant_id
+       AND user_id = NEW.user_id
+       AND conversation_id = NEW.conversation_id
+       AND event_id = NEW.event_id;
+   END`
+] as const;
+
+const RUNTIME_MIGRATIONS = [
+  { version: 1, statements: INITIAL_SCHEMA },
+  { version: 2, statements: OUTBOX_SCHEMA_V2 }
 ] as const;
 
 function beginImmediateWithinDeadline(sqlite: Database.Database, deadlineMs: number): void {

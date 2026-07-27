@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "qualification": {
+      "command": "/Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/node_modules/.bin/tsx",
+      "args": [
+        "/Users/elvis/file/develop/opensource/openharness/.worktrees/agent-runtime-completion/agent-runtime/fixtures/mcp/qualification-server.ts"
+      ],
+      "description": "Credential-free deterministic Gate R1 qualification fixture",
+      "timeoutMs": 30000,
+      "idleTimeoutMs": 300000
+    }
+  }
+}

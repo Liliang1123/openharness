@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "track": "local",
+  "evidenceKind": "runtime-v2-production-sized-migration-rehearsal",
+  "generatedAt": "2026-07-24T02:45:38.000Z",
+  "planSha256": "e8eb004b8faa844c5ef40e09f0878e9e273d7951252050f3dca52406a18f25e6",
+  "source": {
+    "basename": "gate-r1-20260723-incremental-001.sqlite",
+    "main": {
+      "dev": 16777233,
+      "ino": 167299704,
+      "size": 2427662336,
+      "mtimeEpochSeconds": 1784810073,
+      "mode": "0600",
+      "unchangedAfterRehearsal": true
+    },
+    "wal": {
+      "dev": 16777233,
+      "ino": 167299711,
+      "size": 7572592,
+      "mtimeEpochSeconds": 1784810073,
+      "mode": "0600",
+      "unchangedAfterRehearsal": true
+    },
+    "shm": {
+      "dev": 16777233,
+      "ino": 167299712,
+      "size": 32768,
+      "mtimeEpochSeconds": 1784858577,
+      "mode": "0600",
+      "unchangedAfterRehearsal": true
+    },
+    "journalSidecar": "absent"
+  },
+  "execution": {
+    "preflightCorrection": {
+      "result": "stopped-before-database-open",
+      "reason": "root pnpm exec could not resolve the package-local tsx binary",
+      "recoverableCloneTrashPath": "/Users/elvis/.Trash/openharness-runtime-v2-migration.XdG18g"
+    },
+    "validRehearsal": {
+      "cloneMethod": "apfs-clone-main-wal-shm",
+      "recoverableCloneTrashPath": "/Users/elvis/.Trash/openharness-runtime-v2-migration.j6qHEm",
+      "endToEndWallClockSecondsApproximate": 33,
+      "timingResolution": "filesystem-seconds"
+    }
+  },
+  "observations": {
+    "schemaVersions": [
+      1,
+      2
+    ],
+    "invalidNonTracePendingOrRetry": 0,
+    "nonTraceNotApplicable": 1762162,
+    "tracePending": 1763412,
+    "integrityCheck": "ok",
+    "claimQueryPlan": "SCAN runtime_events USING INDEX runtime_event_trace_outbox",
+    "deadLetterQueryPlan": "SCAN runtime_events USING COVERING INDEX runtime_event_trace_dead_letter",
+    "claimUsesTemporaryBTree": false
+  },
+  "result": "pass"
+}

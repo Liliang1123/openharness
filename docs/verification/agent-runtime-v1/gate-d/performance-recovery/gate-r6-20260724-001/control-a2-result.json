@@ -1,0 +1,114 @@
+{
+  "runId": "gate-r6-control-a2",
+  "variant": "control",
+  "result": "pass",
+  "generatedAt": "2026-07-24T09:38:35.652Z",
+  "databaseBasename": "control-a2.sqlite",
+  "databaseStartSha256": "f4a8e3b227b9947828c19cca45151635e43657e4b1fc22a95e3ff1c2f5a7ec7a",
+  "databaseStartBytes": 4092854272,
+  "databaseEndBytes": 4139536384,
+  "databaseGrowthBytes": 46682112,
+  "walBytes": 4536152,
+  "runnerSha256": "bcf77ca97178db7437a779edc87841d1a579aad3cc07c621ab7abd58ba549b4b",
+  "planSha256": "651ab938bb6e57fc8ac15e7c034aa3fa4d3b26e2ada2beb259465e796799506b",
+  "sourceStateSha256": "2ad9a19565bfacf96f924189e7e6861c4721e231d43b195e036028a2f1c73604",
+  "scopeCount": 4000,
+  "rounds": 2,
+  "iterations": 8000,
+  "eventsPerExecution": 12,
+  "messagesPerExecution": 2,
+  "traceAckIntervalExecutions": 100,
+  "durationMs": 86500.062458,
+  "throughputPerSecond": 92.48548235308374,
+  "latencyMs": {
+    "overall": {
+      "p50Ms": 0.962666999999783,
+      "p95Ms": 7.383791999996902,
+      "minMs": 0.8018329999904381,
+      "maxMs": 977.4865409999911
+    },
+    "firstHalf": {
+      "p50Ms": 0.9748340000005555,
+      "p95Ms": 8.48254199999974,
+      "minMs": 0.8082080000021961,
+      "maxMs": 970.4803329999995
+    },
+    "lastHalf": {
+      "p50Ms": 0.9510840000002645,
+      "p95Ms": 6.3573750000068685,
+      "minMs": 0.8018329999904381,
+      "maxMs": 977.4865409999911
+    },
+    "firstQuartile": {
+      "p50Ms": 0.9755420000001322,
+      "p95Ms": 8.322541999999885,
+      "minMs": 0.811082999998689,
+      "maxMs": 970.4803329999995
+    },
+    "lastQuartile": {
+      "p50Ms": 0.9532500000059372,
+      "p95Ms": 6.013334000002942,
+      "minMs": 0.8165410000074189,
+      "maxMs": 977.4865409999911
+    },
+    "blocks": [
+      { "startIteration": 1, "endIteration": 1000, "p50Ms": 0.9790410000005068, "p95Ms": 8.00170799999978 },
+      { "startIteration": 1001, "endIteration": 2000, "p50Ms": 0.9718749999992724, "p95Ms": 8.736583000001701 },
+      { "startIteration": 2001, "endIteration": 3000, "p50Ms": 0.9723330000015267, "p95Ms": 7.601875000000291 },
+      { "startIteration": 3001, "endIteration": 4000, "p50Ms": 0.9779169999965234, "p95Ms": 11.07683299999917 },
+      { "startIteration": 4001, "endIteration": 5000, "p50Ms": 0.949666000000434, "p95Ms": 7.015250000004016 },
+      { "startIteration": 5001, "endIteration": 6000, "p50Ms": 0.9501670000026934, "p95Ms": 7.430292000004556 },
+      { "startIteration": 6001, "endIteration": 7000, "p50Ms": 0.9474580000096466, "p95Ms": 5.896374999996624 },
+      { "startIteration": 7001, "endIteration": 8000, "p50Ms": 0.9583330000023125, "p95Ms": 6.0399580000084825 }
+    ]
+  },
+  "rssBytes": {
+    "start": 112754688,
+    "max": 260784128,
+    "end": 249413632
+  },
+  "pragmas": {
+    "beforeCandidate": {
+      "journalMode": "wal",
+      "foreignKeys": 1,
+      "walAutocheckpoint": 1000,
+      "synchronous": 1,
+      "cacheSize": -16000,
+      "mmapSize": 0,
+      "pageSize": 4096
+    },
+    "observed": {
+      "journalMode": "wal",
+      "foreignKeys": 1,
+      "walAutocheckpoint": 1000,
+      "synchronous": 1,
+      "cacheSize": -16000,
+      "mmapSize": 0,
+      "pageSize": 4096
+    }
+  },
+  "counters": {
+    "initial": {
+      "messages": 1019702,
+      "executions": 512351,
+      "runtimeEvents": 6149962,
+      "pendingTraceEvents": 0,
+      "deliveredTraceEvents": 3071606
+    },
+    "final": {
+      "messages": 1035702,
+      "executions": 520351,
+      "runtimeEvents": 6245962,
+      "pendingTraceEvents": 0,
+      "deliveredTraceEvents": 3119606
+    },
+    "delta": {
+      "messages": 16000,
+      "executions": 8000,
+      "runtimeEvents": 96000,
+      "pendingTraceEvents": 0,
+      "deliveredTraceEvents": 48000
+    }
+  },
+  "integrity": "ok"
+}

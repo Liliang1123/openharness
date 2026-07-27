@@ -1,4 +1,4 @@
-import type { EventId, SessionEvent } from "./types";
+import type { Awaitable, EventId, SessionEvent } from "./types";
 
 export type SessionEventListener = (event: SessionEvent) => void;
 
@@ -16,9 +16,15 @@ export type SessionEventListener = (event: SessionEvent) => void;
  * with no gap between the replay slice and the first live event.
  */
 export interface RuntimeEventReader {
-  since(tenantId: string, userId: string, conversationId: string, afterEventId: EventId | null): SessionEvent[];
-  latestEventId(tenantId: string, userId: string, conversationId: string): EventId | null;
-  hasEvent(tenantId: string, userId: string, conversationId: string, eventId: EventId): boolean;
+  since(tenantId: string, userId: string, conversationId: string, afterEventId: EventId | null): Awaitable<SessionEvent[]>;
+  forExecution(
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    executionId?: string
+  ): Awaitable<SessionEvent[]>;
+  latestEventId(tenantId: string, userId: string, conversationId: string): Awaitable<EventId | null>;
+  hasEvent(tenantId: string, userId: string, conversationId: string, eventId: EventId): Awaitable<boolean>;
 }
 
 export interface RuntimeEventPublisher {
@@ -32,7 +38,7 @@ export interface RuntimeEventStore extends RuntimeEventReader, RuntimeEventPubli
     userId: string,
     conversationId: string,
     event: Omit<SessionEvent, "eventId" | "durability">
-  ): SessionEvent;
+  ): Awaitable<SessionEvent>;
 }
 
 export class InMemoryRuntimeEventPublisher implements RuntimeEventPublisher {
@@ -133,6 +139,20 @@ export class InMemoryRuntimeEventStore implements RuntimeEventStore {
     const idx = bucket.findIndex(e => e.eventId === afterEventId);
     if (idx === -1) return [];
     return bucket.slice(idx + 1);
+  }
+
+  forExecution(
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    executionId?: string
+  ): SessionEvent[] {
+    const bucket = this.events.get(key(tenantId, userId, conversationId));
+    if (!bucket || bucket.length === 0) return [];
+    const targetExecutionId = executionId ?? bucket[bucket.length - 1]?.executionId;
+    return targetExecutionId
+      ? bucket.filter((event) => event.executionId === targetExecutionId)
+      : [];
   }
 
   latestEventId(tenantId: string, userId: string, conversationId: string): EventId | null {

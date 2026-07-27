@@ -82,9 +82,67 @@ describe("runtime storage schema", () => {
     migrateRuntimeDatabase(db);
 
     expect(db.all<{ version: number }>("SELECT version FROM schema_migrations ORDER BY version")).toEqual([
-      { version: 1 }
+      { version: 1 },
+      { version: 2 }
     ]);
     expect(db.get<{ foreign_keys: number }>("PRAGMA foreign_keys")?.foreign_keys).toBe(1);
+    expect(db.get<{ integrity_check: string }>("PRAGMA integrity_check")?.integrity_check).toBe("ok");
+    db.close();
+  });
+
+  it("migrates version-one outbox rows to trace-only eligibility with ordered indexes", () => {
+    const db = openRuntimeDatabase(databasePath());
+    migrateRuntimeDatabase(db);
+    db.run("DROP INDEX IF EXISTS runtime_event_trace_outbox");
+    db.run("DROP INDEX IF EXISTS runtime_event_trace_dead_letter");
+    db.run("DROP TRIGGER IF EXISTS runtime_event_non_trace_delivery");
+    db.run(`CREATE INDEX IF NOT EXISTS runtime_event_outbox
+      ON runtime_events(delivery_status,next_attempt_at)
+      WHERE delivery_status IN ('pending','retry')`);
+    db.run("DELETE FROM schema_migrations WHERE version > 1");
+    db.run(
+      "INSERT INTO conversations(tenant_id,user_id,conversation_id,created_at,updated_at) VALUES (?,?,?,?,?)",
+      ["t1", "u1", "c1", 1, 1]
+    );
+    db.run(
+      `INSERT INTO executions(
+         execution_id,tenant_id,user_id,conversation_id,status,created_at,updated_at
+       ) VALUES (?,?,?,?,?,?,?)`,
+      ["e1", "t1", "u1", "c1", "completed", 1, 1]
+    );
+    for (const [eventId, cursor, kind, status] of [
+      ["event-non-trace", 1, "agent_start", "pending"],
+      ["event-non-trace-retry", 2, "agent_end", "retry"],
+      ["event-trace", 3, "trace", "pending"]
+    ] as const) {
+      db.run(
+        `INSERT INTO runtime_events(
+           tenant_id,user_id,conversation_id,event_id,execution_id,cursor,kind,payload_json,created_at,
+           delivery_status,next_attempt_at
+         ) VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+        ["t1", "u1", "c1", eventId, "e1", cursor, kind, "{}", cursor, status, status === "retry" ? 10 : null]
+      );
+    }
+
+    migrateRuntimeDatabase(db);
+
+    expect(db.all<{ version: number }>("SELECT version FROM schema_migrations ORDER BY version")).toEqual([
+      { version: 1 },
+      { version: 2 }
+    ]);
+    expect(db.all<{ event_id: string; delivery_status: string; next_attempt_at: number | null }>(
+      "SELECT event_id,delivery_status,next_attempt_at FROM runtime_events ORDER BY cursor"
+    )).toEqual([
+      { event_id: "event-non-trace", delivery_status: "not_applicable", next_attempt_at: null },
+      { event_id: "event-non-trace-retry", delivery_status: "not_applicable", next_attempt_at: null },
+      { event_id: "event-trace", delivery_status: "pending", next_attempt_at: null }
+    ]);
+    expect(db.all<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'index' AND name LIKE 'runtime_event_%' ORDER BY name"
+    ).map(row => row.name)).toEqual([
+      "runtime_event_trace_dead_letter",
+      "runtime_event_trace_outbox"
+    ]);
     expect(db.get<{ integrity_check: string }>("PRAGMA integrity_check")?.integrity_check).toBe("ok");
     db.close();
   });
@@ -121,6 +179,15 @@ describe("runtime storage schema", () => {
     db.close();
   });
 
+  it("fails closed when the applied migration history is not contiguous", () => {
+    const db = openRuntimeDatabase(databasePath());
+    db.run("CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)");
+    db.run("INSERT INTO schema_migrations(version, applied_at) VALUES (?, ?)", [2, 1]);
+
+    expect(() => migrateRuntimeDatabase(db)).toThrow(/migration history/i);
+    db.close();
+  });
+
   it("allows a matching claimed zero-byte database identity to initialize and migrate", () => {
     const path = databasePath();
     writeFileSync(path, "", { mode: 0o600 });
@@ -131,7 +198,7 @@ describe("runtime storage schema", () => {
     });
     migrateRuntimeDatabase(db);
 
-    expect(db.get<{ version: number }>("SELECT version FROM schema_migrations")?.version).toBe(1);
+    expect(db.get<{ version: number }>("SELECT MAX(version) AS version FROM schema_migrations")?.version).toBe(2);
     db.close();
   });
 

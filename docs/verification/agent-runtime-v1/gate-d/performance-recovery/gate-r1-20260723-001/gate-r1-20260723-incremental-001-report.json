@@ -1,0 +1,1349 @@
+{
+  "schemaVersion": 1,
+  "track": "local",
+  "evidenceKind": "gate-d-performance-diagnostic",
+  "runId": "gate-r1-20260723-incremental-001",
+  "variant": "incremental-oracle",
+  "generatedAt": "2026-07-23T12:35:44.060Z",
+  "durationMs": 1800000,
+  "sampleIntervalMs": 30000,
+  "workload": {
+    "seededConversations": 10000,
+    "concurrency": 20,
+    "mix": {
+      "noTool": 0.6,
+      "javaSandbox": 0.2,
+      "mcp": 0.15,
+      "approvalInterruption": 0.05
+    }
+  },
+  "environment": {
+    "nodeVersion": "v20.20.2",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "databaseBasename": "gate-r1-20260723-incremental-001.sqlite"
+  },
+  "samples": [
+    {
+      "sampleIndex": 0,
+      "sampledAt": "2026-07-23T12:05:03.352Z",
+      "admissionP95Ms": 13.96837499999674,
+      "durableReplayP95Ms": 11.06962499999645,
+      "oracleDurationMs": 305.99304099999426,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 305.99304099999426,
+          "rowCount": 231096
+        }
+      ],
+      "databaseBytes": 157761536,
+      "conversations": 10000,
+      "messages": 39144,
+      "executions": 17786,
+      "approvals": 0,
+      "runtimeEvents": 231292,
+      "pendingEvents": 231292,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 1,
+      "sampledAt": "2026-07-23T12:05:33.352Z",
+      "admissionP95Ms": 16.261375000001863,
+      "durableReplayP95Ms": 13.798541000011028,
+      "oracleDurationMs": 99.45770800000173,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 99.45770800000173,
+          "rowCount": 93700
+        }
+      ],
+      "databaseBytes": 223940608,
+      "conversations": 10000,
+      "messages": 54976,
+      "executions": 23863,
+      "approvals": 2000,
+      "runtimeEvents": 324856,
+      "pendingEvents": 324856,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 2,
+      "sampledAt": "2026-07-23T12:06:03.352Z",
+      "admissionP95Ms": 18.04304200000479,
+      "durableReplayP95Ms": 16.852333000002545,
+      "oracleDurationMs": 107.62800000001153,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 107.62800000001153,
+          "rowCount": 102149
+        }
+      ],
+      "databaseBytes": 293908480,
+      "conversations": 10000,
+      "messages": 71876,
+      "executions": 32438,
+      "approvals": 2250,
+      "runtimeEvents": 427006,
+      "pendingEvents": 427006,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 3,
+      "sampledAt": "2026-07-23T12:06:33.351Z",
+      "admissionP95Ms": 23.954166000010446,
+      "durableReplayP95Ms": 23.87679200002458,
+      "oracleDurationMs": 106.69208400000934,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 106.69208400000934,
+          "rowCount": 95646
+        }
+      ],
+      "databaseBytes": 358604800,
+      "conversations": 10000,
+      "messages": 87692,
+      "executions": 40471,
+      "approvals": 2500,
+      "runtimeEvents": 522652,
+      "pendingEvents": 522652,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 4,
+      "sampledAt": "2026-07-23T12:07:03.351Z",
+      "admissionP95Ms": 25.92949999999837,
+      "durableReplayP95Ms": 22.830749999993714,
+      "oracleDurationMs": 166.2552919999871,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 166.2552919999871,
+          "rowCount": 93708
+        }
+      ],
+      "databaseBytes": 421761024,
+      "conversations": 10000,
+      "messages": 103310,
+      "executions": 48280,
+      "approvals": 2500,
+      "runtimeEvents": 616360,
+      "pendingEvents": 616360,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 5,
+      "sampledAt": "2026-07-23T12:07:33.351Z",
+      "admissionP95Ms": 36.66062499998952,
+      "durableReplayP95Ms": 44.42116699999315,
+      "oracleDurationMs": 86.57116600000882,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 86.57116600000882,
+          "rowCount": 84636
+        }
+      ],
+      "databaseBytes": 479891456,
+      "conversations": 10000,
+      "messages": 117290,
+      "executions": 55395,
+      "approvals": 2750,
+      "runtimeEvents": 700990,
+      "pendingEvents": 700990,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 6,
+      "sampledAt": "2026-07-23T12:08:03.351Z",
+      "admissionP95Ms": 40.837709000014,
+      "durableReplayP95Ms": 45.88133299999754,
+      "oracleDurationMs": 91.13154099998064,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 91.13154099998064,
+          "rowCount": 82676
+        }
+      ],
+      "databaseBytes": 537186304,
+      "conversations": 10000,
+      "messages": 130948,
+      "executions": 62349,
+      "approvals": 3000,
+      "runtimeEvents": 783688,
+      "pendingEvents": 783688,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 7,
+      "sampledAt": "2026-07-23T12:08:33.351Z",
+      "admissionP95Ms": 50.70412499998929,
+      "durableReplayP95Ms": 51.11416699999245,
+      "oracleDurationMs": 156.44691700005205,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 156.44691700005205,
+          "rowCount": 85345
+        }
+      ],
+      "databaseBytes": 596426752,
+      "conversations": 10000,
+      "messages": 145180,
+      "executions": 69465,
+      "approvals": 3000,
+      "runtimeEvents": 869080,
+      "pendingEvents": 869080,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 8,
+      "sampledAt": "2026-07-23T12:09:03.351Z",
+      "admissionP95Ms": 54.966333999997005,
+      "durableReplayP95Ms": 56.97133299999405,
+      "oracleDurationMs": 140.6858329999959,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 140.6858329999959,
+          "rowCount": 81174
+        }
+      ],
+      "databaseBytes": 652922880,
+      "conversations": 10000,
+      "messages": 158578,
+      "executions": 76289,
+      "approvals": 3250,
+      "runtimeEvents": 950218,
+      "pendingEvents": 950218,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 9,
+      "sampledAt": "2026-07-23T12:09:33.350Z",
+      "admissionP95Ms": 58.08812500000931,
+      "durableReplayP95Ms": 63.33570900000632,
+      "oracleDurationMs": 98.24274999997579,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 98.24274999997579,
+          "rowCount": 77019
+        }
+      ],
+      "databaseBytes": 703795200,
+      "conversations": 10000,
+      "messages": 171292,
+      "executions": 82771,
+      "approvals": 3500,
+      "runtimeEvents": 1027252,
+      "pendingEvents": 1027252,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 10,
+      "sampledAt": "2026-07-23T12:10:03.350Z",
+      "admissionP95Ms": 59.17574999999488,
+      "durableReplayP95Ms": 59.537458000006154,
+      "oracleDurationMs": 163.6755000000121,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 163.6755000000121,
+          "rowCount": 79776
+        }
+      ],
+      "databaseBytes": 756899840,
+      "conversations": 10000,
+      "messages": 184586,
+      "executions": 89418,
+      "approvals": 3500,
+      "runtimeEvents": 1107016,
+      "pendingEvents": 1107016,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 11,
+      "sampledAt": "2026-07-23T12:10:33.351Z",
+      "admissionP95Ms": 63.28525000001537,
+      "durableReplayP95Ms": 67.85100000002421,
+      "oracleDurationMs": 137.35416600003373,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 137.35416600003373,
+          "rowCount": 73454
+        }
+      ],
+      "databaseBytes": 807694336,
+      "conversations": 10000,
+      "messages": 196710,
+      "executions": 95605,
+      "approvals": 3750,
+      "runtimeEvents": 1180510,
+      "pendingEvents": 1180510,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 12,
+      "sampledAt": "2026-07-23T12:11:03.350Z",
+      "admissionP95Ms": 68.18679199996404,
+      "durableReplayP95Ms": 75.45941700000549,
+      "oracleDurationMs": 142.31708399998024,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 142.31708399998024,
+          "rowCount": 69433
+        }
+      ],
+      "databaseBytes": 855261184,
+      "conversations": 10000,
+      "messages": 208158,
+      "executions": 101454,
+      "approvals": 4000,
+      "runtimeEvents": 1249948,
+      "pendingEvents": 1249948,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 13,
+      "sampledAt": "2026-07-23T12:11:33.350Z",
+      "admissionP95Ms": 65.39649999997346,
+      "durableReplayP95Ms": 65.48770900000818,
+      "oracleDurationMs": 76.27479200001108,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 76.27479200001108,
+          "rowCount": 74020
+        }
+      ],
+      "databaseBytes": 905068544,
+      "conversations": 10000,
+      "messages": 220492,
+      "executions": 107621,
+      "approvals": 4000,
+      "runtimeEvents": 1323952,
+      "pendingEvents": 1323952,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 14,
+      "sampledAt": "2026-07-23T12:12:03.350Z",
+      "admissionP95Ms": 70.59129200002644,
+      "durableReplayP95Ms": 80.19037499994738,
+      "oracleDurationMs": 77.79450000001816,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 77.79450000001816,
+          "rowCount": 66706
+        }
+      ],
+      "databaseBytes": 951611392,
+      "conversations": 10000,
+      "messages": 231488,
+      "executions": 113244,
+      "approvals": 4250,
+      "runtimeEvents": 1390678,
+      "pendingEvents": 1390678,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 15,
+      "sampledAt": "2026-07-23T12:12:33.349Z",
+      "admissionP95Ms": 71.32024999998976,
+      "durableReplayP95Ms": 70.8073340000119,
+      "oracleDurationMs": 117.3483750000014,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 117.3483750000014,
+          "rowCount": 70371
+        }
+      ],
+      "databaseBytes": 1000632320,
+      "conversations": 10000,
+      "messages": 243214,
+      "executions": 119107,
+      "approvals": 4250,
+      "runtimeEvents": 1461034,
+      "pendingEvents": 1461034,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 16,
+      "sampledAt": "2026-07-23T12:13:03.350Z",
+      "admissionP95Ms": 72.59350000007544,
+      "durableReplayP95Ms": 92.70437500003027,
+      "oracleDurationMs": 117.85208300000522,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 117.85208300000522,
+          "rowCount": 63832
+        }
+      ],
+      "databaseBytes": 1044545536,
+      "conversations": 10000,
+      "messages": 253732,
+      "executions": 124491,
+      "approvals": 4500,
+      "runtimeEvents": 1524892,
+      "pendingEvents": 1524892,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 17,
+      "sampledAt": "2026-07-23T12:13:33.349Z",
+      "admissionP95Ms": 74.77762500010431,
+      "durableReplayP95Ms": 78.19929200003389,
+      "oracleDurationMs": 67.33750000002328,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 67.33750000002328,
+          "rowCount": 63743
+        }
+      ],
+      "databaseBytes": 1089097728,
+      "conversations": 10000,
+      "messages": 264271,
+      "executions": 129841,
+      "approvals": 4669,
+      "runtimeEvents": 1588564,
+      "pendingEvents": 1588564,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 18,
+      "sampledAt": "2026-07-23T12:14:03.349Z",
+      "admissionP95Ms": 73.57787500007544,
+      "durableReplayP95Ms": 74.06512500008103,
+      "oracleDurationMs": 114.43062500003725,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 114.43062500003725,
+          "rowCount": 66169
+        }
+      ],
+      "databaseBytes": 1134448640,
+      "conversations": 10000,
+      "messages": 275250,
+      "executions": 135375,
+      "approvals": 4750,
+      "runtimeEvents": 1654750,
+      "pendingEvents": 1654750,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 19,
+      "sampledAt": "2026-07-23T12:14:33.348Z",
+      "admissionP95Ms": 78.8149169998942,
+      "durableReplayP95Ms": 110.65887500008103,
+      "oracleDurationMs": 117.66687499999534,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 117.66687499999534,
+          "rowCount": 59414
+        }
+      ],
+      "databaseBytes": 1175810048,
+      "conversations": 10000,
+      "messages": 285030,
+      "executions": 140390,
+      "approvals": 5000,
+      "runtimeEvents": 1714180,
+      "pendingEvents": 1714180,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 20,
+      "sampledAt": "2026-07-23T12:15:03.349Z",
+      "admissionP95Ms": 77.29429099999834,
+      "durableReplayP95Ms": 77.06416700000409,
+      "oracleDurationMs": 129.60229199996684,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 129.60229199996684,
+          "rowCount": 65160
+        }
+      ],
+      "databaseBytes": 1221201920,
+      "conversations": 10000,
+      "messages": 295890,
+      "executions": 145820,
+      "approvals": 5000,
+      "runtimeEvents": 1779340,
+      "pendingEvents": 1779340,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 21,
+      "sampledAt": "2026-07-23T12:15:33.348Z",
+      "admissionP95Ms": 83.92270799994003,
+      "durableReplayP95Ms": 122.3843329999363,
+      "oracleDurationMs": 71.43216600001324,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 71.43216600001324,
+          "rowCount": 55872
+        }
+      ],
+      "databaseBytes": 1260101632,
+      "conversations": 10000,
+      "messages": 305078,
+      "executions": 150539,
+      "approvals": 5250,
+      "runtimeEvents": 1835218,
+      "pendingEvents": 1835218,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 22,
+      "sampledAt": "2026-07-23T12:16:03.348Z",
+      "admissionP95Ms": 79.2852079999866,
+      "durableReplayP95Ms": 79.34700000006706,
+      "oracleDurationMs": 118.80524999997579,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 118.80524999997579,
+          "rowCount": 63593
+        }
+      ],
+      "databaseBytes": 1305149440,
+      "conversations": 10000,
+      "messages": 315674,
+      "executions": 155837,
+      "approvals": 5250,
+      "runtimeEvents": 1898794,
+      "pendingEvents": 1898794,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 23,
+      "sampledAt": "2026-07-23T12:16:33.348Z",
+      "admissionP95Ms": 86.2352499999106,
+      "durableReplayP95Ms": 132.55254200007766,
+      "oracleDurationMs": 100.19941599993035,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 100.19941599993035,
+          "rowCount": 54093
+        }
+      ],
+      "databaseBytes": 1342091264,
+      "conversations": 10000,
+      "messages": 324570,
+      "executions": 160410,
+      "approvals": 5500,
+      "runtimeEvents": 1952920,
+      "pendingEvents": 1952920,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 24,
+      "sampledAt": "2026-07-23T12:17:03.348Z",
+      "admissionP95Ms": 82.4347500000149,
+      "durableReplayP95Ms": 82.25241700001061,
+      "oracleDurationMs": 115.2789590000175,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 115.2789590000175,
+          "rowCount": 61320
+        }
+      ],
+      "databaseBytes": 1382871040,
+      "conversations": 10000,
+      "messages": 334790,
+      "executions": 165520,
+      "approvals": 5500,
+      "runtimeEvents": 2014240,
+      "pendingEvents": 2014240,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 25,
+      "sampledAt": "2026-07-23T12:17:33.348Z",
+      "admissionP95Ms": 89.72687500005122,
+      "durableReplayP95Ms": 129.37629199994262,
+      "oracleDurationMs": 98.89554199995473,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 98.89554199995473,
+          "rowCount": 52502
+        }
+      ],
+      "databaseBytes": 1418842112,
+      "conversations": 10000,
+      "messages": 343429,
+      "executions": 169947,
+      "approvals": 5723,
+      "runtimeEvents": 2066687,
+      "pendingEvents": 2066687,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 26,
+      "sampledAt": "2026-07-23T12:18:03.347Z",
+      "admissionP95Ms": 88.21983299998101,
+      "durableReplayP95Ms": 87.07129200000782,
+      "oracleDurationMs": 99.74012500001118,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 99.74012500001118,
+          "rowCount": 57702
+        }
+      ],
+      "databaseBytes": 1458368512,
+      "conversations": 10000,
+      "messages": 353032,
+      "executions": 174766,
+      "approvals": 5750,
+      "runtimeEvents": 2124442,
+      "pendingEvents": 2124442,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 27,
+      "sampledAt": "2026-07-23T12:18:33.347Z",
+      "admissionP95Ms": 89.93016700004227,
+      "durableReplayP95Ms": 90.46462500002235,
+      "oracleDurationMs": 101.29020799999125,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 101.29020799999125,
+          "rowCount": 56730
+        }
+      ],
+      "databaseBytes": 1497690112,
+      "conversations": 10000,
+      "messages": 362486,
+      "executions": 179493,
+      "approvals": 5750,
+      "runtimeEvents": 2181166,
+      "pendingEvents": 2181166,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 28,
+      "sampledAt": "2026-07-23T12:19:03.347Z",
+      "admissionP95Ms": 93.85475000005681,
+      "durableReplayP95Ms": 154.6143340000417,
+      "oracleDurationMs": 97.06620899995323,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 97.06620899995323,
+          "rowCount": 49804
+        }
+      ],
+      "databaseBytes": 1531834368,
+      "conversations": 10000,
+      "messages": 370660,
+      "executions": 183705,
+      "approvals": 6000,
+      "runtimeEvents": 2230960,
+      "pendingEvents": 2230960,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 29,
+      "sampledAt": "2026-07-23T12:19:33.347Z",
+      "admissionP95Ms": 92.05775000003632,
+      "durableReplayP95Ms": 92.0832909999881,
+      "oracleDurationMs": 100.62175000004936,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 100.62175000004936,
+          "rowCount": 55574
+        }
+      ],
+      "databaseBytes": 1570222080,
+      "conversations": 10000,
+      "messages": 379924,
+      "executions": 188337,
+      "approvals": 6000,
+      "runtimeEvents": 2286544,
+      "pendingEvents": 2286544,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 30,
+      "sampledAt": "2026-07-23T12:20:03.347Z",
+      "admissionP95Ms": 96.13616699993145,
+      "durableReplayP95Ms": 168.0903330000583,
+      "oracleDurationMs": 49.27820800000336,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 49.27820800000336,
+          "rowCount": 47221
+        }
+      ],
+      "databaseBytes": 1603231744,
+      "conversations": 10000,
+      "messages": 387664,
+      "executions": 192332,
+      "approvals": 6250,
+      "runtimeEvents": 2333734,
+      "pendingEvents": 2333734,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 31,
+      "sampledAt": "2026-07-23T12:20:33.346Z",
+      "admissionP95Ms": 93.9537919999566,
+      "durableReplayP95Ms": 95.82112500001676,
+      "oracleDurationMs": 78.14016700000502,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 78.14016700000502,
+          "rowCount": 54102
+        }
+      ],
+      "databaseBytes": 1641521152,
+      "conversations": 10000,
+      "messages": 396690,
+      "executions": 196845,
+      "approvals": 6250,
+      "runtimeEvents": 2387890,
+      "pendingEvents": 2387890,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 32,
+      "sampledAt": "2026-07-23T12:21:03.345Z",
+      "admissionP95Ms": 102.09454199997708,
+      "durableReplayP95Ms": 188.14462500007357,
+      "oracleDurationMs": 90.7901670000283,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 90.7901670000283,
+          "rowCount": 44046
+        }
+      ],
+      "databaseBytes": 1672245248,
+      "conversations": 10000,
+      "messages": 403902,
+      "executions": 200576,
+      "approvals": 6500,
+      "runtimeEvents": 2431912,
+      "pendingEvents": 2431912,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 33,
+      "sampledAt": "2026-07-23T12:21:33.346Z",
+      "admissionP95Ms": 95.05024999997113,
+      "durableReplayP95Ms": 96.62616600003093,
+      "oracleDurationMs": 85.78374999994412,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 85.78374999994412,
+          "rowCount": 51904
+        }
+      ],
+      "databaseBytes": 1706627072,
+      "conversations": 10000,
+      "messages": 412550,
+      "executions": 204900,
+      "approvals": 6500,
+      "runtimeEvents": 2483800,
+      "pendingEvents": 2483800,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 34,
+      "sampledAt": "2026-07-23T12:22:03.346Z",
+      "admissionP95Ms": 98.61533299996518,
+      "durableReplayP95Ms": 100.29658299987204,
+      "oracleDurationMs": 85.60854199994355,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 85.60854199994355,
+          "rowCount": 50248
+        }
+      ],
+      "databaseBytes": 1739702272,
+      "conversations": 10000,
+      "messages": 420932,
+      "executions": 209091,
+      "approvals": 6500,
+      "runtimeEvents": 2534092,
+      "pendingEvents": 2534092,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 35,
+      "sampledAt": "2026-07-23T12:22:33.362Z",
+      "admissionP95Ms": 107.25258300011046,
+      "durableReplayP95Ms": 188.32045799982734,
+      "oracleDurationMs": 64.95016600005329,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 64.95016600005329,
+          "rowCount": 42155
+        }
+      ],
+      "databaseBytes": 1768198144,
+      "conversations": 10000,
+      "messages": 427830,
+      "executions": 212665,
+      "approvals": 6750,
+      "runtimeEvents": 2576230,
+      "pendingEvents": 2576230,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 36,
+      "sampledAt": "2026-07-23T12:23:03.376Z",
+      "admissionP95Ms": 101.96933300001547,
+      "durableReplayP95Ms": 102.79866699990816,
+      "oracleDurationMs": 109.65212500002235,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 109.65212500002235,
+          "rowCount": 48822
+        }
+      ],
+      "databaseBytes": 1801646080,
+      "conversations": 10000,
+      "messages": 435964,
+      "executions": 216732,
+      "approvals": 6750,
+      "runtimeEvents": 2625034,
+      "pendingEvents": 2625034,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 37,
+      "sampledAt": "2026-07-23T12:23:33.379Z",
+      "admissionP95Ms": 109.07020800001919,
+      "durableReplayP95Ms": 199.2549590000417,
+      "oracleDurationMs": 37.910957999993116,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 37.910957999993116,
+          "rowCount": 39843
+        }
+      ],
+      "databaseBytes": 1830981632,
+      "conversations": 10000,
+      "messages": 442474,
+      "executions": 220112,
+      "approvals": 7000,
+      "runtimeEvents": 2664844,
+      "pendingEvents": 2664844,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 38,
+      "sampledAt": "2026-07-23T12:24:03.379Z",
+      "admissionP95Ms": 102.02000000001863,
+      "durableReplayP95Ms": 102.90358299994841,
+      "oracleDurationMs": 47.70824999990873,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 47.70824999990873,
+          "rowCount": 48454
+        }
+      ],
+      "databaseBytes": 1866276864,
+      "conversations": 10000,
+      "messages": 450558,
+      "executions": 224154,
+      "approvals": 7000,
+      "runtimeEvents": 2713348,
+      "pendingEvents": 2713348,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 39,
+      "sampledAt": "2026-07-23T12:24:33.379Z",
+      "admissionP95Ms": 104.82016699993983,
+      "durableReplayP95Ms": 107.00241700001061,
+      "oracleDurationMs": 86.03566599986516,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 86.03566599986516,
+          "rowCount": 46491
+        }
+      ],
+      "databaseBytes": 1898917888,
+      "conversations": 10000,
+      "messages": 458304,
+      "executions": 228027,
+      "approvals": 7000,
+      "runtimeEvents": 2759824,
+      "pendingEvents": 2759824,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 40,
+      "sampledAt": "2026-07-23T12:25:03.378Z",
+      "admissionP95Ms": 113.23054199991748,
+      "durableReplayP95Ms": 209.80566600011662,
+      "oracleDurationMs": 72.8047090000473,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 72.8047090000473,
+          "rowCount": 37692
+        }
+      ],
+      "databaseBytes": 1924927488,
+      "conversations": 10000,
+      "messages": 464460,
+      "executions": 231230,
+      "approvals": 7250,
+      "runtimeEvents": 2797510,
+      "pendingEvents": 2797510,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 41,
+      "sampledAt": "2026-07-23T12:25:33.379Z",
+      "admissionP95Ms": 105.84891699999571,
+      "durableReplayP95Ms": 107.03016599989496,
+      "oracleDurationMs": 53.03170799999498,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 53.03170799999498,
+          "rowCount": 45636
+        }
+      ],
+      "databaseBytes": 1956483072,
+      "conversations": 10000,
+      "messages": 472062,
+      "executions": 235031,
+      "approvals": 7250,
+      "runtimeEvents": 2843122,
+      "pendingEvents": 2843122,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 42,
+      "sampledAt": "2026-07-23T12:26:03.379Z",
+      "admissionP95Ms": 107.39037499995902,
+      "durableReplayP95Ms": 109.71516699995846,
+      "oracleDurationMs": 80.82845800020732,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 80.82845800020732,
+          "rowCount": 44535
+        }
+      ],
+      "databaseBytes": 1986469888,
+      "conversations": 10000,
+      "messages": 479484,
+      "executions": 238742,
+      "approvals": 7250,
+      "runtimeEvents": 2887654,
+      "pendingEvents": 2887654,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 43,
+      "sampledAt": "2026-07-23T12:26:33.377Z",
+      "admissionP95Ms": 119.01387499994598,
+      "durableReplayP95Ms": 225.32541699986905,
+      "oracleDurationMs": 65.72762500005774,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 65.72762500005774,
+          "rowCount": 36164
+        }
+      ],
+      "databaseBytes": 2010447872,
+      "conversations": 10000,
+      "messages": 485390,
+      "executions": 241820,
+      "approvals": 7500,
+      "runtimeEvents": 2923840,
+      "pendingEvents": 2923840,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 44,
+      "sampledAt": "2026-07-23T12:27:03.378Z",
+      "admissionP95Ms": 106.53379100002348,
+      "durableReplayP95Ms": 109.67400000011548,
+      "oracleDurationMs": 53.45487500005402,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 53.45487500005402,
+          "rowCount": 43880
+        }
+      ],
+      "databaseBytes": 2039402496,
+      "conversations": 10000,
+      "messages": 492706,
+      "executions": 245478,
+      "approvals": 7500,
+      "runtimeEvents": 2967736,
+      "pendingEvents": 2967736,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 45,
+      "sampledAt": "2026-07-23T12:27:33.378Z",
+      "admissionP95Ms": 112.94512500008568,
+      "durableReplayP95Ms": 115.3049170000013,
+      "oracleDurationMs": 52.45462500001304,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 52.45462500001304,
+          "rowCount": 42483
+        }
+      ],
+      "databaseBytes": 2067546112,
+      "conversations": 10000,
+      "messages": 499788,
+      "executions": 249019,
+      "approvals": 7500,
+      "runtimeEvents": 3010228,
+      "pendingEvents": 3010228,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 46,
+      "sampledAt": "2026-07-23T12:28:03.378Z",
+      "admissionP95Ms": 119.13537499983795,
+      "durableReplayP95Ms": 236.59379100007936,
+      "oracleDurationMs": 36.76162499981001,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 36.76162499981001,
+          "rowCount": 35174
+        }
+      ],
+      "databaseBytes": 2091196416,
+      "conversations": 10000,
+      "messages": 505526,
+      "executions": 252013,
+      "approvals": 7750,
+      "runtimeEvents": 3045406,
+      "pendingEvents": 3045406,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 47,
+      "sampledAt": "2026-07-23T12:28:33.379Z",
+      "admissionP95Ms": 110.48954199999571,
+      "durableReplayP95Ms": 112.33116700011306,
+      "oracleDurationMs": 43.10000000009313,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 43.10000000009313,
+          "rowCount": 43176
+        }
+      ],
+      "databaseBytes": 2119720960,
+      "conversations": 10000,
+      "messages": 512722,
+      "executions": 255611,
+      "approvals": 7750,
+      "runtimeEvents": 3088582,
+      "pendingEvents": 3088582,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 48,
+      "sampledAt": "2026-07-23T12:29:03.379Z",
+      "admissionP95Ms": 117.17204099986702,
+      "durableReplayP95Ms": 119.4051670001354,
+      "oracleDurationMs": 50.51754199992865,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 50.51754199992865,
+          "rowCount": 41069
+        }
+      ],
+      "databaseBytes": 2149068800,
+      "conversations": 10000,
+      "messages": 519564,
+      "executions": 259032,
+      "approvals": 7750,
+      "runtimeEvents": 3129634,
+      "pendingEvents": 3129634,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 49,
+      "sampledAt": "2026-07-23T12:29:33.379Z",
+      "admissionP95Ms": 125.56958399992436,
+      "durableReplayP95Ms": 250.38645799993537,
+      "oracleDurationMs": 34.61949999979697,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 34.61949999979697,
+          "rowCount": 33201
+        }
+      ],
+      "databaseBytes": 2173636608,
+      "conversations": 10000,
+      "messages": 524972,
+      "executions": 261861,
+      "approvals": 8000,
+      "runtimeEvents": 3162832,
+      "pendingEvents": 3162832,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 50,
+      "sampledAt": "2026-07-23T12:30:03.378Z",
+      "admissionP95Ms": 114.50408399989828,
+      "durableReplayP95Ms": 116.59233399992809,
+      "oracleDurationMs": 81.39345799991861,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 81.39345799991861,
+          "rowCount": 40882
+        }
+      ],
+      "databaseBytes": 2203901952,
+      "conversations": 10000,
+      "messages": 531788,
+      "executions": 265269,
+      "approvals": 8000,
+      "runtimeEvents": 3203728,
+      "pendingEvents": 3203728,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 51,
+      "sampledAt": "2026-07-23T12:30:33.378Z",
+      "admissionP95Ms": 117.16474999999627,
+      "durableReplayP95Ms": 119.56320900004357,
+      "oracleDurationMs": 72.38216699985787,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 72.38216699985787,
+          "rowCount": 39455
+        }
+      ],
+      "databaseBytes": 2233303040,
+      "conversations": 10000,
+      "messages": 538358,
+      "executions": 268554,
+      "approvals": 8000,
+      "runtimeEvents": 3243148,
+      "pendingEvents": 3243148,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 52,
+      "sampledAt": "2026-07-23T12:31:03.378Z",
+      "admissionP95Ms": 130.26854100008495,
+      "durableReplayP95Ms": 257.9919159999117,
+      "oracleDurationMs": 59.47658300003968,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 59.47658300003968,
+          "rowCount": 31660
+        }
+      ],
+      "databaseBytes": 2256601088,
+      "conversations": 10000,
+      "messages": 543518,
+      "executions": 271259,
+      "approvals": 8250,
+      "runtimeEvents": 3274858,
+      "pendingEvents": 3274858,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 53,
+      "sampledAt": "2026-07-23T12:31:33.378Z",
+      "admissionP95Ms": 118.70270799985155,
+      "durableReplayP95Ms": 121.33195800008252,
+      "oracleDurationMs": 41.86562500009313,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 41.86562500009313,
+          "rowCount": 39779
+        }
+      ],
+      "databaseBytes": 2285568000,
+      "conversations": 10000,
+      "messages": 550138,
+      "executions": 274569,
+      "approvals": 8250,
+      "runtimeEvents": 3314578,
+      "pendingEvents": 3314578,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 54,
+      "sampledAt": "2026-07-23T12:32:03.378Z",
+      "admissionP95Ms": 121.24216699996032,
+      "durableReplayP95Ms": 124.17487500002608,
+      "oracleDurationMs": 75.79937499994412,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 75.79937499994412,
+          "rowCount": 38540
+        }
+      ],
+      "databaseBytes": 2312708096,
+      "conversations": 10000,
+      "messages": 556564,
+      "executions": 277782,
+      "approvals": 8250,
+      "runtimeEvents": 3353134,
+      "pendingEvents": 3353134,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 55,
+      "sampledAt": "2026-07-23T12:32:33.379Z",
+      "admissionP95Ms": 127.45737499999814,
+      "durableReplayP95Ms": 280.9753750001546,
+      "oracleDurationMs": 57.954083000076935,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 57.954083000076935,
+          "rowCount": 30410
+        }
+      ],
+      "databaseBytes": 2333564928,
+      "conversations": 10000,
+      "messages": 561510,
+      "executions": 280380,
+      "approvals": 8500,
+      "runtimeEvents": 3383560,
+      "pendingEvents": 3383560,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 56,
+      "sampledAt": "2026-07-23T12:33:03.379Z",
+      "admissionP95Ms": 120.21058299997821,
+      "durableReplayP95Ms": 123.17641599988565,
+      "oracleDurationMs": 66.85924999997951,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 66.85924999997951,
+          "rowCount": 37930
+        }
+      ],
+      "databaseBytes": 2359152640,
+      "conversations": 10000,
+      "messages": 567834,
+      "executions": 283542,
+      "approvals": 8500,
+      "runtimeEvents": 3421504,
+      "pendingEvents": 3421504,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 57,
+      "sampledAt": "2026-07-23T12:33:33.378Z",
+      "admissionP95Ms": 122.98733399994671,
+      "durableReplayP95Ms": 126.07112500001676,
+      "oracleDurationMs": 38.51258400012739,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 38.51258400012739,
+          "rowCount": 37630
+        }
+      ],
+      "databaseBytes": 2384470016,
+      "conversations": 10000,
+      "messages": 574098,
+      "executions": 286674,
+      "approvals": 8500,
+      "runtimeEvents": 3459088,
+      "pendingEvents": 3459088,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 58,
+      "sampledAt": "2026-07-23T12:34:03.377Z",
+      "admissionP95Ms": 130.14100000006147,
+      "durableReplayP95Ms": 136.74595799995586,
+      "oracleDurationMs": 70.4250409998931,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 70.4250409998931,
+          "rowCount": 35041
+        }
+      ],
+      "databaseBytes": 2407399424,
+      "conversations": 10000,
+      "messages": 579913,
+      "executions": 289604,
+      "approvals": 8550,
+      "runtimeEvents": 3494072,
+      "pendingEvents": 3494072,
+      "hardFailures": []
+    },
+    {
+      "sampleIndex": 59,
+      "sampledAt": "2026-07-23T12:34:33.378Z",
+      "admissionP95Ms": 130.5898749998305,
+      "durableReplayP95Ms": 272.4671249999665,
+      "oracleDurationMs": 29.403999999864027,
+      "probeTimings": [
+        {
+          "probe": "incremental-events",
+          "durationMs": 29.403999999864027,
+          "rowCount": 31385
+        }
+      ],
+      "databaseBytes": 2427662336,
+      "conversations": 10000,
+      "messages": 585045,
+      "executions": 292275,
+      "approvals": 8750,
+      "runtimeEvents": 3525521,
+      "pendingEvents": 3525521,
+      "hardFailures": []
+    }
+  ],
+  "hardFailures": []
+}

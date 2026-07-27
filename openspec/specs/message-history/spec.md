@@ -4,28 +4,15 @@
 TBD - created by archiving change add-p1b-persistence. Update Purpose after archive.
 ## Requirements
 ### Requirement: Persistent Message History
-The agent-runtime SHALL persist conversation messages to JSON files at `data/sessions/{tenantId}/{conversationId}.json` so that history survives process restarts. `HistoryStore` SHALL only contain stable messages: `user` messages, completed `assistant` messages, and completed `tool` results. Runtime drafts (e.g. pending approvals, denied tool placeholders, streaming token deltas) MUST NOT be written to `HistoryStore`. On read, sentinel values like `"PENDING_APPROVAL"` or `"POLICY_DENY"` written by older versions MUST be filtered out so they do not pollute model context.
+The Runtime SHALL persist stable conversation messages across process restarts. In the single-node production profile, persistence MUST use SQLite transactions and `(tenantId,userId,conversationId)` ownership constraints. Reads MUST return only the requested tenant, user, and conversation in chronological order. Runtime events, pending approvals, token deltas, and speculative assistant output MUST NOT be stored as stable message history. Legacy JSON records without user ownership MUST be quarantined unless an explicit migration mapping supplies the owner.
 
 #### Scenario: History survives restart
-- **WHEN** a conversation has 5 messages and the agent-runtime process restarts
-- **THEN** the restarted process can retrieve all 5 messages for that conversation
+- **WHEN** the Runtime commits stable messages, stops, and starts again with the same SQLite database
+- **THEN** the same tenant, user, and conversation can read those messages in chronological order
 
-#### Scenario: Append and save
-- **WHEN** a message is appended and the agent loop completes
-- **THEN** the session JSON file is written to disk with the updated messages
-
-#### Scenario: Pending approval is not written to HistoryStore
-- **WHEN** a tool call receives `REQUIRE_APPROVAL` from policy
-- **THEN** no `tool` message with content `"PENDING_APPROVAL"` is appended to `HistoryStore`
-- **AND** the pending approval is recorded in `ApprovalStore` and emitted as an SSE `approval_requested` event
-
-#### Scenario: Denied tool is not written to HistoryStore as raw sentinel
-- **WHEN** a tool call receives `DENY` from policy
-- **THEN** the appended tool message contains a structured rejection result (`status: "rejected"`, `errorClass: "POLICY_DENY"`, `errorMessage`), not the raw string `"POLICY_DENY"`
-
-#### Scenario: Legacy sentinel values are filtered on read
-- **WHEN** a persisted JSON file contains a `tool` message with content `"PENDING_APPROVAL"` written by a prior agent-runtime version
-- **THEN** the read view skips that message and does not include it in model input or replay
+#### Scenario: Tenant and user scope are enforced by storage access
+- **WHEN** a caller requests a conversation using a different tenant or a different user in the same tenant
+- **THEN** no messages or existence signal from the original owner are returned
 
 ### Requirement: Three History Views
 The agent-runtime SHALL provide three distinct views of message history:
@@ -47,24 +34,36 @@ The agent-runtime SHALL provide three distinct views of message history:
 - **THEN** `toPersisted` output includes all fields unchanged
 
 ### Requirement: Configurable Store Backend
-The agent-runtime SHALL support switching between `memory` and `file` history stores via the `HISTORY_STORE` environment variable.
+The Runtime MUST support a configurable `HistoryStore` backend. The single-node production profile SHALL use SQLite and MUST persist stable messages transactionally with `(tenantId,userId,conversationId)` ownership scope. The in-memory backend MAY remain available for tests. Existing JSON history SHALL be supported only through a deterministic, idempotent import path after SQLite cutover and MUST NOT remain a concurrent write authority.
 
-#### Scenario: Default is file
-- **WHEN** `HISTORY_STORE` is not set
-- **THEN** the agent-runtime uses JSON file storage
+#### Scenario: Production defaults to SQLite
+- **WHEN** the Runtime starts in the single-node production profile
+- **THEN** stable history reads and writes use the configured SQLite database
 
-#### Scenario: Memory mode for tests
-- **WHEN** `HISTORY_STORE=memory`
-- **THEN** the agent-runtime uses in-memory storage (no persistence)
+#### Scenario: JSON import is idempotent
+- **WHEN** the same backed-up JSON history is imported more than once
+- **THEN** the resulting SQLite conversations and stable messages are not duplicated
+
+#### Scenario: Corrupt JSON is quarantined
+- **WHEN** one legacy conversation fails schema validation during import
+- **THEN** its path, hash, and validation error are written to the quarantine manifest while valid conversations continue importing
+
+#### Scenario: Quarantine blocks automatic cutover
+- **WHEN** import completes with one or more quarantined records
+- **THEN** automatic cutover stops until a human explicitly accepts the data gap; the manifest contains no record content or secret and reruns do not duplicate entries
+
+#### Scenario: No dual-write after cutover
+- **WHEN** SQLite cutover has completed and a stable message is appended
+- **THEN** the message is committed to SQLite and the Runtime does not also write it to the legacy JSON store
 
 ### Requirement: Stable History Layering
-The agent-runtime SHALL maintain a clear separation between three runtime stores by purpose: `HistoryStore` (stable model-context messages), `RuntimeEventStore` (per-conversation event log used for SSE replay), and `ExecutionStateStore` plus `ApprovalStore` (execution lifecycle and approval state). Compression input MUST be limited to `HistoryStore`; runtime events and approval state MUST NOT enter the compression token estimate.
+The agent-runtime SHALL separate stable model-context messages, durable replay events, transient streaming previews, and execution lifecycle state. Transient preview deltas MUST NOT enter `HistoryStore` or durable `RuntimeEventStore`. Assistant messages containing unresolved tool calls SHALL remain execution-owned provisional context and MUST be excluded from future model context if reconciliation interrupts the execution.
 
-#### Scenario: Compression operates on stable messages only
-- **WHEN** `compress` is invoked for a conversation that has both stable user/assistant/tool messages and active runtime events
-- **THEN** `compress` reads only the `HistoryStore` view and is not affected by entries in `RuntimeEventStore` or `ApprovalStore`
+#### Scenario: Preview delta is not durable
+- **WHEN** a provider emits a streaming preview delta
+- **THEN** it may appear only on the current main stream and is absent from stable history and session replay
 
-#### Scenario: SSE events do not enter HistoryStore
-- **WHEN** an SSE event such as `model_call_start` or a token delta is emitted
-- **THEN** that event is appended to `RuntimeEventStore` and is NOT appended to `HistoryStore`
+#### Scenario: Interrupted tool call does not pollute next turn
+- **WHEN** restart interrupts an execution after an assistant tool call but before its tool result
+- **THEN** the provisional assistant message is excluded from later model context
 
