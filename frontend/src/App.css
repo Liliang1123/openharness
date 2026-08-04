@@ -164,6 +164,67 @@ input {
   background: white;
 }
 
+.execution-activity {
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.execution-activity.completed {
+  border-color: #86efac;
+}
+
+.execution-activity.errored,
+.execution-activity.aborted {
+  border-color: #fca5a5;
+}
+
+.execution-activity-toggle {
+  align-items: center;
+  background: #f8fafc;
+  border: 0;
+  color: #334155;
+  cursor: pointer;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding: 10px 12px;
+  text-align: left;
+  width: 100%;
+}
+
+.execution-activity.completed .execution-activity-toggle {
+  background: #f0fdf4;
+}
+
+.execution-activity.errored .execution-activity-toggle,
+.execution-activity.aborted .execution-activity-toggle {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.execution-thinking {
+  color: #475569;
+  padding: 10px 12px;
+}
+
+.execution-activity-list {
+  border-top: 1px solid #e2e8f0;
+  display: grid;
+  gap: 6px;
+  list-style-position: inside;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.execution-activity-list li {
+  align-items: center;
+  color: #475569;
+  display: flex;
+  justify-content: space-between;
+}
+
 .composer {
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr) 92px;

@@ -208,7 +208,20 @@ export async function replyApproval(input: {
       })
     }
   );
-  return response.json();
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) {
+    const candidate = payload && typeof payload === "object"
+      && "error" in payload && payload.error && typeof payload.error === "object"
+      && "errorClass" in payload.error
+      ? payload.error.errorClass
+      : undefined;
+    const errorClass = typeof candidate === "string"
+      && /^[A-Z][A-Z0-9_]{0,127}$/.test(candidate)
+      ? candidate
+      : "APPROVAL_REQUEST_FAILED";
+    throw new Error(errorClass);
+  }
+  return payload;
 }
 
 

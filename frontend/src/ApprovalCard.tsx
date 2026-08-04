@@ -14,16 +14,24 @@ interface ApprovalCardProps {
 export function ApprovalCard({ askUserId, conversationId, executionId, toolCallId, toolName, reason, onResolved }: ApprovalCardProps) {
   const [busy, setBusy] = useState(false);
   const [resolved, setResolved] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handle(action: "approve" | "reject") {
     setBusy(true);
-    if (conversationId && executionId && toolCallId) {
-      await replyApproval({ conversationId, executionId, toolCallId, action });
-    } else {
-      await replyAskUser(askUserId, action);
+    setError(null);
+    try {
+      if (conversationId && executionId && toolCallId) {
+        await replyApproval({ conversationId, executionId, toolCallId, action });
+      } else {
+        await replyAskUser(askUserId, action);
+      }
+      setResolved(action === "approve" ? "已批准" : "已拒绝");
+      onResolved(action);
+    } catch {
+      setError("审批已失效，请刷新执行状态");
+    } finally {
+      setBusy(false);
     }
-    setResolved(action === "approve" ? "已批准" : "已拒绝");
-    onResolved(action);
   }
 
   if (resolved) return <div className="approval-card resolved">{resolved}</div>;
@@ -32,6 +40,7 @@ export function ApprovalCard({ askUserId, conversationId, executionId, toolCallI
     <div className="approval-card" role="alert" aria-label="Approval required">
       <p>⚠️ 工具 <strong>{toolName}</strong> 需要审批</p>
       {reason && <p className="reason">{reason}</p>}
+      {error && <p className="error">{error}</p>}
       <button onClick={() => handle("approve")} disabled={busy}>Approve</button>
       <button onClick={() => handle("reject")} disabled={busy}>Reject</button>
     </div>

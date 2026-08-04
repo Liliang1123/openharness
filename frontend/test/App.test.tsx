@@ -1,12 +1,22 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../src/App";
 
-function mockSSEResponse(events: { event: string; data: Record<string, unknown> }[]) {
+interface MockSSEEvent {
+  event: string;
+  data: Record<string, unknown>;
+  eventId?: string;
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function mockSSEResponse(events: MockSSEEvent[]) {
   const body = events.map((e, index) => `event: ${e.event}\ndata: ${JSON.stringify({
     durability: "durable",
-    eventId: `tenant-001::user-001::conv-1:${index + 1}`,
+    eventId: e.eventId ?? `tenant-001::user-001::conv-1:${index + 1}`,
     executionId: "exec-1",
     conversationId: "conv-1",
     tenantId: "tenant-001",
@@ -26,7 +36,7 @@ function mockSSEResponse(events: { event: string; data: Record<string, unknown> 
   return new Response(stream, { status: 200, headers: { "Content-Type": "text/event-stream" } });
 }
 
-function makeFetchRouter(sseEvents: { event: string; data: Record<string, unknown> }[]) {
+function makeFetchRouter(sseEvents: MockSSEEvent[]) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
     if (url.endsWith("/api/v1/sessions") && (!init?.method || init.method === "GET")) {
@@ -46,7 +56,8 @@ describe("App with SSE", () => {
         { event: "agent_start", data: { traceId: "t1" } },
         { event: "model_call_start", data: { step: 1 } },
         { event: "model_call_end", data: { step: 1 } },
-        { event: "final_answer", data: { answer: "你好世界" } }
+        { event: "final_answer", data: { answer: "你好世界" } },
+        { event: "stream_done", data: { stopReason: "FINAL_ANSWER" } }
       ]) as unknown as typeof fetch
     );
 
@@ -57,6 +68,7 @@ describe("App with SSE", () => {
 
     await waitFor(() => {
       expect(screen.getByText("你好世界")).toBeTruthy();
+      expect(screen.queryByText("🤔 思考中...")).toBeNull();
     });
 
     vi.restoreAllMocks();
@@ -84,6 +96,41 @@ describe("App with SSE", () => {
     });
 
     vi.restoreAllMocks();
+  });
+
+  it("removes a pending ApprovalCard when its tool or execution becomes terminal", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      makeFetchRouter([
+        { event: "agent_start", data: {} },
+        {
+          event: "approval_requested",
+          data: {
+            askUserId: "ask-timeout",
+            toolCallId: "call-timeout",
+            toolName: "read_file",
+            reason: "POLICY_REQUIRE_APPROVAL"
+          }
+        },
+        {
+          event: "tool_result",
+          data: {
+            toolCallId: "call-timeout",
+            toolName: "read_file",
+            status: "timeout"
+          }
+        },
+        { event: "stream_done", data: { stopReason: "FINAL_ANSWER" } }
+      ]) as unknown as typeof fetch
+    );
+
+    render(<App />);
+    await userEvent.type(screen.getByLabelText("Message"), "approve");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("alert", { name: "Approval required" })).toBeNull();
+      expect(screen.getByRole("button", { name: /执行完成/ })).toBeTruthy();
+    });
   });
 
   it("tolerates unknown SSE event fields (eventId/executionId/createdAt)", async () => {
@@ -129,6 +176,94 @@ describe("App with SSE", () => {
     });
 
     vi.restoreAllMocks();
+  });
+
+  it("groups five terminal tools and expands every safe call", async () => {
+    const tools = Array.from({ length: 5 }, (_, index) => {
+      const call = index + 1;
+      return [
+        {
+          event: "tool_call",
+          data: { toolCallId: `call-${call}`, toolName: "read_file", stepIndex: 1 }
+        },
+        {
+          event: "tool_result",
+          data: { toolCallId: `call-${call}`, toolName: "read_file", status: "ok", stepIndex: 1 }
+        }
+      ];
+    }).flat();
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      makeFetchRouter([
+        { event: "agent_start", data: {} },
+        { event: "model_call_start", data: { stepIndex: 1 } },
+        ...tools,
+        { event: "model_call_end", data: { stepIndex: 1, hasToolCalls: false } },
+        { event: "final_answer", data: { answer: "done" } },
+        { event: "stream_done", data: { stopReason: "FINAL_ANSWER" } }
+      ]) as unknown as typeof fetch
+    );
+
+    render(<App />);
+    await userEvent.type(screen.getByLabelText("Message"), "read");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const toggle = await screen.findByRole("button", { name: /执行完成.*read_file ×5/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(toggle);
+    expect(screen.getAllByText("read_file")).toHaveLength(5);
+  });
+
+  it("keeps safe Runtime and upstream error classes visible", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      makeFetchRouter([
+        { event: "agent_start", data: {} },
+        { event: "model_call_start", data: { stepIndex: 1 } },
+        {
+          event: "stream_error",
+          data: {
+            errorClass: "MODEL_ERROR",
+            upstreamErrorClass: "PROTOCOL_FAILURE",
+            errorMessage: "ERROR-CANARY"
+          }
+        }
+      ]) as unknown as typeof fetch
+    );
+
+    render(<App />);
+    await userEvent.type(screen.getByLabelText("Message"), "fail");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    const toggle = await screen.findByRole("button", {
+      name: /执行失败.*MODEL_ERROR · PROTOCOL_FAILURE/
+    });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("ERROR-CANARY")).toBeNull();
+  });
+
+  it("does not duplicate a replayed final answer event", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(
+      makeFetchRouter([
+        { event: "agent_start", data: {} },
+        {
+          event: "final_answer",
+          eventId: "tenant-001::user-001::conv-1:answer",
+          data: { answer: "exactly once" }
+        },
+        {
+          event: "final_answer",
+          eventId: "tenant-001::user-001::conv-1:answer",
+          data: { answer: "exactly once" }
+        },
+        { event: "stream_done", data: { stopReason: "FINAL_ANSWER" } }
+      ]) as unknown as typeof fetch
+    );
+
+    render(<App />);
+    await userEvent.type(screen.getByLabelText("Message"), "replay");
+    await userEvent.click(screen.getByRole("button", { name: "Send" }));
+
+    await screen.findByText("exactly once");
+    expect(screen.getAllByText("exactly once")).toHaveLength(1);
   });
 
   it("renders ApprovalCard from session pendingApprovals on session load", async () => {

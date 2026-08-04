@@ -1,4 +1,4 @@
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   deleteSession,
   appendSSEWireEvent,
@@ -11,9 +11,11 @@ import {
   type SessionMeta
 } from "./api";
 import { ApprovalCard } from "./ApprovalCard";
+import { ExecutionActivityGroup } from "./ExecutionActivityGroup";
 import { RuntimeProgressPanel } from "./RuntimeProgressPanel";
 import { SessionList } from "./SessionList";
 import { TraceTreePanel } from "./TraceTreePanel";
+import { deriveExecutionActivity } from "./executionActivity";
 import { deriveRuntimeProgressFromEvents } from "./runtimeProgress";
 import { newId } from "./trace";
 import "./App.css";
@@ -36,6 +38,11 @@ export function App() {
   const [error, setError] = useState("");
   const [sessions, setSessions] = useState<SessionMeta[]>([]);
   const [conversationId, setConversationId] = useState<string>(() => newId("conv"));
+  const seenEventIds = useRef(new Set<string>());
+  const executionActivity = useMemo(
+    () => deriveExecutionActivity(events),
+    [events]
+  );
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -75,6 +82,7 @@ export function App() {
     if (busy) return;
     setError("");
     setEvents([]);
+    seenEventIds.current.clear();
     setRuntimeProgress(null);
     setConversationId(id);
     try {
@@ -90,6 +98,7 @@ export function App() {
     if (busy) return;
     setError("");
     setEvents([]);
+    seenEventIds.current.clear();
     setRuntimeProgress(null);
     setMessages([]);
     setConversationId(newId("conv"));
@@ -113,6 +122,7 @@ export function App() {
     setBusy(true);
     setError("");
     setEvents([]);
+    seenEventIds.current.clear();
     setRuntimeProgress(null);
     setMessages((m) => [...m, { role: "user", content: text }]);
     setInput("");
@@ -128,25 +138,38 @@ export function App() {
           tenantId
         },
         (ev) => {
+          if (ev.durability === "durable") {
+            if (seenEventIds.current.has(ev.eventId)) return;
+            seenEventIds.current.add(ev.eventId);
+          }
           setEvents((prev) => {
             const next = appendSSEWireEvent(prev, ev);
             setRuntimeProgress(deriveRuntimeProgressFromEvents(next));
             return next;
           });
-          if (ev.kind === "model_call_start") {
-            setMessages((m) => [...m, { role: "system", content: "🤔 思考中..." }]);
-          } else if (ev.kind === "tool_call") {
-            setMessages((m) => [...m, { role: "system", content: `🔧 调用工具: ${ev.data.toolName}` }]);
-          } else if (ev.kind === "tool_result" && ev.data.status === "denied") {
-            setMessages((m) => [...m, { role: "system", content: `❌ 工具被拒绝: ${ev.data.toolName}` }]);
-          } else if (ev.kind === "approval_requested" || (ev.kind === "tool_result" && ev.data.status === "pending_approval")) {
+          const terminalToolResult = ev.kind === "tool_result"
+            && ev.data.status !== "pending_approval"
+            && ev.data.status !== "running";
+          const terminalExecution = ev.kind === "stream_done" || ev.kind === "stream_error";
+          if (terminalToolResult || terminalExecution) {
+            const terminalToolCallId = terminalToolResult
+              ? String(ev.data.toolCallId ?? "")
+              : undefined;
+            setMessages((current) => current.filter((message) => {
+              const approval = message.approval;
+              if (!approval || approval.executionId !== ev.executionId) return true;
+              return terminalToolCallId !== undefined
+                && approval.toolCallId !== terminalToolCallId;
+            }));
+          }
+          if (ev.kind === "approval_requested" || (ev.kind === "tool_result" && ev.data.status === "pending_approval")) {
             setMessages((m) => [
               ...m,
               {
                 role: "system",
                 content: "",
                 approval: {
-                  askUserId: String(ev.data.askUserId ?? ""),
+                  askUserId: String(ev.data.askUserId ?? ev.data.approvalId ?? ""),
                   conversationId,
                   executionId: ev.executionId,
                   toolCallId: String(ev.data.toolCallId ?? ""),
@@ -205,6 +228,7 @@ export function App() {
             })
           )}
         </div>
+        <ExecutionActivityGroup activity={executionActivity} />
         {error && <div className="error">{error}</div>}
         <form className="composer" onSubmit={submit}>
           <label htmlFor="message">Message</label>
