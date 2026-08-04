@@ -11,6 +11,10 @@ import { InMemoryMemoryStore, type MemoryFact } from "../src/memoryStore";
 import type { JavaClient, PolicyEvaluateRequest, PolicyEvaluateResponse } from "../src/javaClient";
 import type { AgentMessage, CatalogResponse, ModelChatRequest, ToolCallRequest, TraceEvent } from "../src/types";
 import type { McpRegistry } from "../src/mcpRegistry";
+import {
+  createRuntimeChatLifecycleLogger,
+  type RuntimeChatLifecycleLogger
+} from "../src/runtimeChatLifecycleLog";
 
 class FakeJavaClient implements JavaClient {
   modelDelayMs = 0;
@@ -273,6 +277,80 @@ describe("AgentExecutionRunner", () => {
     expect(state?.status).toBe("completed");
     expect(state?.endReason).toBe("FINAL_ANSWER");
     expect(state?.endedAt).toBeGreaterThan(0);
+  });
+
+  it("emits one accepted and one terminal lifecycle record after admission", async () => {
+    const accepted = vi.fn();
+    const terminal = vi.fn();
+    const lifecycleLogger: RuntimeChatLifecycleLogger = { accepted, terminal };
+    const runner = new AgentExecutionRunner(
+      new FakeJavaClient(),
+      history,
+      undefined,
+      runtimeEventStore,
+      executionStateStore
+    );
+
+    const { executionId, done } = runner.start({ ...baseInput, lifecycleLogger });
+    const final = await done;
+
+    expect(accepted).toHaveBeenCalledTimes(1);
+    expect(accepted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: baseInput.conversationId,
+        requestId: baseInput.requestId,
+        traceId: baseInput.traceId,
+        executionId
+      }),
+      expect.any(Number)
+    );
+    expect(terminal).toHaveBeenCalledTimes(1);
+    expect(terminal).toHaveBeenCalledWith(
+      expect.objectContaining({ executionId }),
+      expect.objectContaining({
+        status: final.status,
+        stopReason: "FINAL_ANSWER",
+        durationMs: expect.any(Number),
+        timestampMs: expect.any(Number)
+      })
+    );
+  });
+
+  it("preserves execution outcome when the lifecycle sink throws", async () => {
+    const lifecycleLogger = createRuntimeChatLifecycleLogger(() => {
+      throw new Error("SINK-CANARY");
+    });
+    const runner = new AgentExecutionRunner(
+      new FakeJavaClient(),
+      history,
+      undefined,
+      runtimeEventStore,
+      executionStateStore
+    );
+
+    const { executionId, done } = runner.start({ ...baseInput, lifecycleLogger });
+    const final = await done;
+
+    expect(final).toMatchObject({
+      executionId,
+      status: "completed",
+      endReason: "FINAL_ANSWER"
+    });
+    expect(executionStateStore.get(
+      baseInput.tenantId,
+      baseInput.userId,
+      baseInput.conversationId,
+      executionId
+    )).toMatchObject({
+      status: "completed",
+      endReason: "FINAL_ANSWER"
+    });
+    expect(runtimeEventStore.since(
+      baseInput.tenantId,
+      baseInput.userId,
+      baseInput.conversationId,
+      null
+    ).at(-1)?.kind).toBe("stream_done");
   });
 
   it("final assistant message lands in HistoryStore", async () => {

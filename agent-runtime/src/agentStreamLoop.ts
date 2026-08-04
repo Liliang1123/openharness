@@ -1,6 +1,7 @@
 import type { FastifyReply } from "fastify";
 import type { AgentDefinition } from "@openharness/shared-schema";
 import type { AgentExecutionRunner } from "./agentExecutionRunner";
+import type { RuntimeChatLifecycleLogger } from "./runtimeChatLifecycleLog";
 import type { RuntimeEventStore } from "./runtimeEventStore";
 import type { SessionEvent } from "./types";
 
@@ -14,6 +15,7 @@ export interface StreamInput {
   headers: Record<string, string>;
   agentDefinition: AgentDefinition;
   stepBudget?: number;
+  lifecycleLogger?: RuntimeChatLifecycleLogger;
 }
 
 /**

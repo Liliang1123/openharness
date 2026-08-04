@@ -1,7 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createServer } from "../src/server";
 import { InMemoryRuntimeEventStore } from "../src/runtimeEventStore";
 import type { JavaClient, PolicyEvaluateRequest, PolicyEvaluateResponse } from "../src/javaClient";
+import type { RuntimeChatLifecycleLogger } from "../src/runtimeChatLifecycleLog";
 import type { AgentMessage, CatalogResponse, ModelChatRequest, ToolCallRequest, TraceEvent } from "../src/types";
 
 class FakeJavaClient implements JavaClient {
@@ -103,6 +104,69 @@ describe("stream event ids", () => {
     delete process.env.HISTORY_STORE;
     delete process.env.HISTORY_DATA_DIR;
     delete process.env.COMPRESSION_AUTO;
+  });
+
+  it("injects one lifecycle logger into synchronous and streaming executions", async () => {
+    const javaClient = new FakeJavaClient();
+    const accepted = vi.fn();
+    const terminal = vi.fn();
+    const runtimeChatLifecycleLogger: RuntimeChatLifecycleLogger = { accepted, terminal };
+    const app = await createServer({
+      javaClient,
+      runtimeEventStore: store,
+      runtimeChatLifecycleLogger
+    });
+
+    const syncResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/agent/chat",
+      headers: {
+        "x-user-id": "u1",
+        "x-tenant-id": "t1",
+        "x-trace-id": "tr-lifecycle-sync",
+        "x-request-id": "req-lifecycle-sync"
+      },
+      payload: { conversationId: "conv-lifecycle-sync", message: "go" }
+    });
+    const streamResponse = await app.inject({
+      method: "POST",
+      url: "/api/v1/agent/chat/stream",
+      headers: {
+        "x-user-id": "u1",
+        "x-tenant-id": "t1",
+        "x-trace-id": "tr-lifecycle-stream",
+        "x-request-id": "req-lifecycle-stream"
+      },
+      payload: { conversationId: "conv-lifecycle-stream", message: "go" }
+    });
+
+    expect(syncResponse.statusCode).toBe(200);
+    expect(streamResponse.statusCode).toBe(200);
+    expect(parseSse(streamResponse.body).map(event => event.event)).toContain("stream_done");
+    expect(accepted).toHaveBeenCalledTimes(2);
+    expect(terminal).toHaveBeenCalledTimes(2);
+    expect(accepted.mock.calls.map(([value]) => value)).toEqual([
+      expect.objectContaining({
+        conversationId: "conv-lifecycle-sync",
+        requestId: "req-lifecycle-sync",
+        traceId: "tr-lifecycle-sync"
+      }),
+      expect.objectContaining({
+        conversationId: "conv-lifecycle-stream",
+        requestId: "req-lifecycle-stream",
+        traceId: "tr-lifecycle-stream"
+      })
+    ]);
+    expect(terminal.mock.calls.map(([value, state]) => ({ value, state }))).toEqual([
+      {
+        value: expect.objectContaining({ conversationId: "conv-lifecycle-sync" }),
+        state: expect.objectContaining({ status: "completed", stopReason: "FINAL_ANSWER" })
+      },
+      {
+        value: expect.objectContaining({ conversationId: "conv-lifecycle-stream" }),
+        state: expect.objectContaining({ status: "completed", stopReason: "FINAL_ANSWER" })
+      }
+    ]);
   });
 
   it("each SSE event data carries eventId, executionId, conversationId, tenantId, traceId, requestId, createdAt", async () => {

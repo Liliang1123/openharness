@@ -21,6 +21,7 @@ import type { PendingInjection, Skill } from "./skills/types";
 import { resolveSkillPath, parseSkillMarkdown } from "./skills/loader";
 import { resolveProviderCapabilities } from "./skills/capabilities";
 import { SubagentDispatcher } from "./subagent/dispatcher";
+import type { RuntimeChatLifecycleLogger } from "./runtimeChatLifecycleLog";
 import {
   publishCommittedLifecycleEvents,
   type LifecycleCommit,
@@ -106,6 +107,7 @@ export interface AgentExecutionInput {
   headers: Record<string, string>;
   agentDefinition: AgentDefinition;
   stepBudget?: number;
+  lifecycleLogger?: RuntimeChatLifecycleLogger;
 }
 
 export interface AgentExecutionHandle {
@@ -156,12 +158,24 @@ export class AgentExecutionRunner {
       tenantId: input.tenantId,
       userId: input.userId
     });
+    let acceptedAt = 0;
+    const identity = {
+      conversationId: input.conversationId,
+      requestId: input.requestId,
+      traceId: input.traceId,
+      executionId
+    };
     const admitted = (this.persistence
       ? this.publishCommit(this.persistence.lifecycle.startExecution({
         ...this.lifecycleScope(executionId, input),
         message: input.message
       }))
-      : Promise.resolve()).catch(error => {
+      : Promise.resolve())
+      .then(() => {
+        acceptedAt = Date.now();
+        input.lifecycleLogger?.accepted(identity, acceptedAt);
+      })
+      .catch(error => {
         this.executionStateStore.transitionToTerminal(
           input.tenantId,
           input.userId,
@@ -172,7 +186,18 @@ export class AgentExecutionRunner {
         );
         throw error;
       });
-    const done = admitted.then(() => this.runLoop(executionId, input));
+    const done = admitted
+      .then(() => this.runLoop(executionId, input))
+      .then(state => {
+        const timestampMs = Date.now();
+        input.lifecycleLogger?.terminal(identity, {
+          status: state.status,
+          ...(state.endReason ? { stopReason: state.endReason } : {}),
+          durationMs: timestampMs - acceptedAt,
+          timestampMs
+        });
+        return state;
+      });
     void done.catch(() => undefined);
     return { executionId, admitted, done };
   }

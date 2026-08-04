@@ -25,6 +25,10 @@ import { JsonFileMemoryStore, type MemoryStore } from "./memoryStore";
 import { McpRegistry, loadMcpConfig } from "./mcpRegistry";
 import { InMemoryRuntimeEventStore, type RuntimeEventStore } from "./runtimeEventStore";
 import { InMemoryExecutionStateStore, ProcessExecutionStateStore, type ExecutionStateStore } from "./executionStateStore";
+import {
+  createRuntimeChatLifecycleLogger,
+  type RuntimeChatLifecycleLogger
+} from "./runtimeChatLifecycleLog";
 import { openProductionRuntimeContext, type ProductionRuntimeContext } from "./storage/productionRuntimeContext";
 import type { RuntimeDatabaseIdentity } from "./storage/runtimeStorage";
 import { publishCommittedLifecycleEvents } from "./storage/lifecycleCommands";
@@ -76,6 +80,8 @@ export interface CreateServerOptions {
   readiness?: () => RuntimeReadiness;
   /** External-mutation admission provider. Development defaults to allowed. */
   admission?: () => RuntimeStorageAdmission;
+  /** Optional lifecycle logger. Null disables process lifecycle output for controlled tests. */
+  runtimeChatLifecycleLogger?: RuntimeChatLifecycleLogger | null;
 }
 
 export interface RuntimeReadiness {
@@ -161,6 +167,10 @@ export async function createServer(options: CreateServerOptions = {}) {
     ? new ProcessApprovalStore()
     : options.approvalStore ?? developmentStores.approvals();
   const approvalReader = options.runtimeContext?.approvals ?? approvalStore;
+  const runtimeChatLifecycleLogger =
+    options.runtimeChatLifecycleLogger === undefined
+      ? createRuntimeChatLifecycleLogger()
+      : options.runtimeChatLifecycleLogger ?? undefined;
   const runner = new AgentExecutionRunner(
     javaClient,
     history,
@@ -297,7 +307,8 @@ export async function createServer(options: CreateServerOptions = {}) {
       requestId,
       headers: javaHeaders,
       agentDefinition: selectedAgent.definition,
-      stepBudget: body.stepBudget
+      stepBudget: body.stepBudget,
+      lifecycleLogger: runtimeChatLifecycleLogger
     });
     const finalState = await handle.done;
     const response = await buildSyncResponse(
@@ -348,7 +359,8 @@ export async function createServer(options: CreateServerOptions = {}) {
       requestId,
       headers: javaHeaders,
       agentDefinition: selectedAgent.definition,
-      stepBudget: body.stepBudget
+      stepBudget: body.stepBudget,
+      lifecycleLogger: runtimeChatLifecycleLogger
     }, reply);
   });
 
@@ -652,6 +664,23 @@ export async function createServer(options: CreateServerOptions = {}) {
       return;
     }
     const decision = toApprovalDecision(request.body);
+    const accepted = approvalStore.decide(
+      tenantId,
+      userId,
+      conversationId,
+      executionId,
+      toolCallId,
+      decision
+    );
+    if (!accepted) {
+      reply.status(409).send({
+        error: {
+          errorClass: "APPROVAL_NOT_PENDING",
+          errorMessage: `Approval is no longer pending: ${executionId}/${toolCallId}`
+        }
+      });
+      return;
+    }
     if (options.runtimeContext) {
       const committed = await options.runtimeContext.lifecycle.decideApproval({
         tenantId,
@@ -665,7 +694,6 @@ export async function createServer(options: CreateServerOptions = {}) {
       });
       publishCommittedLifecycleEvents(options.runtimeContext.liveEvents, committed);
     }
-    approvalStore.decide(tenantId, userId, conversationId, executionId, toolCallId, decision);
     reply.send({
       executionId,
       toolCallId,

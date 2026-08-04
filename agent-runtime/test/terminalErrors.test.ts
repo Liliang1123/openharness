@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_AGENT_DEFINITION } from "../src/agentDefinitionLoader";
 import { AgentExecutionRunner, type AgentExecutionInput } from "../src/agentExecutionRunner";
 import { InMemoryExecutionStateStore } from "../src/executionStateStore";
 import { InMemoryHistoryStore } from "../src/history";
 import { InMemoryRuntimeEventStore } from "../src/runtimeEventStore";
+import type { RuntimeChatLifecycleLogger } from "../src/runtimeChatLifecycleLog";
 import type { JavaClient, PolicyEvaluateRequest, PolicyEvaluateResponse } from "../src/javaClient";
 import type {
   AgentMessage,
@@ -32,6 +33,22 @@ describe("runtime terminal error mapping", () => {
     expect(result.terminalEvent.data.errorClass).toBe("MODEL_ERROR");
     expect(result.finalState.status).toBe("errored");
     expect(result.finalState.endReason).toBe("MODEL_ERROR");
+    expect(result.accepted).toHaveBeenCalledTimes(1);
+    expect(result.terminal).toHaveBeenCalledTimes(1);
+    expect(result.terminal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: "conv-terminal",
+        requestId: "req1",
+        traceId: "tr1"
+      }),
+      expect.objectContaining({
+        status: "errored",
+        stopReason: "MODEL_ERROR",
+        durationMs: expect.any(Number),
+        timestampMs: expect.any(Number)
+      })
+    );
+    expect(JSON.stringify(result.terminal.mock.calls)).not.toContain("provider failed");
   });
 
   it("maps tool execution failures to TOOL_ERROR", async () => {
@@ -82,17 +99,24 @@ async function runTerminalCase(
     runtimeEventStore,
     executionStateStore
   );
+  const accepted = vi.fn();
+  const terminal = vi.fn();
+  const lifecycleLogger: RuntimeChatLifecycleLogger = { accepted, terminal };
 
   process.env.COMPRESSION_AUTO = "false";
   try {
-    const { executionId, done } = runner.start({ ...baseInput, ...inputOptions });
+    const { executionId, done } = runner.start({
+      ...baseInput,
+      ...inputOptions,
+      lifecycleLogger
+    });
     const finalState = await done;
     const terminalEvent = runtimeEventStore
       .since("t1", "u1", "conv-terminal", null)
       .find((event) => event.kind === "stream_error");
     if (!terminalEvent) throw new Error("missing stream_error");
     expect(executionStateStore.get("t1", "u1", "conv-terminal", executionId)).toEqual(finalState);
-    return { finalState, terminalEvent, history };
+    return { finalState, terminalEvent, history, accepted, terminal };
   } finally {
     delete process.env.COMPRESSION_AUTO;
   }
