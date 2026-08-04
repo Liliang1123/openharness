@@ -7,8 +7,15 @@ import { createServer } from "../src/server";
 import { openProductionRuntimeContext } from "../src/storage/productionRuntimeContext";
 import { main } from "../src/productionEntrypoint";
 import { acquireRuntimeSingletonLock } from "../src/storage/singletonLock";
-import type { JavaClient } from "../src/javaClient";
-import type { AgentMessage, CatalogResponse, ModelChatRequest, ToolCallRequest, TraceEvent } from "../src/types";
+import type { JavaClient, PolicyEvaluateResponse } from "../src/javaClient";
+import type {
+  AgentMessage,
+  CatalogResponse,
+  ModelChatRequest,
+  ModelChatResponse,
+  ToolCallRequest,
+  TraceEvent
+} from "../src/types";
 import { InMemoryHistoryStore } from "../src/history";
 import { InMemoryMemoryStore } from "../src/memoryStore";
 import { InMemoryRuntimeEventStore } from "../src/runtimeEventStore";
@@ -30,6 +37,8 @@ function workspace() {
 }
 
 afterEach(() => {
+  delete process.env.APPROVAL_TIMEOUT_MS;
+  delete process.env.COMPRESSION_AUTO;
   for (const path of workspaces.splice(0)) rmSync(path, { recursive: true, force: true });
 });
 
@@ -290,7 +299,7 @@ describe("production server lifecycle", () => {
     await first.close();
   });
 
-  it("commits approval and abort API mutations before returning", async () => {
+  it("rejects orphaned approval and commits abort API mutations before returning", async () => {
     const target = workspace();
     const context = await openProductionRuntimeContext(target.databasePath);
     const approvalScope = {
@@ -343,10 +352,13 @@ describe("production server lifecycle", () => {
       headers,
       payload: { action: "approve" }
     });
-    expect(approval.statusCode).toBe(200);
+    expect(approval.statusCode).toBe(409);
+    expect(approval.json()).toMatchObject({
+      error: { errorClass: "APPROVAL_NOT_PENDING" }
+    });
     expect(await context.approvals.listPending(
       "tenant-a", "user-a", "approval-conversation"
-    )).toEqual([]);
+    )).toHaveLength(1);
 
     const abort = await app.inject({
       method: "POST",
@@ -363,6 +375,93 @@ describe("production server lifecycle", () => {
 
     await app.close();
     await context.close();
+  });
+
+  it("lets the process approval owner arbitrate an approve-timeout race before durable acknowledgement", async () => {
+    process.env.APPROVAL_TIMEOUT_MS = "20";
+    process.env.COMPRESSION_AUTO = "false";
+    const target = workspace();
+    const context = await openProductionRuntimeContext(target.databasePath);
+    const originalDecideApproval = context.lifecycle.decideApproval.bind(context.lifecycle);
+    let releaseApproved!: () => void;
+    const approvedGate = new Promise<void>((resolve) => { releaseApproved = resolve; });
+    let signalApprovedEntered!: () => void;
+    const approvedEntered = new Promise<void>((resolve) => { signalApprovedEntered = resolve; });
+    const runtimeContext = {
+      ...context,
+      lifecycle: {
+        ...context.lifecycle,
+        async decideApproval(input: Parameters<typeof context.lifecycle.decideApproval>[0]) {
+          if (input.nextStatus === "approved") {
+            signalApprovedEntered();
+            await approvedGate;
+          }
+          return originalDecideApproval(input);
+        }
+      }
+    };
+    const javaClient = new ApprovalRaceJavaClient();
+    const app = await createServer({
+      runtimeContext,
+      javaClient,
+      disableMcp: true,
+      runtimeChatLifecycleLogger: null
+    });
+    const headers = productionHeaders();
+    const chat = app.inject({
+      method: "POST",
+      url: "/api/v1/agent/chat",
+      headers,
+      payload: { conversationId: "approval-race", message: "read" }
+    });
+
+    try {
+      await waitForAsync(async () => (await context.approvals.listPending(
+        "tenant-a",
+        "user-a",
+        "approval-race"
+      )).length === 1);
+      const execution = await context.executions.getActive(
+        "tenant-a",
+        "user-a",
+        "approval-race"
+      );
+      expect(execution).not.toBeNull();
+      const approval = app.inject({
+        method: "POST",
+        url: `/api/v1/sessions/approval-race/executions/${execution!.executionId}/approvals/call-race`,
+        headers,
+        payload: { action: "approve" }
+      });
+
+      await approvedEntered;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      releaseApproved();
+      const approvalResponse = await approval;
+      const chatResponse = await chat;
+      const events = await context.events.since(
+        "tenant-a",
+        "user-a",
+        "approval-race",
+        null
+      );
+
+      expect(approvalResponse.statusCode).toBe(200);
+      expect(approvalResponse.json()).toMatchObject({ status: "approved" });
+      expect(chatResponse.statusCode).toBe(200);
+      expect(javaClient.executions).toBe(1);
+      expect(javaClient.submissions).toEqual([
+        expect.objectContaining({ callId: "call-race", status: "ok" })
+      ]);
+      expect(events.filter((event) => event.kind === "tool_result"))
+        .toEqual([expect.objectContaining({
+          data: expect.objectContaining({ toolCallId: "call-race", status: "ok" })
+        })]);
+    } finally {
+      releaseApproved();
+      await app.close();
+      await context.close();
+    }
   });
 
   it("releases the production lock when listen fails", async () => {
@@ -452,7 +551,7 @@ class FinalAnswerJavaClient implements JavaClient {
   async getCatalog(): Promise<CatalogResponse> {
     return { catalogVersion: "v1", catalogHash: "hash", tools: [] };
   }
-  async chat(request: ModelChatRequest) {
+  async chat(request: ModelChatRequest): Promise<ModelChatResponse> {
     return {
       requestId: request.requestId,
       conversationId: request.conversationId,
@@ -471,8 +570,96 @@ class FinalAnswerJavaClient implements JavaClient {
     };
   }
   async postTrace(_event: TraceEvent, _headers: Record<string, string>) {}
-  async evaluatePolicy(request: Parameters<JavaClient["evaluatePolicy"]>[0]) {
+  async evaluatePolicy(
+    request: Parameters<JavaClient["evaluatePolicy"]>[0]
+  ): Promise<PolicyEvaluateResponse> {
     return { requestId: request.requestId, conversationId: request.conversationId, decisions: [] };
+  }
+}
+
+class ApprovalRaceJavaClient extends FinalAnswerJavaClient {
+  executions = 0;
+  submissions: Array<{ callId: string; status: string }> = [];
+
+  override async getCatalog(): Promise<CatalogResponse> {
+    return {
+      catalogVersion: "v1",
+      catalogHash: "hash",
+      tools: [{
+        name: "read_file",
+        description: "Read",
+        parameters: { type: "object", properties: {}, required: [] },
+        permission: "safe",
+        isReadOnly: true,
+        isDestructive: false,
+        requiresApproval: false,
+        isConcurrencySafe: true
+      }]
+    };
+  }
+
+  override async chat(request: ModelChatRequest): Promise<ModelChatResponse> {
+    return {
+      requestId: request.requestId,
+      conversationId: request.conversationId,
+      pendingTurn: {
+        bridgeId: "bridge-race",
+        threadId: "thread-race",
+        turnId: "turn-race",
+        callId: "call-race",
+        toolName: "read_file",
+        argumentsRaw: "{\"path\":\"ARG-CANARY\"}",
+        expiresAt: "2099-01-01T00:00:00Z"
+      },
+      rawProvider: "codex-app-server"
+    };
+  }
+
+  async completeCodexToolCall(
+    _bridgeId: string,
+    request: Parameters<NonNullable<JavaClient["completeCodexToolCall"]>>[1]
+  ) {
+    this.submissions.push({ callId: request.callId, status: request.status });
+    return {
+      requestId: request.requestId,
+      conversationId: request.conversationId,
+      message: { role: "assistant" as const, content: "done" },
+      rawProvider: "codex-app-server"
+    };
+  }
+
+  async cancelCodexTurn(
+    _bridgeId: string,
+    request: Parameters<NonNullable<JavaClient["cancelCodexTurn"]>>[1]
+  ) {
+    return {
+      requestId: request.requestId,
+      conversationId: request.conversationId,
+      error: {
+        errorClass: "BRIDGE_TURN_GONE",
+        errorMessage: "gone",
+        retriable: false
+      },
+      rawProvider: "codex-app-server"
+    };
+  }
+
+  override async executeTool(request: ToolCallRequest) {
+    this.executions += 1;
+    return super.executeTool(request);
+  }
+
+  override async evaluatePolicy(
+    request: Parameters<JavaClient["evaluatePolicy"]>[0]
+  ): Promise<PolicyEvaluateResponse> {
+    return {
+      requestId: request.requestId,
+      conversationId: request.conversationId,
+      decisions: request.toolCalls.map((call) => ({
+        toolCallId: call.id,
+        decision: "REQUIRE_APPROVAL"
+      }))
+    };
   }
 }
 
@@ -556,6 +743,17 @@ function productionHeaders(): Record<string, string> {
     "x-trace-id": "trace-a",
     "x-request-id": "request-a"
   };
+}
+
+async function waitForAsync(
+  predicate: () => Promise<boolean>,
+  timeoutMs = 1_000
+): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!(await predicate())) {
+    if (Date.now() >= deadline) throw new Error("Timed out waiting for condition");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
 }
 
 async function seedTraceEvent(databasePath: string, deadLetter: boolean): Promise<void> {

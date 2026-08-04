@@ -62,6 +62,9 @@ class PendingJavaClient implements JavaClient {
   toolFailure = false;
   toolDelayMs = 0;
   pendingArgumentsRaw = "{\"secret\":\"ARG-CANARY\"}";
+  beforeInitialPendingReturn?: () => void;
+  beforeLaterPendingReturn?: () => void;
+  timeline?: string[];
   completions: Array<{ bridgeId: string; request: any }> = [];
   cancellations: Array<{ bridgeId: string; request: any }> = [];
   executions: ToolCallRequest[] = [];
@@ -69,22 +72,27 @@ class PendingJavaClient implements JavaClient {
   async getCatalog() { return catalog(); }
   async chat(request: ModelChatRequest) {
     this.chatCalls += 1;
-    return {
+    const response = {
       requestId: request.requestId,
       conversationId: request.conversationId,
       pendingTurn: pending("call-1", "bridge-1", this.pendingArgumentsRaw),
       rawProvider: "codex-app-server"
     };
+    this.beforeInitialPendingReturn?.();
+    return response;
   }
   async completeCodexToolCall(bridgeId: string, request: any): Promise<ModelChatResponse> {
     this.completions.push({ bridgeId, request });
+    this.timeline?.push(`complete:${request.callId}`);
     if (this.sequential && this.completions.length === 1) {
-      return {
+      const response = {
         requestId: request.requestId,
         conversationId: request.conversationId,
         pendingTurn: pending("call-2", "bridge-1", this.pendingArgumentsRaw),
         rawProvider: "codex-app-server"
       };
+      this.beforeLaterPendingReturn?.();
+      return response;
     }
     return {
       requestId: request.requestId,
@@ -95,6 +103,7 @@ class PendingJavaClient implements JavaClient {
   }
   async cancelCodexTurn(bridgeId: string, request: any): Promise<ModelChatResponse> {
     this.cancellations.push({ bridgeId, request });
+    this.timeline?.push(`cancel:${request.callId}`);
     return {
       requestId: request.requestId,
       conversationId: request.conversationId,
@@ -132,6 +141,7 @@ describe("Codex pending turn", () => {
   afterEach(() => {
     delete process.env.COMPRESSION_AUTO;
     delete process.env.APPROVAL_TIMEOUT_MS;
+    delete process.env.EXECUTION_TIMEOUT_MS;
     vi.restoreAllMocks();
   });
 
@@ -182,6 +192,10 @@ describe("Codex pending turn", () => {
     expect(stored).not.toMatch(/bridge-1|ARG-CANARY|RESULT-CANARY/);
     const emitted = JSON.stringify(events.since("tenant-1", "user-1", "conv-codex", null));
     expect(emitted).not.toMatch(/bridge-1|ARG-CANARY|RESULT-CANARY|AUTH-CANARY/);
+    expect(events.since("tenant-1", "user-1", "conv-codex", null)
+      .filter((event) => event.kind === "tool_result")
+      .map((event) => [event.data.toolCallId, event.data.status]))
+      .toEqual([["call-1", "ok"], ["call-2", "ok"]]);
     expect(events.since("tenant-1", "user-1", "conv-codex", null).filter((event) => event.kind === "trace" && event.data.eventType === "STEP_START")).toHaveLength(1);
   });
 
@@ -193,11 +207,12 @@ describe("Codex pending turn", () => {
     client.sequential = false;
     client.policyDecision = decision;
     client.toolFailure = toolFailure;
+    const events = new InMemoryRuntimeEventStore();
     const runner = new AgentExecutionRunner(
       client,
       new InMemoryHistoryStore(),
       undefined,
-      new InMemoryRuntimeEventStore(),
+      events,
       new InMemoryExecutionStateStore()
     );
 
@@ -208,6 +223,16 @@ describe("Codex pending turn", () => {
     expect(client.completions[0].request.status).toBe(expectedStatus);
     expect(JSON.stringify(client.completions[0].request)).not.toContain("RESULT-CANARY");
     expect(client.executions).toHaveLength(decision === "ALLOW" ? 1 : 0);
+    const lifecycle = events.since("tenant-1", "user-1", "conv-codex", null);
+    expect(lifecycle.filter((event) => event.kind === "tool_result"))
+      .toEqual([expect.objectContaining({
+        data: expect.objectContaining({
+          toolCallId: "call-1",
+          status: expectedStatus
+        })
+      })]);
+    expect(lifecycle.filter((event) => event.kind === "tool_call"))
+      .toHaveLength(decision === "ALLOW" ? 1 : 0);
   });
 
   it("keeps Codex approval payload transient and submits rejection", async () => {
@@ -227,18 +252,25 @@ describe("Codex pending turn", () => {
 
     expect(final.status).toBe("completed");
     expect(client.completions[0].request.status).toBe("rejected");
-    expect(JSON.stringify(events.since("tenant-1", "user-1", "conv-codex", null))).not.toMatch(/ARG-CANARY|APPROVAL-CANARY|bridge-1/);
+    const lifecycle = events.since("tenant-1", "user-1", "conv-codex", null);
+    expect(lifecycle.filter((event) => event.kind === "tool_call")).toHaveLength(0);
+    expect(lifecycle.filter((event) => event.kind === "tool_result"))
+      .toEqual([expect.objectContaining({
+        data: expect.objectContaining({ toolCallId: "call-1", status: "rejected" })
+      })]);
+    expect(JSON.stringify(lifecycle)).not.toMatch(/ARG-CANARY|APPROVAL-CANARY|bridge-1/);
   });
 
   it("maps malformed pending arguments to error without executing a tool", async () => {
     const client = new PendingJavaClient();
     client.sequential = false;
     client.pendingArgumentsRaw = "not-json";
+    const events = new InMemoryRuntimeEventStore();
     const runner = new AgentExecutionRunner(
       client,
       new InMemoryHistoryStore(),
       undefined,
-      new InMemoryRuntimeEventStore(),
+      events,
       new InMemoryExecutionStateStore()
     );
 
@@ -247,6 +279,91 @@ describe("Codex pending turn", () => {
     expect(final.status).toBe("completed");
     expect(client.executions).toHaveLength(0);
     expect(client.completions[0].request).toMatchObject({ status: "error", content: "MODEL_TOOL_PARSE_ERROR" });
+    const lifecycle = events.since("tenant-1", "user-1", "conv-codex", null);
+    expect(lifecycle.filter((event) => event.kind === "tool_call")).toHaveLength(0);
+    expect(lifecycle.filter((event) => event.kind === "tool_result"))
+      .toEqual([expect.objectContaining({
+        data: expect.objectContaining({ toolCallId: "call-1", status: "error" })
+      })]);
+  });
+
+  it("commits a safe result before cancelling an initial pending call aborted immediately", async () => {
+    const client = new PendingJavaClient();
+    client.sequential = false;
+    const states = new InMemoryExecutionStateStore();
+    const events = new InMemoryRuntimeEventStore();
+    const timeline: string[] = [];
+    client.timeline = timeline;
+    events.subscribe("tenant-1", "user-1", "conv-codex", (event) => {
+      if (event.kind === "tool_result") timeline.push(`result:${String(event.data.toolCallId)}`);
+      if (event.kind === "stream_error") timeline.push("stream_error");
+    });
+    client.beforeInitialPendingReturn = () => {
+      const active = states.getActive("tenant-1", "user-1", "conv-codex");
+      if (!active) throw new Error("Expected active execution");
+      states.abort("tenant-1", "user-1", "conv-codex", active.executionId);
+    };
+    const runner = new AgentExecutionRunner(
+      client,
+      new InMemoryHistoryStore(),
+      undefined,
+      events,
+      states
+    );
+
+    const final = await runner.start(input).done;
+
+    expect(final.status).toBe("aborted");
+    expect(client.executions).toHaveLength(0);
+    expect(client.completions).toHaveLength(0);
+    expect(client.cancellations).toHaveLength(1);
+    expect(client.cancellations[0]).toMatchObject({
+      bridgeId: "bridge-1",
+      request: { threadId: "thread-1", turnId: "turn-1", callId: "call-1" }
+    });
+    expect(timeline).toEqual(["result:call-1", "cancel:call-1", "stream_error"]);
+  });
+
+  it("commits a safe result before cancelling a later pending call aborted immediately", async () => {
+    const client = new PendingJavaClient();
+    const states = new InMemoryExecutionStateStore();
+    const events = new InMemoryRuntimeEventStore();
+    const timeline: string[] = [];
+    client.timeline = timeline;
+    events.subscribe("tenant-1", "user-1", "conv-codex", (event) => {
+      if (event.kind === "tool_result") timeline.push(`result:${String(event.data.toolCallId)}`);
+      if (event.kind === "stream_error") timeline.push("stream_error");
+    });
+    client.beforeLaterPendingReturn = () => {
+      const active = states.getActive("tenant-1", "user-1", "conv-codex");
+      if (!active) throw new Error("Expected active execution");
+      states.abort("tenant-1", "user-1", "conv-codex", active.executionId);
+    };
+    const runner = new AgentExecutionRunner(
+      client,
+      new InMemoryHistoryStore(),
+      undefined,
+      events,
+      states
+    );
+
+    const final = await runner.start(input).done;
+
+    expect(final.status).toBe("aborted");
+    expect(client.executions.map((request) => request.toolCallId)).toEqual(["call-1"]);
+    expect(client.completions).toHaveLength(1);
+    expect(client.cancellations).toHaveLength(1);
+    expect(client.cancellations[0]).toMatchObject({
+      bridgeId: "bridge-1",
+      request: { threadId: "thread-1", turnId: "turn-1", callId: "call-2" }
+    });
+    expect(timeline).toEqual([
+      "result:call-1",
+      "complete:call-1",
+      "result:call-2",
+      "cancel:call-2",
+      "stream_error"
+    ]);
   });
 
   it("cancels the exact pending turn when execution is aborted", async () => {
@@ -254,11 +371,12 @@ describe("Codex pending turn", () => {
     client.sequential = false;
     client.toolDelayMs = 50;
     const states = new InMemoryExecutionStateStore();
+    const events = new InMemoryRuntimeEventStore();
     const runner = new AgentExecutionRunner(
       client,
       new InMemoryHistoryStore(),
       undefined,
-      new InMemoryRuntimeEventStore(),
+      events,
       states
     );
     const { executionId, done } = runner.start(input);
@@ -274,6 +392,64 @@ describe("Codex pending turn", () => {
       bridgeId: "bridge-1",
       request: { threadId: "thread-1", turnId: "turn-1", callId: "call-1" }
     });
+    const lifecycle = events.since("tenant-1", "user-1", "conv-codex", null);
+    expect(lifecycle.filter((event) => event.kind === "tool_result"))
+      .toEqual([expect.objectContaining({
+        data: expect.objectContaining({ toolCallId: "call-1", status: "error" })
+      })]);
+    expect(lifecycle.findIndex((event) => event.kind === "tool_result"))
+      .toBeLessThan(lifecycle.findIndex((event) => event.kind === "stream_error"));
+  });
+
+  it("commits timeout feedback and cancels when the execution deadline expires during a tool", async () => {
+    process.env.EXECUTION_TIMEOUT_MS = "10";
+    const client = new PendingJavaClient();
+    client.sequential = false;
+    client.toolDelayMs = 50;
+    const events = new InMemoryRuntimeEventStore();
+    const runner = new AgentExecutionRunner(
+      client,
+      new InMemoryHistoryStore(),
+      undefined,
+      events,
+      new InMemoryExecutionStateStore()
+    );
+
+    const final = await runner.start(input).done;
+
+    expect(final).toMatchObject({ status: "errored", endReason: "EXECUTION_TIMEOUT" });
+    expect(client.executions).toHaveLength(1);
+    expect(client.completions).toHaveLength(0);
+    expect(client.cancellations).toHaveLength(1);
+    expect(client.cancellations[0]).toMatchObject({
+      bridgeId: "bridge-1",
+      request: { threadId: "thread-1", turnId: "turn-1", callId: "call-1" }
+    });
+    const lifecycle = events.since("tenant-1", "user-1", "conv-codex", null);
+    const relevant = lifecycle.filter((event) =>
+      event.kind === "tool_call"
+      || event.kind === "tool_result"
+      || event.kind === "stream_error"
+    );
+    expect(relevant).toEqual([
+      expect.objectContaining({
+        kind: "tool_call",
+        data: expect.objectContaining({ toolCallId: "call-1" })
+      }),
+      expect.objectContaining({
+        kind: "tool_result",
+        data: expect.objectContaining({ toolCallId: "call-1", status: "timeout" })
+      }),
+      expect.objectContaining({
+        kind: "stream_error",
+        data: expect.objectContaining({ errorClass: "EXECUTION_TIMEOUT" })
+      })
+    ]);
+    const eventCountAtTerminal = lifecycle.length;
+    await new Promise((resolve) => setTimeout(resolve, client.toolDelayMs + 20));
+    const afterToolSettles = events.since("tenant-1", "user-1", "conv-codex", null);
+    expect(afterToolSettles).toHaveLength(eventCountAtTerminal);
+    expect(afterToolSettles.at(-1)?.kind).toBe("stream_error");
   });
 
   it("submits approval timeout without exposing the pending payload", async () => {
@@ -296,7 +472,13 @@ describe("Codex pending turn", () => {
     expect(final.status).toBe("completed");
     expect(client.completions).toHaveLength(1);
     expect(client.completions[0].request).toMatchObject({ status: "timeout", content: "APPROVAL_TIMEOUT" });
-    expect(JSON.stringify(events.since("tenant-1", "user-1", "conv-codex", null))).not.toMatch(/ARG-CANARY|AUTH-CANARY|bridge-1/);
+    const lifecycle = events.since("tenant-1", "user-1", "conv-codex", null);
+    expect(lifecycle.filter((event) => event.kind === "tool_call")).toHaveLength(0);
+    expect(lifecycle.filter((event) => event.kind === "tool_result"))
+      .toEqual([expect.objectContaining({
+        data: expect.objectContaining({ toolCallId: "call-1", status: "timeout" })
+      })]);
+    expect(JSON.stringify(lifecycle)).not.toMatch(/ARG-CANARY|AUTH-CANARY|bridge-1/);
   });
 
   it("retries one ambiguous completion with the identical idempotency payload", async () => {
@@ -352,7 +534,16 @@ describe("Codex pending turn", () => {
     expect(client.attempts).toBe(1);
     expect(client.executions).toHaveLength(1);
     expect(client.cancellations).toHaveLength(1);
-    expect(JSON.stringify(events.since("tenant-1", "user-1", "conv-codex", null))).not.toMatch(/OAUTH-CANARY|RESULT-CANARY/);
+    const lifecycle = events.since("tenant-1", "user-1", "conv-codex", null);
+    expect(lifecycle.findIndex((event) => event.kind === "tool_call"))
+      .toBeLessThan(lifecycle.findIndex((event) => event.kind === "tool_result"));
+    expect(lifecycle.findIndex((event) => event.kind === "tool_result"))
+      .toBeLessThan(lifecycle.findIndex((event) => event.kind === "stream_error"));
+    expect(lifecycle.filter((event) => event.kind === "tool_result"))
+      .toEqual([expect.objectContaining({
+        data: expect.objectContaining({ toolCallId: "call-1", status: "ok" })
+      })]);
+    expect(JSON.stringify(lifecycle)).not.toMatch(/OAUTH-CANARY|RESULT-CANARY/);
   });
 });
 

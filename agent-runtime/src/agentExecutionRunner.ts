@@ -551,7 +551,11 @@ export class AgentExecutionRunner {
     send: (event: RuntimeEventKind, data: Record<string, unknown>) => Promise<void>,
     emit: (ev: TraceEvent) => Promise<void>,
     isAborted: () => boolean,
-    options: { persistHistory?: boolean; transientApproval?: boolean } = {}
+    options: {
+      persistHistory?: boolean;
+      transientApproval?: boolean;
+      deferToolResultEvent?: boolean;
+    } = {}
   ): Promise<ToolBatchOutcome[]> {
     const outcomes: ToolBatchOutcome[] = [];
     const history = await this.history.get(input.tenantId, input.userId, input.conversationId);
@@ -594,8 +598,10 @@ export class AgentExecutionRunner {
               approvalId: pending.askUserId,
               toolCallId: toolCall.id,
               toolName: toolCall.name,
-              argumentsRaw: toolCall.argumentsRaw,
-              reason: decision.reason
+              argumentsRaw: options.transientApproval ? "{}" : toolCall.argumentsRaw,
+              reason: options.transientApproval
+                ? safeApprovalReasonClassification(decision.source)
+                : decision.reason
             }));
           } else await send("approval_requested", options.transientApproval ? {
             askUserId: pending.askUserId,
@@ -612,11 +618,37 @@ export class AgentExecutionRunner {
             approvalToken: decision.approvalToken,
             stepIndex
           });
-          const approval = await this.withApprovalTimeout(
-            this.approvalStore.waitForDecision(input.tenantId, input.userId, input.conversationId, pending.executionId, toolCall.id),
-            toolCall.id,
-            toolCall.name
-          );
+          let approval: ApprovalDecision;
+          try {
+            approval = await this.withApprovalTimeout(
+              this.approvalStore.waitForDecision(input.tenantId, input.userId, input.conversationId, pending.executionId, toolCall.id),
+              toolCall.id,
+              toolCall.name
+            );
+          } catch (failure) {
+            if (failure instanceof RuntimeTerminalFailure && failure.errorClass === "APPROVAL_TIMEOUT") {
+              this.approvalStore.decide(
+                input.tenantId,
+                input.userId,
+                input.conversationId,
+                pending.executionId,
+                toolCall.id,
+                {
+                  action: "reject",
+                  message: "APPROVAL_TIMEOUT",
+                  respondedAt: new Date().toISOString()
+                }
+              );
+              if (this.persistence) {
+                await this.publishCommit(this.persistence.lifecycle.decideApproval({
+                  ...this.lifecycleScope(pending.executionId, input),
+                  approvalId: pending.askUserId,
+                  nextStatus: "rejected"
+                }));
+              }
+            }
+            throw failure;
+          }
           if (this.persistence) {
             await this.publishCommit(this.persistence.lifecycle.decideApproval({
               ...this.lifecycleScope(pending.executionId, input),
@@ -646,7 +678,14 @@ export class AgentExecutionRunner {
                 await this.history.append(input.tenantId, input.userId, input.conversationId, rejected);
               }
             }
-            if (!this.persistence) await send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "rejected", stepIndex });
+            if (!options.deferToolResultEvent && !this.persistence) {
+              await send("tool_result", {
+                toolCallId: toolCall.id,
+                toolName: toolCall.name,
+                status: "rejected",
+                stepIndex
+              });
+            }
             outcomes.push({
               toolCallId: toolCall.id,
               toolName: toolCall.name,
@@ -656,8 +695,23 @@ export class AgentExecutionRunner {
             continue;
           }
           const approvedToolCall = withApprovedArguments(toolCall, approval);
+          const malformedApproved = options.deferToolResultEvent
+            ? this.malformedToolOutcome(approvedToolCall)
+            : undefined;
+          if (malformedApproved) {
+            outcomes.push(malformedApproved);
+            continue;
+          }
           await send("tool_call", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, stepIndex });
-          const toolResult = await this.executeTool(input, catalog, approvedToolCall, stepIndex, emit, pending.approvalToken);
+          const toolResult = await this.executeTool(
+            input,
+            catalog,
+            approvedToolCall,
+            stepIndex,
+            emit,
+            isAborted,
+            pending.approvalToken
+          );
           if (options.persistHistory !== false) {
             if (this.persistence) {
               await this.publishCommit(this.persistence.lifecycle.completeTool({
@@ -669,20 +723,49 @@ export class AgentExecutionRunner {
               await this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
             }
           }
-          if (!this.persistence) await send("tool_result", { toolCallId: approvedToolCall.id, toolName: approvedToolCall.name, status: "ok", stepIndex });
+          if (!options.deferToolResultEvent && !this.persistence) {
+            await send("tool_result", {
+              toolCallId: approvedToolCall.id,
+              toolName: approvedToolCall.name,
+              status: "ok",
+              stepIndex
+            });
+          }
           outcomes.push(this.toolOutcome(approvedToolCall, toolResult));
           continue;
         }
         const status = decision?.decision === "REQUIRE_APPROVAL" ? "pending_approval" : "denied";
-        await send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status, reason: decision?.reason, stepIndex });
+        if (!options.deferToolResultEvent) {
+          await send("tool_result", {
+            toolCallId: toolCall.id,
+            toolName: toolCall.name,
+            status,
+            reason: decision?.reason,
+            stepIndex
+          });
+        }
         throw new RuntimeTerminalFailure("POLICY_DENY", decision?.reason ?? "Tool execution denied by policy", {
           toolCallId: toolCall.id,
           toolName: toolCall.name,
           stepIndex
         });
       }
+      const malformed = options.deferToolResultEvent
+        ? this.malformedToolOutcome(toolCall)
+        : undefined;
+      if (malformed) {
+        outcomes.push(malformed);
+        continue;
+      }
       await send("tool_call", { toolCallId: toolCall.id, toolName: toolCall.name, stepIndex });
-      const toolResult = await this.executeTool(input, catalog, toolCall, stepIndex, emit);
+      const toolResult = await this.executeTool(
+        input,
+        catalog,
+        toolCall,
+        stepIndex,
+        emit,
+        isAborted
+      );
       if (options.persistHistory !== false) {
         if (this.persistence) {
           await this.publishCommit(this.persistence.lifecycle.completeTool({
@@ -694,10 +777,34 @@ export class AgentExecutionRunner {
           await this.history.append(input.tenantId, input.userId, input.conversationId, toolResult);
         }
       }
-      if (!this.persistence) await send("tool_result", { toolCallId: toolCall.id, toolName: toolCall.name, status: "ok", stepIndex });
+      if (!options.deferToolResultEvent && !this.persistence) {
+        await send("tool_result", {
+          toolCallId: toolCall.id,
+          toolName: toolCall.name,
+          status: "ok",
+          stepIndex
+        });
+      }
       outcomes.push(this.toolOutcome(toolCall, toolResult));
     }
     return outcomes;
+  }
+
+  private malformedToolOutcome(toolCall: ToolCall): ToolBatchOutcome | undefined {
+    try {
+      const parsed = JSON.parse(toolCall.argumentsRaw);
+      if (parsed != null && !Array.isArray(parsed) && typeof parsed === "object") {
+        return undefined;
+      }
+    } catch {
+      // Invalid JSON is reported to the exact pending Codex responder below.
+    }
+    return {
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      status: "error",
+      content: "MODEL_TOOL_PARSE_ERROR"
+    };
   }
 
   private toolOutcome(toolCall: ToolCall, result: AgentMessage): ToolBatchOutcome {
@@ -729,9 +836,6 @@ export class AgentExecutionRunner {
     let active: PendingCodexTurn | undefined;
     try {
       while ((active = response.pendingTurn) !== undefined) {
-        if (isAborted()) {
-          throw new RuntimeTerminalFailure("EXECUTION_ABORTED", "Execution was aborted by client", { stepIndex });
-        }
         const toolCall: ToolCall = {
           id: active.callId,
           name: active.toolName,
@@ -740,7 +844,16 @@ export class AgentExecutionRunner {
 
         let status: CodexToolResultSubmission["status"];
         let content: string;
-        try {
+        let deferredFailure: RuntimeTerminalFailure | undefined;
+        if (isAborted()) {
+          status = "error";
+          content = "EXECUTION_ABORTED";
+          deferredFailure = new RuntimeTerminalFailure(
+            "EXECUTION_ABORTED",
+            "Execution was aborted by client",
+            { stepIndex }
+          );
+        } else try {
           this.assertToolCallsAllowed(input, [toolCall], stepIndex);
           const outcomes = await this.withExecutionDeadline(
             executionId,
@@ -748,7 +861,8 @@ export class AgentExecutionRunner {
             input,
             this.runToolBatch(input, catalog, [toolCall], stepIndex, send, emit, isAborted, {
               persistHistory: false,
-              transientApproval: true
+              transientApproval: true,
+              deferToolResultEvent: true
             })
           );
           const outcome = outcomes[0];
@@ -765,16 +879,31 @@ export class AgentExecutionRunner {
             status = "rejected";
             content = "POLICY_REJECTED";
           } else if (failure instanceof RuntimeTerminalFailure
-            && (failure.errorClass === "APPROVAL_TIMEOUT" || failure.errorClass === "EXECUTION_TIMEOUT")) {
+            && failure.errorClass === "APPROVAL_TIMEOUT") {
             status = "timeout";
             content = failure.errorClass;
+          } else if (failure instanceof RuntimeTerminalFailure
+            && failure.errorClass === "EXECUTION_TIMEOUT") {
+            status = "timeout";
+            content = failure.errorClass;
+            deferredFailure = failure;
           } else if (failure instanceof RuntimeTerminalFailure && failure.errorClass === "EXECUTION_ABORTED") {
-            throw failure;
+            status = "error";
+            content = "EXECUTION_ABORTED";
+            deferredFailure = failure;
           } else {
             status = "error";
             content = failure instanceof RuntimeTerminalFailure ? failure.errorClass : "TOOL_ERROR";
           }
         }
+
+        await send("tool_result", {
+          toolCallId: toolCall.id,
+          toolName: toolCall.name,
+          status,
+          stepIndex
+        });
+        if (deferredFailure) throw deferredFailure;
 
         const submission: CodexToolResultSubmission = {
           requestId: input.requestId,
@@ -848,6 +977,7 @@ export class AgentExecutionRunner {
     toolCall: ToolCall,
     stepIndex: number,
     emit: (ev: TraceEvent) => Promise<void>,
+    isAborted: () => boolean,
     approvalToken?: string
   ): Promise<AgentMessage> {
     let args: Record<string, unknown>;
@@ -881,6 +1011,7 @@ export class AgentExecutionRunner {
         const skill = skillName.startsWith("mcp:") && this.mcpRegistry
           ? await this.mcpRegistry.getVirtualSkill(skillName)
           : await this.loadSkill(skillName);
+        this.assertExecutionActive(isAborted, stepIndex);
 
         if (skill.metadata.fork_agent === true) {
           const executionId = this.currentExecutionId(input.tenantId, input.userId, input.conversationId);
@@ -927,6 +1058,7 @@ export class AgentExecutionRunner {
                 )
               : undefined
           });
+          this.assertExecutionActive(isAborted, stepIndex);
 
           if (subagentResult.status === "error") {
             await emit(this.ev(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", {
@@ -999,6 +1131,7 @@ export class AgentExecutionRunner {
         conversationId: input.conversationId,
         toolCallId: toolCall.id
       }, { signal: abortSignal });
+      this.assertExecutionActive(isAborted, stepIndex);
       const mcpServer = typeof args.server === "string" ? args.server.slice(0, 128) : undefined;
       const mcpTool = typeof args.tool === "string" ? args.tool.slice(0, 128) : undefined;
       await emit(this.ev(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", {
@@ -1035,6 +1168,7 @@ export class AgentExecutionRunner {
       approvalToken
     };
     const result = await this.javaClient.executeTool(request, input.headers);
+    this.assertExecutionActive(isAborted, stepIndex);
     await emit(this.ev(input, TRACE_OBSERVE_TOOL_RESULT, "tool result", { toolName: toolCall.name, status: result.status, stepIndex }));
     if (result.status !== "ok") {
       throw new RuntimeTerminalFailure("TOOL_ERROR", result.error.errorMessage, {
@@ -1047,6 +1181,16 @@ export class AgentExecutionRunner {
     const content = JSON.stringify(result.result ?? {});
     const provenance = result.provenance ?? "trusted";
     return toolMessage(toolCall.id, toolCall.name, content, provenance);
+  }
+
+  private assertExecutionActive(isAborted: () => boolean, stepIndex: number): void {
+    if (isAborted()) {
+      throw new RuntimeTerminalFailure(
+        "EXECUTION_ABORTED",
+        "Execution was aborted by client",
+        { stepIndex }
+      );
+    }
   }
 
   private ev(input: AgentExecutionInput, eventType: string, name: string, attributes?: Record<string, unknown>): TraceEvent {
@@ -1178,6 +1322,12 @@ export class AgentExecutionRunner {
       // Durable state is already committed; replay remains authoritative.
     }
   }
+}
+
+function safeApprovalReasonClassification(source?: string): string {
+  return source && /^[A-Z0-9_]{1,128}$/.test(source)
+    ? source
+    : "POLICY_REQUIRE_APPROVAL";
 }
 
 function admissionFailureReason(error: unknown): string {

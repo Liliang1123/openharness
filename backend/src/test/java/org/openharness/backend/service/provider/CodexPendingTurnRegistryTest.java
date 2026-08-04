@@ -227,6 +227,28 @@ class CodexPendingTurnRegistryTest {
   }
 
   @Test
+  void fiveSequentialPendingCallsReuseOneBridgeAndCompleteExactlyOnceEach() {
+    Fixture fixture = new Fixture();
+    String bridge = fixture.register("thread", "turn", "call-1");
+    for (int call = 1; call < 5; call++) {
+      String nextCall = "call-" + (call + 1);
+      fixture.bridge.nextResult = new PendingToolCall(
+          7 + call, "thread", "turn", nextCall, "echo", "{}");
+      RegistryResult next = fixture.registry.complete(
+          ID, bridge, submission("call-" + call, "key-" + call));
+      assertThat(next.state()).isEqualTo(State.PENDING_TOOL);
+      assertThat(next.pendingTurn().bridgeId()).isEqualTo(bridge);
+      assertThat(next.pendingTurn().callId()).isEqualTo(nextCall);
+    }
+    fixture.bridge.nextResult = new FinalTurn(
+        "thread", "turn", "safe", "", new CodexAppServerClient.TokenUsage(0, 0, 0));
+    RegistryResult terminal = fixture.registry.complete(
+        ID, bridge, submission("call-5", "key-5"));
+    assertThat(terminal.state()).isEqualTo(State.COMPLETED);
+    assertThat(fixture.bridge.completes).hasValue(5);
+  }
+
+  @Test
   void terminalRetentionExpiresOnNormalAccessWithoutManualPurge() {
     Fixture fixture = new Fixture();
     String bridge = fixture.register();
@@ -538,6 +560,11 @@ class CodexPendingTurnRegistryTest {
 
   private static CodexToolResultSubmission result(String key, String status, String content) {
     return new CodexToolResultSubmission("request", "conversation", "thread", "turn", "call", key, status, content);
+  }
+
+  private static CodexToolResultSubmission submission(String callId, String key) {
+    return new CodexToolResultSubmission(
+        "request", "conversation", "thread", "turn", callId, key, "ok", "value");
   }
 
   private static CodexTurnCancelRequest cancelRequest() {

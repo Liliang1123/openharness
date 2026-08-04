@@ -367,21 +367,36 @@ class CodexAppServerClientTest {
     }
 
     try (FakePeer sequential = new FakePeer(); CodexAppServerClient client = sequential.client()) {
-      sequential.run(() -> {
+      CompletableFuture<Void> server = sequential.run(() -> {
         sequential.startTurnHandshake();
-        sequential.send(sequential.toolCallFrame(77, "call-1"));
-        sequential.readAny();
-        sequential.send(sequential.toolCallFrame(78, "call-2"));
-        sequential.readAny();
+        for (int call = 1; call <= 5; call++) {
+          long responderId = 76L + call;
+          sequential.send(sequential.toolCallFrame(responderId, "call-" + call));
+          assertThat(sequential.readAny().path("id").asLong()).isEqualTo(responderId);
+        }
         sequential.send(sequential.completedFrame());
       });
       PendingToolCall first = (PendingToolCall) client.startTurn("gpt-5.4", "call tool");
       PendingToolCall second = (PendingToolCall) client.resumeToolCall(
           first, "ok", List.of(new ContentItem("inputText", "one")));
-      FinalTurn done = (FinalTurn) client.resumeToolCall(
+      PendingToolCall third = (PendingToolCall) client.resumeToolCall(
           second, "ok", List.of(new ContentItem("inputText", "two")));
+      PendingToolCall fourth = (PendingToolCall) client.resumeToolCall(
+          third, "ok", List.of(new ContentItem("inputText", "three")));
+      PendingToolCall fifth = (PendingToolCall) client.resumeToolCall(
+          fourth, "ok", List.of(new ContentItem("inputText", "four")));
+      FinalTurn done = (FinalTurn) client.resumeToolCall(
+          fifth, "ok", List.of(new ContentItem("inputText", "five")));
+      assertThat(List.of(
+          first.responderId(),
+          second.responderId(),
+          third.responderId(),
+          fourth.responderId(),
+          fifth.responderId()
+      )).containsExactly(77L, 78L, 79L, 80L, 81L);
       assertThat(second.responderId()).isEqualTo(78);
       assertThat(done.turnId()).isEqualTo("turn-1");
+      server.get(1, TimeUnit.SECONDS);
     }
   }
 

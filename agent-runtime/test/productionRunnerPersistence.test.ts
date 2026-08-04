@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentExecutionRunner } from "../src/agentExecutionRunner";
 import { InMemoryExecutionStateStore } from "../src/executionStateStore";
 import { InMemoryHistoryStore } from "../src/history";
@@ -34,6 +34,8 @@ describe("production runner lifecycle persistence", () => {
       releaseAdmission = resolve;
     });
     const published: string[] = [];
+    const accepted = vi.fn();
+    const terminal = vi.fn();
     context.liveEvents.subscribe(
       "tenant-a",
       "user-a",
@@ -61,18 +63,28 @@ describe("production runner lifecycle persistence", () => {
       }
     );
 
-    const handle = runner.start(input());
+    const handle = runner.start({
+      ...input(),
+      lifecycleLogger: { accepted, terminal }
+    });
     await Promise.resolve();
     expect(published).toEqual([]);
+    expect(accepted).not.toHaveBeenCalled();
+    expect(terminal).not.toHaveBeenCalled();
     releaseAdmission();
     await handle.admitted;
     expect(published).toEqual(["agent_start"]);
+    expect(accepted).toHaveBeenCalledTimes(1);
+    expect(terminal).not.toHaveBeenCalled();
     await handle.done;
+    expect(terminal).toHaveBeenCalledTimes(1);
     await context.close();
   });
 
   it("marks process execution terminal when durable admission is rejected", async () => {
     const executionStates = new InMemoryExecutionStateStore();
+    const accepted = vi.fn();
+    const terminal = vi.fn();
     const runner = new AgentExecutionRunner(
       new FinalAnswerJavaClient(),
       new InMemoryHistoryStore(),
@@ -104,7 +116,10 @@ describe("production runner lifecycle persistence", () => {
       }
     );
 
-    const handle = runner.start(input());
+    const handle = runner.start({
+      ...input(),
+      lifecycleLogger: { accepted, terminal }
+    });
 
     await expect(handle.admitted).rejects.toThrow("RUNTIME_STORAGE_QUEUE_FULL");
     await expect(handle.done).rejects.toThrow("RUNTIME_STORAGE_QUEUE_FULL");
@@ -122,6 +137,8 @@ describe("production runner lifecycle persistence", () => {
       "user-a",
       "conversation-a"
     )).toBeNull();
+    expect(accepted).not.toHaveBeenCalled();
+    expect(terminal).not.toHaveBeenCalled();
   });
 
   it("commits start and final answer through SQLite without writing legacy history", async () => {
