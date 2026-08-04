@@ -1,9 +1,18 @@
 # openharness — 开发导航台
 
 > 自动生成，请勿直接编辑。数据源：`development-log.json`  
-> 最后更新：2026-07-27
+> 最后更新：2026-08-04
 
 ## Timeline
+
+### 2026-07-30
+
+- 📋 proposed **fix-runtime-chat-terminal-tool-flow** — 将模型与工具生命周期投影为可折叠的安全执行状态组，清理终态残留 thinking、显示 stream_error，并修复 persistence-mode Codex 同一 turn 顺序 pending tool 的 durable result 配对和 responder 生命周期。
+
+### 2026-07-28
+
+- ✅ verified **add-runtime-chat-lifecycle-logs** — 为同步与流式 chat 的共享 execution lifecycle 增加脱敏 JSON-lines accepted/terminal stdout 记录，使现有 openharness logs 可按 conversation/request/trace/execution 标识定位请求，同时禁止记录消息、回答、工具、身份与凭据内容。
+- ✅ verified **add-codex-reasoning-effort-config** — 为既有本地 Codex app-server provider 增加可选 reasoning-effort 配置；缺省保持 medium，本地试用显式选择 gpt-5.6-sol/high，并维持 OAuth secret boundary 与无 fallback 语义。
 
 ### 2026-07-15
 
@@ -72,6 +81,9 @@
 
 | 功能点 | 状态 | Spec | Plan | Code | Tests | Closeout |
 |---|---|---|---|---|---|---|
+| fix-runtime-chat-terminal-tool-flow | 📋 proposed | frontend-runtime, agent-sse, provider-adapter | [plan](docs/superpowers/plans/2026-07-30-fix-runtime-chat-terminal-tool-flow.md) | 9 files | 12 files | — |
+| add-runtime-chat-lifecycle-logs | ✅ verified | agent-runtime | [plan](docs/superpowers/plans/2026-07-28-add-runtime-chat-lifecycle-logs.md) | 5 files | 5 files | [closeout](docs/review/2026-07-28-runtime-chat-lifecycle-logs-implementation-review.md) |
+| add-codex-reasoning-effort-config | ✅ verified | provider-adapter | [plan](docs/superpowers/plans/2026-07-28-add-codex-reasoning-effort-config.md) | 5 files | 3 files | — |
 | add-mcp-stable-schema-broker | 📦 archived | mcp-tools, policy-evaluate | [plan](docs/superpowers/plans/2026-07-15-mcp-stable-schema-broker.md) | 11 files | 12 files | [closeout](docs/review/2026-07-15-mcp-stable-schema-broker-archive-closeout.md) |
 | adopt-codex-oauth-regression-qualification | 📦 archived | provider-adapter | [plan](docs/superpowers/plans/2026-07-15-adopt-codex-oauth-regression-qualification.md) | 12 files | 3 files | [closeout](docs/review/2026-07-15-adopt-codex-oauth-regression-qualification-archive-closeout.md) |
 | add-chatgpt-oauth-auth | 📦 archived | backend-gateway, provider-adapter | [plan](docs/superpowers/plans/2026-07-10-add-chatgpt-oauth-auth.md) | 22 files | 16 files | [closeout](docs/review/2026-07-12-chatgpt-oauth-auth-closeout-review.md) |
@@ -129,6 +141,7 @@
 
 ### agent-runtime
 
+- ✅ verified add-runtime-chat-lifecycle-logs
 - 📦 archived add-chatgpt-oauth-auth
 - 📦 archived harden-agent-runtime-single-node-production
 - 📦 archived add-runtime-progress-panel
@@ -155,6 +168,10 @@
 - ⚠️ partial add-p1a-provider-adapter
 - ⚠️ partial implement-p0b-hookable
 - ⚠️ partial implement-p0a-skeleton
+
+### agent-sse
+
+- 📋 proposed fix-runtime-chat-terminal-tool-flow
 
 ### anthropic
 
@@ -203,6 +220,8 @@
 
 ### codex
 
+- 📋 proposed fix-runtime-chat-terminal-tool-flow
+- ✅ verified add-codex-reasoning-effort-config
 - 📦 archived adopt-codex-oauth-regression-qualification
 - 📦 archived add-chatgpt-oauth-auth
 
@@ -262,6 +281,10 @@
 - ⚠️ partial add-p2b-session-list
 - ⚠️ partial implement-p0a-skeleton
 
+### frontend-runtime
+
+- 📋 proposed fix-runtime-chat-terminal-tool-flow
+
 ### gate-c
 
 - 📦 archived adopt-codex-oauth-regression-qualification
@@ -282,6 +305,15 @@
 ### lazy-lifecycle
 
 - 📦 archived add-mcp-stable-schema-broker
+
+### local-cli
+
+- ✅ verified add-runtime-chat-lifecycle-logs
+- ✅ verified add-codex-reasoning-effort-config
+
+### local-trial
+
+- 📋 proposed fix-runtime-chat-terminal-tool-flow
 
 ### long-term-memory
 
@@ -334,11 +366,13 @@
 
 ### oauth
 
+- ✅ verified add-codex-reasoning-effort-config
 - 📦 archived adopt-codex-oauth-regression-qualification
 - 📦 archived add-chatgpt-oauth-auth
 
 ### observability
 
+- ✅ verified add-runtime-chat-lifecycle-logs
 - 📦 archived add-runtime-progress-panel
 - 📦 archived add-subagent-trace-tree
 - 📦 archived add-agent-definition-observability
@@ -395,6 +429,10 @@
 - ⚠️ partial add-p3c-policy-mcp-aware
 - ⚠️ partial implement-p0b-hookable
 
+### privacy
+
+- ✅ verified add-runtime-chat-lifecycle-logs
+
 ### production-readiness
 
 - 📦 archived defer-anthropic-from-gate-c
@@ -419,6 +457,8 @@
 
 ### provider-adapter
 
+- 📋 proposed fix-runtime-chat-terminal-tool-flow
+- ✅ verified add-codex-reasoning-effort-config
 - 📦 archived adopt-codex-oauth-regression-qualification
 - 📦 archived add-chatgpt-oauth-auth
 - 📦 archived defer-anthropic-from-gate-c
@@ -434,6 +474,10 @@
 ### real-provider
 
 - 📦 archived harden-agent-runtime-single-node-production
+
+### reasoning-effort
+
+- ✅ verified add-codex-reasoning-effort-config
 
 ### recovery
 
@@ -528,10 +572,18 @@
 
 - ⚠️ partial add-execution-lifecycle-and-stream-recovery
 
+### structured-logs
+
+- ✅ verified add-runtime-chat-lifecycle-logs
+
 ### subagent
 
 - 📦 archived add-subagent-trace-tree
 - 📦 archived add-subagent-dispatcher
+
+### terminal-feedback
+
+- 📋 proposed fix-runtime-chat-terminal-tool-flow
 
 ### tool-catalog
 
@@ -574,6 +626,12 @@
 
 ### 推荐下一步
 
+- Complete Task 6 user-local backup, synchronization, readiness, and browser smoke only after explicit user acceptance _(from fix-runtime-chat-terminal-tool-flow)_
+- After Task 6, reconcile the OpenSpec/dashboard state and decide separately whether to archive the active change _(from fix-runtime-chat-terminal-tool-flow)_
+- Keep add-runtime-chat-lifecycle-logs active until the user separately authorizes archive closeout _(from add-runtime-chat-lifecycle-logs)_
+- Create a new OpenSpec proposal before adding persisted/queryable logs, changing wrapper lifecycle, formal CLI contract, or Frontend _(from add-runtime-chat-lifecycle-logs)_
+- Keep add-codex-reasoning-effort-config active until the user separately authorizes archive closeout _(from add-codex-reasoning-effort-config)_
+- Create a separate OpenSpec proposal before changing Runtime or wrapper trace-log observability _(from add-codex-reasoning-effort-config)_
 - Keep formal Gate D production start separately authorized _(from add-mcp-stable-schema-broker)_
 - Use the archived current spec as the MCP contract for subsequent Runtime work _(from add-mcp-stable-schema-broker)_
 - Prepare the active Runtime Gate D production-start preflight without rerunning model qualification _(from adopt-codex-oauth-regression-qualification)_
@@ -646,6 +704,17 @@
 
 ### 暂不建议
 
+- Token-level answer streaming or changing gpt-5.6-sol/high _(from fix-runtime-chat-terminal-tool-flow)_
+- Skill authoring or new workspace write/edit tools _(from fix-runtime-chat-terminal-tool-flow)_
+- General Frontend beautification or Local CLI contract changes _(from fix-runtime-chat-terminal-tool-flow)_
+- Full-repository regression, archive, merge, commit, push, reset, clean, 24-hour Gate, or Production Verified _(from fix-runtime-chat-terminal-tool-flow)_
+- Logging prompts, answers, tools, headers, tenant/user identity, credentials, or OAuth material _(from add-runtime-chat-lifecycle-logs)_
+- Changing CLI syntax, APIs, SSE, trace ingestion, storage, Java Backend, or Frontend _(from add-runtime-chat-lifecycle-logs)_
+- Running full-repository regression, archive, commit, push, or a 24-hour Gate _(from add-runtime-chat-lifecycle-logs)_
+- Reading, copying, or storing Codex OAuth credentials _(from add-codex-reasoning-effort-config)_
+- Adding per-request or Frontend reasoning-effort controls _(from add-codex-reasoning-effort-config)_
+- Changing TS Runtime request schemas _(from add-codex-reasoning-effort-config)_
+- Running full-repository regression, archive, or a 24-hour Gate _(from add-codex-reasoning-effort-config)_
 - Running a real paid model qualification _(from add-mcp-stable-schema-broker)_
 - Rerunning the completed 24-hour local baseline _(from add-mcp-stable-schema-broker)_
 - Starting or promoting formal Gate D production evidence _(from add-mcp-stable-schema-broker)_

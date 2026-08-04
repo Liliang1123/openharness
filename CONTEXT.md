@@ -98,6 +98,7 @@
 |------|-----------|
 | **TraceEvent** | 结构化追踪事件。包含 traceId、spanId、eventType 等。TS Runtime 和 Java Backend 都产生。 |
 | **Trace Tree** | 用稳定字段表示父 Agent execution、Subagent execution、model call、tool call 与 summary 节点之间父子关系的可观测性视图；用于排障和 Frontend Debug Panel 展示，不驱动运行时调度。 |
+| **Runtime Chat Lifecycle Log** | TS Runtime 输出到进程标准输出的脱敏结构化 chat 生命周期记录。只用于 operator 本地日志关联，包含 conversation/request/trace/execution 标识与 accepted/terminal 结果，不是 TraceEvent、RuntimeEventStore、消息历史或持久化权威。 |
 | **X-Trace-Id / X-Request-Id** | 必须在所有服务间调用中透传的追踪标识。 |
 
 ## Views
@@ -106,6 +107,7 @@
 |------|-----------|
 | **toApi** | 消息视图：剥离 internal fields（requestId、conversationId 等）后发给 Java model gateway。 |
 | **toReplay** | 消息视图：跳过 transient 消息，用于持久化恢复。 |
+| **Execution Activity Group** | Frontend 按 executionId 将 durable SSE 生命周期事件投影成可交互折叠的安全状态组。运行中显示 transient model/tool activity，终态自动清除活动态并折叠；展开可查看逐项安全状态。它不是第二套生命周期权威，也不保留原始工具参数、结果正文、prompt/reasoning、headers、bridge id、凭据或 provider body。 |
 
 ## Session Management
 

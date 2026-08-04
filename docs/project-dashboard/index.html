@@ -252,13 +252,13 @@
 <body>
   <header>
     <h1>openharness — 开发导航台</h1>
-    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-07-27</div>
+    <div class="meta">自动生成，请勿直接编辑 · 数据源：development-log.json · 最后更新：2026-08-04</div>
     <div class="stats">
-      <div class="stat"><div class="number">36</div><div class="label">Total</div></div>
+      <div class="stat"><div class="number">39</div><div class="label">Total</div></div>
       <div class="stat"><div class="number">22</div><div class="label">Archived</div></div>
       <div class="stat"><div class="number">13</div><div class="label">Partial</div></div>
-      <div class="stat"><div class="number">0</div><div class="label">Proposed</div></div>
-      <div class="stat"><div class="number">1</div><div class="label">Verified</div></div>
+      <div class="stat"><div class="number">1</div><div class="label">Proposed</div></div>
+      <div class="stat"><div class="number">3</div><div class="label">Verified</div></div>
     </div>
   </header>
 
@@ -272,6 +272,33 @@
   <section id="timeline" class="active">
     <h2>Timeline</h2>
     
+      <div class="timeline-group">
+        <div class="timeline-date">2026-07-30</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-proposed">proposed</span>
+            <strong>fix-runtime-chat-terminal-tool-flow</strong>
+            <span class="summary">将模型与工具生命周期投影为可折叠的安全执行状态组，清理终态残留 thinking、显示 stream_error，并修复 persistence-mode Codex 同一 turn 顺序 pending tool 的 durable result 配对和 responder 生命周期。</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline-group">
+        <div class="timeline-date">2026-07-28</div>
+        <div class="timeline-items">
+          <div class="timeline-item">
+            <span class="badge badge-verified">verified</span>
+            <strong>add-runtime-chat-lifecycle-logs</strong>
+            <span class="summary">为同步与流式 chat 的共享 execution lifecycle 增加脱敏 JSON-lines accepted/terminal stdout 记录，使现有 openharness logs 可按 conversation/request/trace/execution 标识定位请求，同时禁止记录消息、回答、工具、身份与凭据内容。</span>
+          </div>
+<div class="timeline-item">
+            <span class="badge badge-verified">verified</span>
+            <strong>add-codex-reasoning-effort-config</strong>
+            <span class="summary">为既有本地 Codex app-server provider 增加可选 reasoning-effort 配置；缺省保持 medium，本地试用显式选择 gpt-5.6-sol/high，并维持 OAuth secret boundary 与无 fallback 语义。</span>
+          </div>
+        </div>
+      </div>
+
       <div class="timeline-group">
         <div class="timeline-date">2026-07-15</div>
         <div class="timeline-items">
@@ -518,6 +545,39 @@
       </thead>
       <tbody>
         <tr>
+      <td><strong>fix-runtime-chat-terminal-tool-flow</strong></td>
+      <td><span class="badge badge-proposed">proposed</span></td>
+      <td>2026-07-30</td>
+      <td>frontend-runtime, agent-sse, provider-adapter</td>
+      <td><a href="docs/superpowers/plans/2026-07-30-fix-runtime-chat-terminal-tool-flow.md">2026-07-30-fix-runtime-chat-terminal-tool-flow.md</a></td>
+      <td>executionActivity.ts, ExecutionActivityGroup.tsx, App.tsx, App.css, api.ts, ApprovalCard.tsx, agentExecutionRunner.ts, agentStreamLoop.ts, server.ts</td>
+      <td>executionActivity.test.ts, ExecutionActivityGroup.test.tsx, ApprovalCard.test.tsx, App.test.tsx, codexPendingTurn.test.ts, codexPendingTurnPersistence.test.ts, productionRunnerPersistence.test.ts, productionServerLifecycle.test.ts, streamEventIds.test.ts, terminalErrors.test.ts, CodexPendingTurnRegistryTest.java, CodexAppServerClientTest.java</td>
+      <td>—</td>
+      <td>Complete Task 6 user-local backup, synchronization, readiness, and browser smoke only after explicit user acceptance<br>After Task 6, reconcile the OpenSpec/dashboard state and decide separately whether to archive the active change</td>
+    </tr>
+<tr>
+      <td><strong>add-runtime-chat-lifecycle-logs</strong></td>
+      <td><span class="badge badge-verified">verified</span></td>
+      <td>2026-07-28</td>
+      <td>agent-runtime</td>
+      <td><a href="docs/superpowers/plans/2026-07-28-add-runtime-chat-lifecycle-logs.md">2026-07-28-add-runtime-chat-lifecycle-logs.md</a></td>
+      <td>runtimeChatLifecycleLog.ts, agentExecutionRunner.ts, agentStreamLoop.ts, server.ts, openharness-local-cli-wrapper.md</td>
+      <td>runtimeChatLifecycleLog.test.ts, agentExecutionRunner.test.ts, productionRunnerPersistence.test.ts, terminalErrors.test.ts, streamEventIds.test.ts</td>
+      <td><a href="docs/review/2026-07-28-runtime-chat-lifecycle-logs-implementation-review.md">2026-07-28-runtime-chat-lifecycle-logs-implementation-review.md</a></td>
+      <td>Keep add-runtime-chat-lifecycle-logs active until the user separately authorizes archive closeout<br>Create a new OpenSpec proposal before adding persisted/queryable logs, changing wrapper lifecycle, formal CLI contract, or Frontend</td>
+    </tr>
+<tr>
+      <td><strong>add-codex-reasoning-effort-config</strong></td>
+      <td><span class="badge badge-verified">verified</span></td>
+      <td>2026-07-28</td>
+      <td>provider-adapter</td>
+      <td><a href="docs/superpowers/plans/2026-07-28-add-codex-reasoning-effort-config.md">2026-07-28-add-codex-reasoning-effort-config.md</a></td>
+      <td>ProviderProperties.java, ProviderConfig.java, CodexAppServerAdapter.java, CodexAppServerClient.java, openharness-local-cli-wrapper.md</td>
+      <td>ProviderPropertiesTest.java, CodexAppServerAdapterTest.java, CodexAppServerClientTest.java</td>
+      <td>—</td>
+      <td>Keep add-codex-reasoning-effort-config active until the user separately authorizes archive closeout<br>Create a separate OpenSpec proposal before changing Runtime or wrapper trace-log observability</td>
+    </tr>
+<tr>
       <td><strong>add-mcp-stable-schema-broker</strong></td>
       <td><span class="badge badge-archived">archived</span></td>
       <td>2026-07-15</td>
@@ -949,7 +1009,8 @@
       <div class="tag-group">
         <h3>agent-runtime</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
+          <li><span class="badge badge-verified">verified</span> add-runtime-chat-lifecycle-logs</li>
+<li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
 <li><span class="badge badge-archived">archived</span> harden-agent-runtime-single-node-production</li>
 <li><span class="badge badge-archived">archived</span> add-runtime-progress-panel</li>
 <li><span class="badge badge-archived">archived</span> add-runtime-cache-stability</li>
@@ -975,6 +1036,13 @@
 <li><span class="badge badge-partial">partial</span> add-p1a-provider-adapter</li>
 <li><span class="badge badge-partial">partial</span> implement-p0b-hookable</li>
 <li><span class="badge badge-partial">partial</span> implement-p0a-skeleton</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>agent-sse</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> fix-runtime-chat-terminal-tool-flow</li>
         </ul>
       </div>
 
@@ -1056,7 +1124,9 @@
       <div class="tag-group">
         <h3>codex</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
+          <li><span class="badge badge-proposed">proposed</span> fix-runtime-chat-terminal-tool-flow</li>
+<li><span class="badge badge-verified">verified</span> add-codex-reasoning-effort-config</li>
+<li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
 <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
         </ul>
       </div>
@@ -1154,6 +1224,13 @@
       </div>
 
       <div class="tag-group">
+        <h3>frontend-runtime</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> fix-runtime-chat-terminal-tool-flow</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>gate-c</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
@@ -1186,6 +1263,21 @@
         <h3>lazy-lifecycle</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> add-mcp-stable-schema-broker</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>local-cli</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> add-runtime-chat-lifecycle-logs</li>
+<li><span class="badge badge-verified">verified</span> add-codex-reasoning-effort-config</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>local-trial</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> fix-runtime-chat-terminal-tool-flow</li>
         </ul>
       </div>
 
@@ -1274,7 +1366,8 @@
       <div class="tag-group">
         <h3>oauth</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
+          <li><span class="badge badge-verified">verified</span> add-codex-reasoning-effort-config</li>
+<li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
 <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
         </ul>
       </div>
@@ -1282,7 +1375,8 @@
       <div class="tag-group">
         <h3>observability</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> add-runtime-progress-panel</li>
+          <li><span class="badge badge-verified">verified</span> add-runtime-chat-lifecycle-logs</li>
+<li><span class="badge badge-archived">archived</span> add-runtime-progress-panel</li>
 <li><span class="badge badge-archived">archived</span> add-subagent-trace-tree</li>
 <li><span class="badge badge-archived">archived</span> add-agent-definition-observability</li>
         </ul>
@@ -1371,6 +1465,13 @@
       </div>
 
       <div class="tag-group">
+        <h3>privacy</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> add-runtime-chat-lifecycle-logs</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>production-readiness</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> defer-anthropic-from-gate-c</li>
@@ -1410,7 +1511,9 @@
       <div class="tag-group">
         <h3>provider-adapter</h3>
         <ul>
-          <li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
+          <li><span class="badge badge-proposed">proposed</span> fix-runtime-chat-terminal-tool-flow</li>
+<li><span class="badge badge-verified">verified</span> add-codex-reasoning-effort-config</li>
+<li><span class="badge badge-archived">archived</span> adopt-codex-oauth-regression-qualification</li>
 <li><span class="badge badge-archived">archived</span> add-chatgpt-oauth-auth</li>
 <li><span class="badge badge-archived">archived</span> defer-anthropic-from-gate-c</li>
 <li><span class="badge badge-archived">archived</span> add-p3b-cost-and-router</li>
@@ -1431,6 +1534,13 @@
         <h3>real-provider</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> harden-agent-runtime-single-node-production</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>reasoning-effort</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> add-codex-reasoning-effort-config</li>
         </ul>
       </div>
 
@@ -1588,10 +1698,24 @@
       </div>
 
       <div class="tag-group">
+        <h3>structured-logs</h3>
+        <ul>
+          <li><span class="badge badge-verified">verified</span> add-runtime-chat-lifecycle-logs</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
         <h3>subagent</h3>
         <ul>
           <li><span class="badge badge-archived">archived</span> add-subagent-trace-tree</li>
 <li><span class="badge badge-archived">archived</span> add-subagent-dispatcher</li>
+        </ul>
+      </div>
+
+      <div class="tag-group">
+        <h3>terminal-feedback</h3>
+        <ul>
+          <li><span class="badge badge-proposed">proposed</span> fix-runtime-chat-terminal-tool-flow</li>
         </ul>
       </div>
 
@@ -1662,7 +1786,13 @@
 
   <section id="next">
     <h2>Next Work Queue</h2>
-    <h3>推荐下一步</h3><ul><li>Keep formal Gate D production start separately authorized <em>(from add-mcp-stable-schema-broker)</em></li>
+    <h3>推荐下一步</h3><ul><li>Complete Task 6 user-local backup, synchronization, readiness, and browser smoke only after explicit user acceptance <em>(from fix-runtime-chat-terminal-tool-flow)</em></li>
+<li>After Task 6, reconcile the OpenSpec/dashboard state and decide separately whether to archive the active change <em>(from fix-runtime-chat-terminal-tool-flow)</em></li>
+<li>Keep add-runtime-chat-lifecycle-logs active until the user separately authorizes archive closeout <em>(from add-runtime-chat-lifecycle-logs)</em></li>
+<li>Create a new OpenSpec proposal before adding persisted/queryable logs, changing wrapper lifecycle, formal CLI contract, or Frontend <em>(from add-runtime-chat-lifecycle-logs)</em></li>
+<li>Keep add-codex-reasoning-effort-config active until the user separately authorizes archive closeout <em>(from add-codex-reasoning-effort-config)</em></li>
+<li>Create a separate OpenSpec proposal before changing Runtime or wrapper trace-log observability <em>(from add-codex-reasoning-effort-config)</em></li>
+<li>Keep formal Gate D production start separately authorized <em>(from add-mcp-stable-schema-broker)</em></li>
 <li>Use the archived current spec as the MCP contract for subsequent Runtime work <em>(from add-mcp-stable-schema-broker)</em></li>
 <li>Prepare the active Runtime Gate D production-start preflight without rerunning model qualification <em>(from adopt-codex-oauth-regression-qualification)</em></li>
 <li>Start the formal 24-hour workload only after an explicit Gate D production start approval <em>(from adopt-codex-oauth-regression-qualification)</em></li>
@@ -1731,7 +1861,18 @@
 <li>Add dynamic MCP-tool permission configurations <em>(from add-p3d-injection-guard)</em></li>
 <li>Operator budgets and daily rate limits enforcement <em>(from add-p3b-cost-and-router)</em></li>
 <li>Logical intent based logical routing mappings <em>(from add-p3b-cost-and-router)</em></li></ul>
-    <h3>暂不建议</h3><ul><li>Running a real paid model qualification <em>(from add-mcp-stable-schema-broker)</em></li>
+    <h3>暂不建议</h3><ul><li>Token-level answer streaming or changing gpt-5.6-sol/high <em>(from fix-runtime-chat-terminal-tool-flow)</em></li>
+<li>Skill authoring or new workspace write/edit tools <em>(from fix-runtime-chat-terminal-tool-flow)</em></li>
+<li>General Frontend beautification or Local CLI contract changes <em>(from fix-runtime-chat-terminal-tool-flow)</em></li>
+<li>Full-repository regression, archive, merge, commit, push, reset, clean, 24-hour Gate, or Production Verified <em>(from fix-runtime-chat-terminal-tool-flow)</em></li>
+<li>Logging prompts, answers, tools, headers, tenant/user identity, credentials, or OAuth material <em>(from add-runtime-chat-lifecycle-logs)</em></li>
+<li>Changing CLI syntax, APIs, SSE, trace ingestion, storage, Java Backend, or Frontend <em>(from add-runtime-chat-lifecycle-logs)</em></li>
+<li>Running full-repository regression, archive, commit, push, or a 24-hour Gate <em>(from add-runtime-chat-lifecycle-logs)</em></li>
+<li>Reading, copying, or storing Codex OAuth credentials <em>(from add-codex-reasoning-effort-config)</em></li>
+<li>Adding per-request or Frontend reasoning-effort controls <em>(from add-codex-reasoning-effort-config)</em></li>
+<li>Changing TS Runtime request schemas <em>(from add-codex-reasoning-effort-config)</em></li>
+<li>Running full-repository regression, archive, or a 24-hour Gate <em>(from add-codex-reasoning-effort-config)</em></li>
+<li>Running a real paid model qualification <em>(from add-mcp-stable-schema-broker)</em></li>
 <li>Rerunning the completed 24-hour local baseline <em>(from add-mcp-stable-schema-broker)</em></li>
 <li>Starting or promoting formal Gate D production evidence <em>(from add-mcp-stable-schema-broker)</em></li>
 <li>Reading or exposing Codex OAuth credentials <em>(from adopt-codex-oauth-regression-qualification)</em></li>
