@@ -32,6 +32,66 @@ class ProviderPropertiesTest {
   }
 
   @Test
+  void codexReasoningEffortDefaultsToMediumWhenMissingOrBlank() {
+    for (String value : java.util.Arrays.asList(null, "", " ")) {
+      ProviderRegistry registry = new ProviderRegistry(List.of(adapter("codex-app-server")));
+      ProviderProperties properties = new ProviderProperties(registry);
+      ProviderProperties.ProviderEntry entry = codexEntry("stdio://");
+      entry.setReasoningEffort(value);
+      properties.setProviders(List.of(entry));
+      configureRoute(properties, "gpt-5.4");
+
+      properties.init();
+
+      assertThat(registry.configByName("openai-codex").reasoningEffort()).isEqualTo("medium");
+    }
+  }
+
+  @Test
+  void codexReasoningEffortAcceptsBoundedSafeIdentifier() {
+    ProviderRegistry registry = new ProviderRegistry(List.of(adapter("codex-app-server")));
+    ProviderProperties properties = new ProviderProperties(registry);
+    ProviderProperties.ProviderEntry entry = codexEntry("stdio://");
+    entry.setReasoningEffort("high");
+    properties.setProviders(List.of(entry));
+    configureRoute(properties, "gpt-5.4");
+
+    properties.init();
+
+    assertThat(registry.configByName("openai-codex").reasoningEffort()).isEqualTo("high");
+  }
+
+  @Test
+  void unsafeReasoningEffortIsRejectedBeforeRegistration() {
+    ProviderProperties properties = new ProviderProperties(
+        new ProviderRegistry(List.of(adapter("codex-app-server"))));
+    ProviderProperties.ProviderEntry entry = codexEntry("stdio://");
+    entry.setReasoningEffort("../oauth");
+    properties.setProviders(List.of(entry));
+    configureRoute(properties, "gpt-5.4");
+
+    assertThatThrownBy(properties::init)
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("reasoning-effort");
+  }
+
+  @Test
+  void nonCodexProviderRejectsReasoningEffort() {
+    ProviderProperties properties = new ProviderProperties(
+        new ProviderRegistry(List.of(adapter("openai-compatible"))));
+    ProviderProperties.ProviderEntry entry = new ProviderProperties.ProviderEntry();
+    entry.setName("zhipu");
+    entry.setType("openai-compatible");
+    entry.setReasoningEffort("high");
+    properties.setProviders(List.of(entry));
+
+    assertThatThrownBy(properties::init)
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("reasoning-effort")
+        .hasMessageContaining("codex-app-server");
+  }
+
+  @Test
   void remoteCodexEndpointIsRejectedBeforeRegistration() {
     ProviderRegistry registry = new ProviderRegistry(List.of(adapter("codex-app-server")));
     ProviderProperties properties = new ProviderProperties(registry);

@@ -37,6 +37,8 @@ public final class CodexAppServerClient implements Closeable {
           .build());
   private static final int MAX_TEXT = 65_536;
   private static final Set<String> FAILURE_STATUSES = Set.of("error", "rejected", "timeout");
+  private static final Pattern SAFE_REASONING_EFFORT =
+      Pattern.compile("[a-z][a-z0-9_-]{0,31}");
   private static final Pattern AUTHORIZATION = Pattern.compile(
       "(?i)(authorization\\s*:\\s*)?(bearer|token)\\s+[^\\s,;]+|authorization\\s*:[^\\r\\n]+", Pattern.CASE_INSENSITIVE);
 
@@ -121,13 +123,25 @@ public final class CodexAppServerClient implements Closeable {
   }
 
   public TurnResult startTurn(String model, String inputText) {
-    return startTurn(model, inputText, List.of());
+    return startTurn(model, inputText, List.of(), "medium");
   }
 
   public TurnResult startTurn(String model, String inputText, List<DynamicTool> dynamicTools) {
+    return startTurn(model, inputText, dynamicTools, "medium");
+  }
+
+  public TurnResult startTurn(
+      String model,
+      String inputText,
+      List<DynamicTool> dynamicTools,
+      String reasoningEffort) {
     requireBounded(model, "model");
     requireBounded(inputText, "inputText");
     if (dynamicTools == null) throw new IllegalArgumentException("dynamicTools are required");
+    if (reasoningEffort == null || !SAFE_REASONING_EFFORT.matcher(reasoningEffort).matches()) {
+      throw new IllegalArgumentException(
+          "reasoningEffort must be a bounded safe identifier");
+    }
     try {
       synchronized (turnLock) {
         if (activeTurn) throw new IllegalStateException("Codex app-server turn already active");
@@ -163,7 +177,7 @@ public final class CodexAppServerClient implements Closeable {
       ObjectNode turnParams = JSON.createObjectNode()
           .put("threadId", threadId)
           .put("summary", "auto")
-          .put("effort", "medium");
+          .put("effort", reasoningEffort);
       ArrayNode input = turnParams.putArray("input");
       input.addObject().put("type", "text").put("text", inputText);
       JsonNode turnResponse = await(sendRequest("turn/start", turnParams));

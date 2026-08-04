@@ -127,6 +127,27 @@ class CodexAppServerClientTest {
   }
 
   @Test
+  void forwardsExplicitReasoningEffortOnTurnStart() throws Exception {
+    try (FakePeer peer = new FakePeer(); CodexAppServerClient client = peer.client()) {
+      CompletableFuture<Void> server = peer.run(() -> {
+        peer.initializeHandshake();
+        JsonNode thread = peer.readRequest("thread/start");
+        peer.send("{\"id\":" + thread.path("id").asLong()
+            + ",\"result\":{\"thread\":{\"id\":\"thread-1\"}}}");
+        JsonNode turn = peer.readRequest("turn/start");
+        assertThat(turn.at("/params/effort").asText()).isEqualTo("high");
+        peer.send("{\"id\":" + turn.path("id").asLong()
+            + ",\"result\":{\"turn\":{\"id\":\"turn-1\"}}}");
+        peer.send(peer.completedFrame());
+      });
+
+      client.startTurn("gpt-5.6-sol", "hello", List.of(), "high");
+
+      server.get(1, TimeUnit.SECONDS);
+    }
+  }
+
+  @Test
   void deduplicatesStreamedReasoningPerItemAndKeepsLaterCompletedSummary() throws Exception {
     try (FakePeer peer = new FakePeer(); CodexAppServerClient client = peer.client()) {
       peer.run(() -> peer.completeTurn(List.of(

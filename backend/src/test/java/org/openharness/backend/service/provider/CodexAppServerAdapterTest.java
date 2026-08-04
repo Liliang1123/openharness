@@ -25,7 +25,7 @@ import org.openharness.backend.service.provider.CodexPendingTurnRegistry.Identit
 class CodexAppServerAdapterTest {
   private static final ProviderConfig CONFIG = new ProviderConfig(
       "codex", "codex-app-server", null, null, List.of("gpt-test"), Map.of(),
-      "codex", List.of("app-server"), "stdio://");
+      "codex", List.of("app-server"), "stdio://", "high");
 
   @Test
   void mapsReadyFinalAndForwardsFrozenDynamicToolsWithoutProviderFallback() {
@@ -43,6 +43,7 @@ class CodexAppServerAdapterTest {
     assertThat(response.rawProvider()).isEqualTo("codex");
     assertThat(session.model).isEqualTo("gpt-test");
     assertThat(session.input).contains("system", "rules", "user", "hello");
+    assertThat(session.reasoningEffort).isEqualTo("high");
     assertThat(session.tools).containsExactly(new DynamicTool(
         "echo", "Echo", Map.of("type", "object", "properties", Map.of())));
     assertThat(session.closed).hasValue(1);
@@ -104,6 +105,20 @@ class CodexAppServerAdapterTest {
     assertThat(unavailable.toString()).doesNotContain("OAUTH-CANARY");
   }
 
+  @Test
+  void mapsUnsupportedReasoningEffortToRedactedNonFallbackError() {
+    FakeSession session = new FakeSession(
+        new ErrorTurn("INVALID_REQUEST", "unsupported high OAUTH-CANARY"));
+
+    ModelChatResponse response = adapter(config -> session).chat(request(), CONFIG);
+
+    assertThat(response.error().errorClass()).isEqualTo("PROVIDER_UNAVAILABLE");
+    assertThat(response.error().fallbackAllowed()).isFalse();
+    assertThat(response.error().retryOwner()).isEqualTo("none");
+    assertThat(response.toString()).doesNotContain("OAUTH-CANARY");
+    assertThat(session.closed).hasValue(1);
+  }
+
   private static CodexAppServerAdapter adapter(CodexAppServerAdapter.SessionFactory factory) {
     return new CodexAppServerAdapter(registry(), factory);
   }
@@ -131,14 +146,17 @@ class CodexAppServerAdapterTest {
     final AtomicInteger closed = new AtomicInteger();
     String model;
     String input;
+    String reasoningEffort;
     List<DynamicTool> tools;
 
     FakeSession(TurnResult initial) { this.initial = initial; }
 
-    public TurnResult startTurn(String model, String input, List<DynamicTool> tools) {
+    public TurnResult startTurn(
+        String model, String input, List<DynamicTool> tools, String reasoningEffort) {
       this.model = model;
       this.input = input;
       this.tools = tools;
+      this.reasoningEffort = reasoningEffort;
       return initial;
     }
 

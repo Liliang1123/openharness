@@ -5,12 +5,16 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 @Component
 @ConfigurationProperties(prefix = "openharness")
 public class ProviderProperties {
+
+  private static final Pattern SAFE_REASONING_EFFORT =
+      Pattern.compile("[a-z][a-z0-9_-]{0,31}");
 
   private List<ProviderEntry> providers = new ArrayList<>();
   private String defaultProvider = "sensenova";
@@ -35,14 +39,25 @@ public class ProviderProperties {
           entry.pricing,
           entry.command,
           entry.appServerArgs,
-          entry.endpoint);
+          entry.endpoint,
+          entry.reasoningEffort);
       registry.register(config, entry.name.equals(defaultProvider));
     }
   }
 
   private void validate(ProviderEntry entry) {
     if (!"codex-app-server".equals(entry.type)) {
+      if (hasText(entry.reasoningEffort)) {
+        throw new IllegalArgumentException(
+            "reasoning-effort is supported only for codex-app-server providers");
+      }
       return;
+    }
+    if (!hasText(entry.reasoningEffort)) {
+      entry.reasoningEffort = "medium";
+    } else if (!SAFE_REASONING_EFFORT.matcher(entry.reasoningEffort).matches()) {
+      throw new IllegalArgumentException(
+          "codex-app-server reasoning-effort must be a bounded safe identifier");
     }
     if (entry.baseUrl != null || entry.apiKey != null) {
       throw new IllegalArgumentException(
@@ -164,6 +179,7 @@ public class ProviderProperties {
     private String command;
     private List<String> appServerArgs = new ArrayList<>();
     private String endpoint;
+    private String reasoningEffort;
 
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
@@ -183,6 +199,8 @@ public class ProviderProperties {
     public void setAppServerArgs(List<String> appServerArgs) { this.appServerArgs = appServerArgs != null ? appServerArgs : List.of(); }
     public String getEndpoint() { return endpoint; }
     public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
+    public String getReasoningEffort() { return reasoningEffort; }
+    public void setReasoningEffort(String reasoningEffort) { this.reasoningEffort = reasoningEffort; }
   }
 
   public static class ModelRouterEntry {

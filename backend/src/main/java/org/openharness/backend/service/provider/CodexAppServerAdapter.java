@@ -38,7 +38,8 @@ public final class CodexAppServerAdapter implements ProviderAdapter {
   }
 
   interface ManagedSession extends AutoCloseable {
-    TurnResult startTurn(String model, String input, List<DynamicTool> tools);
+    TurnResult startTurn(
+        String model, String input, List<DynamicTool> tools, String reasoningEffort);
     TurnResult resume(PendingToolCall call, String status, String content);
     TurnResult interrupt(PendingToolCall call, String reason);
     @Override void close();
@@ -72,7 +73,8 @@ public final class CodexAppServerAdapter implements ProviderAdapter {
       TurnResult result = session.startTurn(
           request.model().substring(ROUTE_PREFIX.length()),
           transcript(request),
-          dynamicTools(request.tools()));
+          dynamicTools(request.tools()),
+          config.reasoningEffort());
       if (result instanceof PendingToolCall pending) {
         PendingCodexTurn envelope = registry.register(
             new Identity(request.tenantId(), request.userId(), request.requestId(), request.conversationId()),
@@ -224,8 +226,9 @@ public final class CodexAppServerAdapter implements ProviderAdapter {
       supervisor.start();
       CodexAppServerClient client = supervisor.openClient(REQUEST_TIMEOUT);
       return new ManagedSession() {
-        public TurnResult startTurn(String model, String input, List<DynamicTool> tools) {
-          return client.startTurn(model, input, tools);
+        public TurnResult startTurn(
+            String model, String input, List<DynamicTool> tools, String reasoningEffort) {
+          return client.startTurn(model, input, tools, reasoningEffort);
         }
         public TurnResult resume(PendingToolCall call, String status, String content) {
           return client.resumeToolCall(

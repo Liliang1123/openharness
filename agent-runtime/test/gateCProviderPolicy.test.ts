@@ -148,7 +148,7 @@ describe("Gate C provider policy", () => {
     expect(evaluate(codexReport({ rows })).result).toBe("blocked");
   });
 
-  it("writes one normalized decision and refuses to overwrite it", () => {
+  it("writes one normalized blocked decision for stale source evidence and refuses to overwrite it", () => {
     const root = mkdtempSync(join(tmpdir(), "openharness-gate-c-"));
     temporaryRoots.push(root);
     const reportDirectory = join(root, "docs/verification");
@@ -171,16 +171,19 @@ describe("Gate C provider policy", () => {
     ];
     const io = { stdout: (line: string) => stdout.push(line), stderr: (line: string) => stderr.push(line) };
 
-    expect(runGateCProviderReconciliation(args, io)).toBe(0);
+    expect(runGateCProviderReconciliation(args, io)).toBe(3);
     const outputPath = join(reportDirectory, "decision.json");
     const firstBytes = readFileSync(outputPath);
     const decision = JSON.parse(firstBytes.toString("utf8"));
     expect(statSync(outputPath).mode & 0o777).toBe(0o600);
-    expect(decision.result).toBe("pass");
+    expect(decision.result).toBe("blocked");
     expect(decision.required.path).toBe("docs/verification/codex.json");
     expect(decision.advisory[0].reportResult).toBe("blocked");
-    expect(stdout.join("\n")).toMatch(/^result=pass policy=codex-oauth-required-v1 output=decision\.json sha256=[a-f0-9]{64}$/);
-    expect(stderr).toEqual([]);
+    expect(decision.blockers).toEqual(["codex_client_source_binding_invalid"]);
+    expect(stdout).toEqual([]);
+    expect(stderr).toEqual([
+      "result=blocked policy=codex-oauth-required-v1 blockerCount=1 blockerClasses=codex_client_source_binding_invalid"
+    ]);
 
     expect(runGateCProviderReconciliation(args, io)).toBe(2);
     expect(readFileSync(outputPath)).toEqual(firstBytes);
