@@ -131,6 +131,10 @@ export function evaluateRuntimeBaselineSamples(
   }
 
   for (const metric of resourceGrowthMetrics()) {
+    const formalFailureCode = metric === "rssBytes"
+      ? "RSS_MEDIAN_GROWTH_LIMIT_EXCEEDED"
+      : "FD_MEDIAN_GROWTH_LIMIT_EXCEEDED";
+    if (failures.has(formalFailureCode)) continue;
     if (hasResourceGrowthBreach(samples, metric)) {
       failures.set(`RESOURCE_GROWTH_BREACH:${metric}`, {
         code: "RESOURCE_GROWTH_BREACH",
@@ -374,7 +378,9 @@ function median(values: number[]): number {
 }
 
 function evaluateRestartSchedule(environment: Record<string, unknown>): RuntimeBaselineFailure | null {
-  if (environment.baselineKind !== "fixed-24-hour-local-soak") return null;
+  const baselineKind = environment.baselineKind;
+  if (baselineKind !== "fixed-24-hour-local-soak" && baselineKind !== "fixed-24-hour-soak") return null;
+  if (baselineKind === "fixed-24-hour-soak" && environment.runComplete !== true) return null;
 
   const planned = numberArray(environment.restartScheduleMs);
   const observed = numberArray(environment.observedRestartScheduleMs);

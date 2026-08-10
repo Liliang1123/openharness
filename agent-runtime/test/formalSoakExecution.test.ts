@@ -1,0 +1,1466 @@
+import { describe, expect, it } from "vitest";
+import { spawn as nodeSpawn } from "node:child_process";
+import { createHash } from "node:crypto";
+import { EventEmitter } from "node:events";
+import {
+  existsSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
+import Database from "better-sqlite3";
+import { resolveGateDRuntimeChildConfig } from "../src/baseline/formalSoakRuntimeChild";
+import { buildDeterministicBaselineWorkload, createRuntimeBaselineReport } from "../src/baseline/localBaseline";
+import {
+  createGateDEvidenceJournal,
+  buildGateDRuntimeChildSpawnSpec,
+  assertGateDSeededConversationCount,
+  GateDDatabaseObservationCursor,
+  GateDContinuousWorkload,
+  GateDRuntimeHttpTransport,
+  GateDRestartCoordinator,
+  GateDWorkloadDriver,
+  GateDRuntimeSupervisor,
+  countGateDOperationKinds,
+  gateDFixtureForKind,
+  openGateDReadOnlyDatabaseProbe,
+  readGateDChildProcessSnapshot,
+  runWithFixedConcurrency,
+  spawnGateDRuntimeManagedChild,
+  waitUntilGateDRuntimeReady,
+  writeGateDReportNoOverwrite,
+  type GateDDatabaseProbeTiming,
+  type GateDEvidenceJournal,
+  type GateDManagedChild
+} from "../src/baseline/formalSoakExecution";
+
+describe("Gate D production Runtime child", () => {
+  it("requires production profile, absolute SQLite/MCP paths, service token, and loopback port", () => {
+    expect(() => resolveGateDRuntimeChildConfig({})).toThrow(/profile/i);
+    expect(() => resolveGateDRuntimeChildConfig({
+      ...validEnvironment(),
+      AGENT_RUNTIME_SQLITE_PATH: "relative/runtime.sqlite"
+    })).toThrow(/SQLite.*absolute/i);
+    expect(() => resolveGateDRuntimeChildConfig({
+      ...validEnvironment(),
+      GATE_D_MCP_CONFIG_PATH: "relative/mcp.json"
+    })).toThrow(/MCP.*absolute/i);
+    expect(() => resolveGateDRuntimeChildConfig({
+      ...validEnvironment(),
+      OPENHARNESS_SERVICE_TOKEN: ""
+    })).toThrow(/service token/i);
+    expect(() => resolveGateDRuntimeChildConfig({
+      ...validEnvironment(),
+      PORT: "0"
+    })).toThrow(/port/i);
+  });
+
+  it("returns the bounded child configuration without exposing the service token", () => {
+    const config = resolveGateDRuntimeChildConfig(validEnvironment());
+
+    expect(config).toEqual({
+      databasePath: "/tmp/openharness-gate-d/runtime.sqlite",
+      mcpConfigPath: "/tmp/openharness-gate-d/mcp.json",
+      javaBaseUrl: "http://127.0.0.1:8080",
+      serviceToken: "gate-d-service-token",
+      host: "127.0.0.1",
+      port: 3101
+    });
+  });
+
+  it("parses a complete safe expected database identity", () => {
+    const config = resolveGateDRuntimeChildConfig({
+      ...validEnvironment(),
+      GATE_D_EXPECTED_DATABASE_DEV: "101",
+      GATE_D_EXPECTED_DATABASE_INO: "202"
+    });
+
+    expect(config.expectedDatabaseIdentity).toEqual({ dev: 101, ino: 202 });
+  });
+
+  it.each([
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "101" }, "101"],
+    [{ GATE_D_EXPECTED_DATABASE_INO: "202" }, "202"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "", GATE_D_EXPECTED_DATABASE_INO: "202" }, "202"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "101", GATE_D_EXPECTED_DATABASE_INO: "" }, "101"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "-1", GATE_D_EXPECTED_DATABASE_INO: "202" }, "-1"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "1.5", GATE_D_EXPECTED_DATABASE_INO: "202" }, "1.5"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: "not-a-number", GATE_D_EXPECTED_DATABASE_INO: "202" }, "not-a-number"],
+    [{ GATE_D_EXPECTED_DATABASE_DEV: String(Number.MAX_SAFE_INTEGER + 1), GATE_D_EXPECTED_DATABASE_INO: "202" }, String(Number.MAX_SAFE_INTEGER + 1)]
+  ])("rejects invalid expected database identity without echoing values %#", (identity, rawValue) => {
+    let observed: Error | undefined;
+    try {
+      resolveGateDRuntimeChildConfig({ ...validEnvironment(), ...identity });
+    } catch (error) {
+      observed = error as Error;
+    }
+
+    expect(observed?.message).toBe("Gate D Runtime child database identity is invalid");
+    expect(observed?.message).not.toContain(rawValue);
+    expect(observed?.message).not.toContain(validEnvironment().AGENT_RUNTIME_SQLITE_PATH!);
+    expect(observed?.message).not.toContain(validEnvironment().OPENHARNESS_SERVICE_TOKEN!);
+  });
+});
+
+describe("Gate D production executor primitives", () => {
+  it("preserves the fixed 60/20/15/5 operation distribution and fixture mapping", () => {
+    const workload = buildDeterministicBaselineWorkload({ seededConversations: 10_000, concurrency: 20 });
+
+    expect(countGateDOperationKinds(workload.operations)).toEqual({
+      no_tool: 6_000,
+      java_sandbox: 2_000,
+      mcp: 1_500,
+      approval_interruption: 500
+    });
+    expect(gateDFixtureForKind("no_tool")).toBe("gate-d-no-tool");
+    expect(gateDFixtureForKind("java_sandbox")).toBe("tool-time");
+    expect(gateDFixtureForKind("mcp")).toBe("mcp-qualification-echo");
+    expect(gateDFixtureForKind("approval_interruption")).toBe("mcp-qualification-echo");
+  });
+
+  it("runs at exactly the fixed concurrency ceiling", async () => {
+    let active = 0;
+    let maximum = 0;
+    let release!: () => void;
+    let reached!: () => void;
+    const released = new Promise<void>(resolve => { release = resolve; });
+    const atCeiling = new Promise<void>(resolve => { reached = resolve; });
+    const running = runWithFixedConcurrency(Array.from({ length: 40 }, (_, index) => index), 20, async () => {
+      active += 1;
+      maximum = Math.max(maximum, active);
+      if (active === 20) reached();
+      await released;
+      active -= 1;
+    });
+
+    await atCeiling;
+    expect(maximum).toBe(20);
+    release();
+    await running;
+    expect(active).toBe(0);
+  });
+
+  it("restarts only the managed Runtime child and proves a new PID at each fixed offset", async () => {
+    const events: string[] = [];
+    let nextPid = 100;
+    const supervisor = new GateDRuntimeSupervisor({
+      spawnChild: async () => managedChild(++nextPid, events),
+      waitUntilReady: async child => { events.push(`ready:${child.pid}`); }
+    });
+
+    await supervisor.start();
+    await supervisor.restart(2 * 60 * 60 * 1000);
+    await supervisor.restart(12 * 60 * 60 * 1000);
+    await supervisor.restart(22 * 60 * 60 * 1000);
+
+    expect(supervisor.observedRestartScheduleMs).toEqual([
+      2 * 60 * 60 * 1000,
+      12 * 60 * 60 * 1000,
+      22 * 60 * 60 * 1000
+    ]);
+    expect(events).toEqual([
+      "spawn:101", "ready:101", "stop:101",
+      "spawn:102", "ready:102", "stop:102",
+      "spawn:103", "ready:103", "stop:103",
+      "spawn:104", "ready:104"
+    ]);
+    expect(supervisor.currentPid).toBe(104);
+    expect(supervisor.hardFailures).toEqual([]);
+    await supervisor.stop();
+  });
+
+  it("records an unexpected child exit and stops an unready replacement", async () => {
+    const unexpectedEvents: string[] = [];
+    const unexpected = managedChild(201, unexpectedEvents);
+    const unexpectedSupervisor = new GateDRuntimeSupervisor({
+      spawnChild: async () => unexpected,
+      waitUntilReady: async () => undefined
+    });
+    await unexpectedSupervisor.start();
+    unexpected.stop();
+    await unexpected.exited;
+    await Promise.resolve();
+    expect(unexpectedSupervisor.hardFailures).toEqual(["UNEXPECTED_RUNTIME_PROCESS_EXIT"]);
+
+    const readinessEvents: string[] = [];
+    const readinessSupervisor = new GateDRuntimeSupervisor({
+      spawnChild: async () => managedChild(301, readinessEvents),
+      waitUntilReady: async () => { throw new Error("not ready"); }
+    });
+    await expect(readinessSupervisor.start()).rejects.toThrow(/not ready/);
+    expect(readinessEvents).toEqual(["spawn:301", "stop:301"]);
+    expect(readinessSupervisor.currentPid).toBeUndefined();
+  });
+
+  it("builds a shell-free child argv with credentials confined to environment", () => {
+    const spec = buildGateDRuntimeChildSpawnSpec({
+      childEntrypoint: "/workspace/agent-runtime/src/baseline/formalSoakRuntimeChild.ts",
+      databasePath: "/workspace/evidence/runtime.sqlite",
+      mcpConfigPath: "/workspace/evidence/mcp.json",
+      javaBaseUrl: "http://127.0.0.1:8080",
+      runtimePort: 3101,
+      serviceToken: "raw-gate-d-secret",
+      baseEnvironment: {
+        PATH: "/usr/bin",
+        GATE_D_EXPECTED_DATABASE_DEV: "polluted-dev",
+        GATE_D_EXPECTED_DATABASE_INO: "polluted-ino",
+        ZHIPU_API_KEY: "zhipu-secret",
+        OPENAI_API_KEY: "openai-secret",
+        ANTHROPIC_AUTH_TOKEN: "anthropic-secret",
+        CODEX_OAUTH_TOKEN: "codex-secret",
+        AWS_ACCESS_KEY_ID: "aws-access-key",
+        AWS_SECRET_ACCESS_KEY: "aws-secret-key",
+        GOOGLE_APPLICATION_CREDENTIALS: "/tmp/google-credential.json"
+      }
+    });
+
+    expect(spec.command).toBe(process.execPath);
+    expect(spec.args).toEqual([
+      "--import",
+      "tsx",
+      "/workspace/agent-runtime/src/baseline/formalSoakRuntimeChild.ts"
+    ]);
+    expect(spec.options.shell).toBe(false);
+    expect(JSON.stringify(spec.args)).not.toContain("raw-gate-d-secret");
+    expect(spec.options.env.PATH).toBe("/usr/bin");
+    expect(spec.options.env).not.toHaveProperty("ZHIPU_API_KEY");
+    expect(spec.options.env).not.toHaveProperty("OPENAI_API_KEY");
+    expect(spec.options.env).not.toHaveProperty("ANTHROPIC_AUTH_TOKEN");
+    expect(spec.options.env).not.toHaveProperty("CODEX_OAUTH_TOKEN");
+    expect(spec.options.env).not.toHaveProperty("AWS_ACCESS_KEY_ID");
+    expect(spec.options.env).not.toHaveProperty("AWS_SECRET_ACCESS_KEY");
+    expect(spec.options.env).not.toHaveProperty("GOOGLE_APPLICATION_CREDENTIALS");
+    expect(spec.options.env).not.toHaveProperty("GATE_D_EXPECTED_DATABASE_DEV");
+    expect(spec.options.env).not.toHaveProperty("GATE_D_EXPECTED_DATABASE_INO");
+    expect(spec.options.env).toMatchObject({
+      AGENT_RUNTIME_PROFILE: "production",
+      AGENT_RUNTIME_SQLITE_PATH: "/workspace/evidence/runtime.sqlite",
+      GATE_D_MCP_CONFIG_PATH: "/workspace/evidence/mcp.json",
+      JAVA_BACKEND_URL: "http://127.0.0.1:8080",
+      OPENHARNESS_SERVICE_TOKEN: "raw-gate-d-secret",
+      MCP_REQUIRE_APPROVAL: "true",
+      HOST: "127.0.0.1",
+      PORT: "3101"
+    });
+  });
+
+  it("emits an explicit expected database identity as a complete environment pair", () => {
+    const spec = buildGateDRuntimeChildSpawnSpec({
+      childEntrypoint: "/workspace/agent-runtime/src/baseline/formalSoakRuntimeChild.ts",
+      databasePath: "/workspace/evidence/runtime.sqlite",
+      mcpConfigPath: "/workspace/evidence/mcp.json",
+      javaBaseUrl: "http://127.0.0.1:8080",
+      runtimePort: 3101,
+      serviceToken: "raw-gate-d-secret",
+      expectedDatabaseIdentity: { dev: 101, ino: 202 },
+      baseEnvironment: {
+        GATE_D_EXPECTED_DATABASE_DEV: "polluted-dev",
+        GATE_D_EXPECTED_DATABASE_INO: "polluted-ino"
+      }
+    });
+
+    expect(spec.options.env).toMatchObject({
+      GATE_D_EXPECTED_DATABASE_DEV: "101",
+      GATE_D_EXPECTED_DATABASE_INO: "202"
+    });
+  });
+
+  it("fails an actual child storage open before a swapped sentinel database can be mutated", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "openharness-gate-d-child-inode-"));
+    const databasePath = join(directory, "runtime.sqlite");
+    const movedClaimPath = join(directory, "runtime.claimed.sqlite");
+    const sentinelPath = join(directory, "sentinel.sqlite");
+    const mcpConfigPath = join(directory, "mcp.json");
+    const pauseScriptPath = join(directory, "pause-qualification.mjs");
+    const pauseReadyPath = join(directory, "pause.ready");
+    const pauseReleasePath = join(directory, "pause.release");
+    const serviceToken = "actual-child-service-token-do-not-echo";
+    const journalEntries: Record<string, unknown>[] = [];
+    const journal: GateDEvidenceJournal = {
+      append(entry) { journalEntries.push(entry); },
+      close() {}
+    };
+    let child: GateDManagedChild | undefined;
+
+    try {
+      writeFileSync(databasePath, "", { mode: 0o600 });
+      const claim = statSync(databasePath);
+      const sentinel = new Database(sentinelPath);
+      sentinel.exec("CREATE TABLE sentinel(value TEXT); INSERT INTO sentinel(value) VALUES ('must-remain-unchanged')");
+      sentinel.close();
+      const before = fileInvariant(sentinelPath);
+      const qualificationFixture = fileURLToPath(
+        new URL("../fixtures/mcp/qualification-server.ts", import.meta.url)
+      );
+      writeFileSync(pauseScriptPath, `
+        import { existsSync, writeFileSync } from "node:fs";
+        import { setTimeout as delay } from "node:timers/promises";
+        import { pathToFileURL } from "node:url";
+        writeFileSync(process.env.GATE_D_TEST_PAUSE_READY, "ready");
+        while (!existsSync(process.env.GATE_D_TEST_PAUSE_RELEASE)) await delay(5);
+        await import(pathToFileURL(process.env.GATE_D_TEST_QUALIFICATION_FIXTURE).href);
+      `, { mode: 0o600 });
+      writeFileSync(mcpConfigPath, JSON.stringify({
+        mcpServers: {
+          qualification: {
+            command: process.execPath,
+            args: ["--import", "tsx", pauseScriptPath],
+            env: {
+              GATE_D_TEST_PAUSE_READY: pauseReadyPath,
+              GATE_D_TEST_PAUSE_RELEASE: pauseReleasePath,
+              GATE_D_TEST_QUALIFICATION_FIXTURE: qualificationFixture
+            }
+          }
+        }
+      }), { mode: 0o600 });
+
+      const childEntrypoint = fileURLToPath(
+        new URL("../src/baseline/formalSoakRuntimeChild.ts", import.meta.url)
+      );
+      const spec = buildGateDRuntimeChildSpawnSpec({
+        childEntrypoint,
+        databasePath,
+        mcpConfigPath,
+        javaBaseUrl: "http://127.0.0.1:8080",
+        runtimePort: 32_000 + (process.pid % 10_000),
+        serviceToken,
+        expectedDatabaseIdentity: { dev: claim.dev, ino: claim.ino }
+      });
+      child = await spawnGateDRuntimeManagedChild({
+        spec,
+        journal,
+        spawn: (command, args, options) => nodeSpawn(command, args, options) as never
+      });
+
+      await waitForPath(pauseReadyPath, 5_000);
+      renameSync(databasePath, movedClaimPath);
+      symlinkSync(sentinelPath, databasePath);
+      writeFileSync(pauseReleasePath, "release", { mode: 0o600 });
+
+      const childResult = await waitForManagedChildExit(child, 4_000);
+      const after = fileInvariant(sentinelPath);
+      const serializedJournal = JSON.stringify(journalEntries);
+
+      expect(childResult.timedOut).toBe(false);
+      expect(childResult.exit.code).not.toBe(0);
+      expect(after).toEqual(before);
+      expect(serializedJournal).not.toContain(serviceToken);
+      expect(serializedJournal).not.toContain(databasePath);
+      expect(serializedJournal).not.toContain(String(claim.dev));
+      expect(serializedJournal).not.toContain(String(claim.ino));
+    } finally {
+      child?.stop();
+      if (child) await waitForManagedChildExit(child, 2_000);
+      rmSync(directory, { recursive: true, force: true });
+    }
+  }, 15_000);
+
+  it("targets Runtime child PID for RSS, FD, and MCP child probes", () => {
+    const invocations: { command: string; args: string[] }[] = [];
+    const snapshot = readGateDChildProcessSnapshot(4242, (command, args) => {
+      invocations.push({ command, args });
+      if (command === "ps") return " 2048\n";
+      if (command === "lsof") return "p4242\nf0\nn/dev/null\nf1\nn/tmp/runtime.sqlite\n";
+      if (command === "pgrep") return "5001\n5002\n";
+      throw new Error("unexpected process probe");
+    });
+
+    expect(snapshot).toEqual({ rssBytes: 2 * 1024 * 1024, openFileDescriptors: 2, mcpChildCount: 2 });
+    expect(invocations.every(invocation => invocation.args.includes("4242"))).toBe(true);
+  });
+
+  it("opens SQLite evidence read-only and never checkpoints or mutates it", () => {
+    const dir = mkdtempSync(join(tmpdir(), "openharness-gate-d-readonly-"));
+    try {
+      const databasePath = join(dir, "runtime.sqlite");
+      const writer = new Database(databasePath);
+      writer.exec("CREATE TABLE evidence(value TEXT); INSERT INTO evidence(value) VALUES ('retained')");
+      writer.close();
+
+      const probe = openGateDReadOnlyDatabaseProbe(databasePath);
+      expect(probe.get<{ count: number }>("SELECT COUNT(*) AS count FROM evidence")?.count).toBe(1);
+      expect(probe.run("PRAGMA wal_checkpoint(PASSIVE)")).toEqual({ changes: 0 });
+      expect(() => probe.run("DELETE FROM evidence")).toThrow(/read-only/i);
+      probe.close();
+
+      const verifier = new Database(databasePath, { readonly: true });
+      expect(verifier.prepare("SELECT value FROM evidence").get()).toEqual({ value: "retained" });
+      verifier.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("turns durable database anomalies into stable Gate D hard failures", () => {
+    const dir = mkdtempSync(join(tmpdir(), "openharness-gate-d-db-oracle-"));
+    try {
+      const databasePath = join(dir, "runtime.sqlite");
+      const writer = new Database(databasePath);
+      writer.exec(`
+        CREATE TABLE conversations(tenant_id TEXT,user_id TEXT,conversation_id TEXT);
+        CREATE TABLE executions(execution_id TEXT,tenant_id TEXT,user_id TEXT,conversation_id TEXT,status TEXT);
+        CREATE TABLE approvals(approval_id TEXT,tenant_id TEXT,user_id TEXT,conversation_id TEXT,execution_id TEXT,status TEXT);
+        CREATE TABLE messages(content_json TEXT);
+        CREATE TABLE runtime_events(
+          tenant_id TEXT,user_id TEXT,conversation_id TEXT,event_id TEXT,execution_id TEXT,cursor INTEGER,
+          kind TEXT,payload_json TEXT,delivery_status TEXT,dead_letter_at INTEGER
+        );
+        INSERT INTO conversations VALUES ('tenant-a','user-a','conv-a');
+        INSERT INTO executions VALUES ('exec-a','tenant-a','user-a','conv-a','aborted');
+        INSERT INTO approvals VALUES ('approval-a','tenant-a','user-a','conv-a','exec-a','pending');
+        INSERT INTO messages VALUES ('OPENHARNESS_SECRET_CANARY');
+        INSERT INTO runtime_events VALUES (
+          'tenant-a','user-a','conv-a','event-a','exec-a',1,'stream_error',
+          '{"errorClass":"SQLITE_BUSY"}','dead_letter',1
+        );
+      `);
+      writer.close();
+
+      const probe = openGateDReadOnlyDatabaseProbe(databasePath);
+      expect(() => assertGateDSeededConversationCount(probe)).toThrow(/10,000/);
+      const cursor = new GateDDatabaseObservationCursor();
+      const observations = cursor.read(probe);
+      expect(observations.eventObservations).toEqual([{
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-a",
+        cursor: 1,
+        eventId: "event-a"
+      }]);
+      expect(observations.hardFailures).toEqual([
+        "DEAD_LETTER_OUTBOX",
+        "ORPHANED_APPROVAL",
+        "SQLITE_BUSY_RETRY_EXHAUSTED",
+        "SECRET_CANARY_LEAK"
+      ]);
+      expect(cursor.read(probe).eventObservations).toHaveLength(0);
+      probe.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("preserves the original seven-query formal SQL contract and reports callback timings in order", () => {
+    const database = recordingDatabaseProbe();
+    const sqlCallbacks: string[] = [];
+    const timings: GateDDatabaseProbeTiming[] = [];
+
+    const observations = new GateDDatabaseObservationCursor({
+      mode: "formal-full",
+      now: sequenceClock(0, 2, 2, 5, 5, 9, 9, 14, 14, 20, 20, 27, 27, 35),
+      onSql: sql => sqlCallbacks.push(sql),
+      onTiming: timing => timings.push(timing)
+    }).read(database.probe);
+
+    expect(observations).toEqual({ eventObservations: [], hardFailures: [] });
+    expect(database.statements).toHaveLength(7);
+    expect(sqlCallbacks).toEqual(database.statements);
+    expect(timings).toEqual([
+      { probe: "incremental-events", durationMs: 2, rowCount: 0 },
+      { probe: "dead-letter", durationMs: 3, rowCount: 0 },
+      { probe: "orphaned-approval", durationMs: 4, rowCount: 0 },
+      { probe: "duplicate-event", durationMs: 5, rowCount: 0 },
+      { probe: "sqlite-busy", durationMs: 6, rowCount: 0 },
+      { probe: "event-secret-canary", durationMs: 7, rowCount: 0 },
+      { probe: "message-secret-canary", durationMs: 8, rowCount: 0 }
+    ]);
+    expect(database.statements.map(formalSqlKind)).toEqual([
+      "incremental-events",
+      "dead-letter",
+      "orphaned-approval",
+      "duplicate-event",
+      "sqlite-busy",
+      "event-secret-canary",
+      "message-secret-canary"
+    ]);
+    expect(database.statements[3]).toMatch(/event_id[\s\S]*UNION ALL[\s\S]*CAST\(cursor AS TEXT\)/);
+  });
+
+  it("keeps seven formal-incremental probes while bounding event and message history scans", () => {
+    const database = recordingDatabaseProbe({
+      eventBatches: [[{
+        rowId: 5,
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-a",
+        cursor: 1,
+        eventId: "event-a"
+      }]],
+      getForSql: sql => sql.includes("FROM messages")
+        ? { count: 0, maxRowId: 9 }
+        : { count: 0 }
+    });
+    const timings: GateDDatabaseProbeTiming[] = [];
+    const cursor = new GateDDatabaseObservationCursor({
+      mode: "formal-incremental",
+      now: incrementingClock(),
+      onTiming: timing => timings.push(timing)
+    });
+
+    expect(cursor.read(database.probe)).toEqual({
+      eventObservations: [{
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-a",
+        cursor: 1,
+        eventId: "event-a"
+      }],
+      hardFailures: []
+    });
+
+    expect(timings.map(timing => timing.probe)).toEqual([
+      "incremental-events",
+      "dead-letter",
+      "orphaned-approval",
+      "duplicate-event",
+      "sqlite-busy",
+      "event-secret-canary",
+      "message-secret-canary"
+    ]);
+    expect(database.statements).toHaveLength(6);
+    expect(database.statements.join("\n")).not.toMatch(/GROUP BY[\s\S]*runtime_events|UNION ALL/i);
+    const busySql = database.statements.find(sql => sql.includes("SQLITE_BUSY"))!;
+    const eventCanarySql = database.statements.find(sql => sql.includes("OPENHARNESS_SECRET_CANARY") && sql.includes("runtime_events"))!;
+    const messageCanarySql = database.statements.find(sql => sql.includes("OPENHARNESS_SECRET_CANARY") && sql.includes("messages"))!;
+    expect(busySql).toMatch(/rowid > 0[\s\S]*rowid <= 5/);
+    expect(eventCanarySql).toMatch(/rowid > 0[\s\S]*rowid <= 5/);
+    expect(messageCanarySql).toMatch(/rowid > 0/);
+  });
+
+  it("preserves formal hard-failure classes with incremental duplicate checks", () => {
+    const database = recordingDatabaseProbe({
+      eventBatches: [[
+        {
+          rowId: 1,
+          tenantId: "tenant-a",
+          userId: "user-a",
+          conversationId: "conv-a",
+          cursor: 1,
+          eventId: "event-duplicate"
+        },
+        {
+          rowId: 2,
+          tenantId: "tenant-a",
+          userId: "user-a",
+          conversationId: "conv-a",
+          cursor: 2,
+          eventId: "event-duplicate"
+        }
+      ]],
+      getForSql: sql => {
+        if (sql.includes("delivery_status = 'dead_letter'")) return { count: 1 };
+        if (sql.includes("FROM approvals a")) return { count: 1 };
+        if (sql.includes("SQLITE_BUSY")) return { count: 1 };
+        if (sql.includes("FROM messages")) return { count: 1, maxRowId: 1 };
+        if (sql.includes("OPENHARNESS_SECRET_CANARY")) return { count: 1 };
+        return { count: 0 };
+      }
+    });
+    const timings: GateDDatabaseProbeTiming[] = [];
+
+    const observations = new GateDDatabaseObservationCursor({
+      mode: "formal-incremental",
+      now: incrementingClock(),
+      onTiming: timing => timings.push(timing)
+    }).read(database.probe);
+
+    expect(observations.hardFailures).toEqual([
+      "DEAD_LETTER_OUTBOX",
+      "ORPHANED_APPROVAL",
+      "DUPLICATE_DURABLE_EVENT",
+      "SQLITE_BUSY_RETRY_EXHAUSTED",
+      "SECRET_CANARY_LEAK"
+    ]);
+    expect(timings.map(timing => timing.probe)).toEqual([
+      "incremental-events",
+      "dead-letter",
+      "orphaned-approval",
+      "duplicate-event",
+      "sqlite-busy",
+      "event-secret-canary",
+      "message-secret-canary"
+    ]);
+  });
+
+  it("advances independent event and message watermarks only across incremental windows", () => {
+    const database = recordingDatabaseProbe({
+      eventBatches: [
+        [{ rowId: 4, tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 1, eventId: "event-a" }],
+        [{ rowId: 7, tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 2, eventId: "event-b" }]
+      ],
+      getForSql: sql => {
+        if (!sql.includes("FROM messages")) return { count: 0 };
+        return sql.includes("rowid > 0")
+          ? { count: 0, maxRowId: 6 }
+          : { count: 0, maxRowId: 8 };
+      }
+    });
+    const cursor = new GateDDatabaseObservationCursor({ mode: "formal-incremental" });
+
+    cursor.read(database.probe);
+    cursor.read(database.probe);
+
+    const incrementalEventSql = database.statements.filter(sql =>
+      sql.includes("SELECT rowid AS rowId") && sql.includes("FROM runtime_events")
+    );
+    const messageSql = database.statements.filter(sql => sql.includes("FROM messages"));
+    expect(incrementalEventSql[0]).toMatch(/rowid > 0/);
+    expect(incrementalEventSql[1]).toMatch(/rowid > 4/);
+    expect(messageSql[0]).toMatch(/rowid > 0/);
+    expect(messageSql[1]).toMatch(/rowid > 6/);
+  });
+
+  it("preserves diagnostic cursor state across single-query observation windows", () => {
+    const database = recordingDatabaseProbe({
+      eventBatches: [
+        [{ rowId: 5, tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 2, eventId: "event-1" }],
+        [{ rowId: 8, tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 1, eventId: "event-2" }]
+      ]
+    });
+    const sqlCallbacks: string[] = [];
+    const timings: GateDDatabaseProbeTiming[] = [];
+    const cursor = new GateDDatabaseObservationCursor({
+      mode: "diagnostic-incremental",
+      now: incrementingClock(),
+      onSql: sql => sqlCallbacks.push(sql),
+      onTiming: timing => timings.push(timing)
+    });
+
+    const first = cursor.read(database.probe);
+    expect(database.statements).toHaveLength(1);
+    const second = cursor.read(database.probe);
+
+    expect(database.statements).toHaveLength(2);
+    expect(database.statements[0]).toMatch(/FROM runtime_events[\s\S]*WHERE rowid >/);
+    expect(database.statements[1]).toMatch(/WHERE rowid > 5/);
+    expect(first.eventObservations).toEqual([{
+      tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 2, eventId: "event-1"
+    }]);
+    expect(first.hardFailures).toEqual([]);
+    expect(second.eventObservations).toEqual([{
+      tenantId: "tenant-a", userId: "user-a", conversationId: "conv-a", cursor: 1, eventId: "event-2"
+    }]);
+    expect(second.hardFailures).toEqual(["EVENT_ORDERING_FAILURE"]);
+    expect(sqlCallbacks).toEqual(database.statements);
+    expect(timings).toEqual([
+      { probe: "incremental-events", durationMs: 1, rowCount: 1 },
+      { probe: "incremental-events", durationMs: 1, rowCount: 1 }
+    ]);
+  });
+
+  it("fires onSql before a query and preserves the original error without emitting timing", () => {
+    const expectedError = new Error("database probe failed");
+    const sqlCallbacks: string[] = [];
+    const timings: GateDDatabaseProbeTiming[] = [];
+    const database = recordingDatabaseProbe({
+      queryEvents() { throw expectedError; }
+    });
+    const cursor = new GateDDatabaseObservationCursor({
+      mode: "formal-full",
+      now: incrementingClock(),
+      onSql: sql => sqlCallbacks.push(sql),
+      onTiming: timing => timings.push(timing)
+    });
+    let observedError: unknown;
+
+    try {
+      cursor.read(database.probe);
+    } catch (error) {
+      observedError = error;
+    }
+
+    expect(observedError).toBe(expectedError);
+    expect(sqlCallbacks).toHaveLength(1);
+    expect(sqlCallbacks[0]).toContain("WHERE rowid >");
+    expect(timings).toEqual([]);
+  });
+
+  it("reports the durable duplicate failure for event-id duplicates alone", () => {
+    const database = recordingDatabaseProbe({
+      countForSql: sql => sql.includes("GROUP BY tenant_id,user_id,conversation_id,event_id") ? 1 : 0
+    });
+
+    const observations = new GateDDatabaseObservationCursor().read(database.probe);
+
+    expect(observations.hardFailures).toEqual(["DUPLICATE_DURABLE_EVENT"]);
+  });
+
+  it("reports the durable duplicate failure for cursor duplicates alone", () => {
+    const database = recordingDatabaseProbe({
+      countForSql: sql => sql.includes("GROUP BY tenant_id,user_id,conversation_id,cursor") ? 1 : 0
+    });
+
+    const observations = new GateDDatabaseObservationCursor().read(database.probe);
+
+    expect(observations.hardFailures).toEqual(["DUPLICATE_DURABLE_EVENT"]);
+  });
+
+  it("preserves secret-canary short-circuiting and emits callbacks only for executed queries", () => {
+    const database = recordingDatabaseProbe({
+      countForSql: sql => sql.includes("FROM runtime_events WHERE payload_json LIKE '%OPENHARNESS_SECRET_CANARY%'") ? 1 : 0
+    });
+    const sqlCallbacks: string[] = [];
+    const timings: GateDDatabaseProbeTiming[] = [];
+
+    const observations = new GateDDatabaseObservationCursor({
+      now: incrementingClock(),
+      onSql: sql => sqlCallbacks.push(sql),
+      onTiming: timing => timings.push(timing)
+    }).read(database.probe);
+
+    expect(observations.hardFailures).toEqual(["SECRET_CANARY_LEAK"]);
+    expect(database.statements).toHaveLength(6);
+    expect(sqlCallbacks).toEqual(database.statements);
+    expect(timings.map(timing => timing.probe)).toEqual([
+      "incremental-events",
+      "dead-letter",
+      "orphaned-approval",
+      "duplicate-event",
+      "sqlite-busy",
+      "event-secret-canary"
+    ]);
+    expect(database.statements.some(sql => sql.includes("FROM messages WHERE content_json"))).toBe(false);
+  });
+
+  it("keeps the production executor on the explicit formal-incremental cursor", () => {
+    const source = readFileSync(fileURLToPath(new URL("../src/baseline/formalSoakExecution.ts", import.meta.url)), "utf8");
+    const productionBody = source.slice(source.indexOf("export async function executeGateDProductionSoak"));
+
+    expect(productionBody).toContain(
+      'const databaseCursor = new GateDDatabaseObservationCursor({ mode: "formal-incremental" });'
+    );
+    expect(productionBody).not.toContain("const databaseCursor = new GateDDatabaseObservationCursor();");
+    expect(productionBody).not.toContain("diagnostic-incremental");
+  });
+
+  it("proves the exact 10,000 Gate D scopes while ignoring unrelated conversations", () => {
+    const workload = buildDeterministicBaselineWorkload({ seededConversations: 10_000, concurrency: 20 });
+    const expectedRows = workload.operations.map(operation => ({
+      tenantId: operation.tenantId,
+      userId: operation.userId,
+      conversationId: operation.conversationId
+    }));
+    const rows = [
+      ...expectedRows,
+      { tenantId: "unrelated-tenant", userId: "unrelated-user", conversationId: "unrelated-conversation" }
+    ];
+    const database = {
+      all<T>() { return rows as T[]; },
+      get<T>() { return undefined as T | undefined; },
+      run: () => ({ changes: 0 }),
+      close() {},
+      path: "/tmp/read-only.sqlite"
+    };
+
+    expect(() => assertGateDSeededConversationCount(database)).not.toThrow();
+    rows[0] = { ...rows[0]!, tenantId: "wrong-tenant" };
+    expect(() => assertGateDSeededConversationCount(database)).toThrow(/10,000 scoped/);
+  });
+
+  it("detects event cursor regression across separate sampler windows", () => {
+    let batch = 0;
+    const database = {
+      all<T>() {
+        batch += 1;
+        return [{
+          rowId: batch,
+          tenantId: "tenant-a",
+          userId: "user-a",
+          conversationId: "conv-a",
+          cursor: batch === 1 ? 2 : 1,
+          eventId: `event-${batch}`
+        }] as T[];
+      },
+      get<T>() { return { count: 0 } as T; },
+      run: () => ({ changes: 0 }),
+      close() {},
+      path: "/tmp/read-only.sqlite"
+    };
+    const cursor = new GateDDatabaseObservationCursor();
+
+    expect(cursor.read(database).hardFailures).toEqual([]);
+    expect(cursor.read(database).hardFailures).toContain("EVENT_ORDERING_FAILURE");
+  });
+
+  it("wraps the child process, redacts captured output, and probes authenticated readiness", async () => {
+    const stdout = new EventEmitter();
+    const stderr = new EventEmitter();
+    const processEvents = new EventEmitter();
+    const journalRows: Record<string, unknown>[] = [];
+    const signals: NodeJS.Signals[] = [];
+    const child = {
+      pid: 5151,
+      stdout,
+      stderr,
+      once: processEvents.once.bind(processEvents),
+      kill(signal: NodeJS.Signals) { signals.push(signal); return true; }
+    };
+    const managed = await spawnGateDRuntimeManagedChild({
+      spec: buildGateDRuntimeChildSpawnSpec({
+        childEntrypoint: "/workspace/agent-runtime/src/baseline/formalSoakRuntimeChild.ts",
+        databasePath: "/workspace/evidence/runtime.sqlite",
+        mcpConfigPath: "/workspace/evidence/mcp.json",
+        javaBaseUrl: "http://127.0.0.1:8080",
+        runtimePort: 3101,
+        serviceToken: "raw-gate-d-secret"
+      }),
+      journal: { append: row => journalRows.push(row), close() {} },
+      spawn: (() => child) as never
+    });
+    stdout.emit("data", Buffer.from("ready Bearer raw-gate-d-secret"));
+    stdout.emit("data", Buffer.from("raw-gate-d-secret"));
+    stderr.emit("data", Buffer.from("OPENHARNESS_SECRET_CANARY"));
+
+    expect(managed.pid).toBe(5151);
+    expect(JSON.stringify(journalRows)).not.toContain("raw-gate-d-secret");
+    expect(JSON.stringify(journalRows)).not.toContain("OPENHARNESS_SECRET_CANARY");
+
+    const readinessHeaders: Headers[] = [];
+    const readinessUrls: string[] = [];
+    await waitUntilGateDRuntimeReady(managed, {
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "raw-gate-d-secret",
+      delay: async () => undefined,
+      fetch: (async (input, init) => {
+        readinessUrls.push(String(input));
+        readinessHeaders.push(new Headers(init?.headers));
+        return response(200, []);
+      }) as typeof fetch
+    });
+    expect(readinessUrls).toEqual(["http://127.0.0.1:3101/api/v1/health/ready"]);
+    expect(readinessHeaders[0]?.get("Authorization")).toBe("Bearer raw-gate-d-secret");
+    managed.stop();
+    expect(signals).toEqual(["SIGTERM"]);
+    let processClosed = false;
+    void managed.exited.then(() => { processClosed = true; });
+    processEvents.emit("exit", 0, "SIGTERM");
+    await Promise.resolve();
+    expect(processClosed).toBe(false);
+    stdout.emit("data", Buffer.from("late output after exit"));
+    processEvents.emit("close", 0, "SIGTERM");
+    await expect(managed.exited).resolves.toEqual({ code: 0, signal: "SIGTERM" });
+    expect(journalRows.at(-1)).toMatchObject({ text: "late output after exit" });
+  });
+
+  it("allows a mature Worker-owned database to become ready after the legacy 30-second window", async () => {
+    let readinessCalls = 0;
+    const managed = {
+      pid: 6161,
+      exited: new Promise<never>(() => undefined),
+      stop() {}
+    };
+
+    await waitUntilGateDRuntimeReady(managed, {
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "local-test-token",
+      delay: async () => undefined,
+      fetch: (async () => {
+        readinessCalls += 1;
+        return response(readinessCalls >= 122 ? 200 : 503, []);
+      }) as typeof fetch
+    });
+
+    expect(readinessCalls).toBe(122);
+  });
+
+  it("persists a mode-0600 append-only journal and no-overwrite report", () => {
+    const dir = mkdtempSync(join(tmpdir(), "openharness-gate-d-evidence-"));
+    try {
+      const journalPath = join(dir, "gate-d.jsonl");
+      const reportPath = join(dir, "gate-d.json");
+      const journal = createGateDEvidenceJournal(journalPath);
+      journal.append({ kind: "runtime_started", pid: 101 });
+      journal.append({ kind: "sample", sampleIndex: 0, result: "pass" });
+      expect(() => journal.append({ kind: "bad", serviceToken: "raw-secret" })).toThrow(/sensitive/i);
+      journal.close();
+
+      expect(statSync(journalPath).mode & 0o777).toBe(0o600);
+      expect(readFileSync(journalPath, "utf8").trim().split("\n")).toHaveLength(2);
+      expect(() => createGateDEvidenceJournal(journalPath)).toThrow(/exists/i);
+
+      const report = createRuntimeBaselineReport({
+        track: "production",
+        generatedAt: "2026-07-15T00:00:00.000Z",
+        workload: { seededConversations: 10_000, concurrency: 20, mix: {
+          noTool: 0.6, javaSandbox: 0.2, mcp: 0.15, approvalInterruption: 0.05
+        } },
+        environment: { evidenceKind: "formal-24-hour-soak" },
+        samples: []
+      });
+      writeGateDReportNoOverwrite(report, reportPath);
+      expect(statSync(reportPath).mode & 0o777).toBe(0o600);
+      expect(() => writeGateDReportNoOverwrite(report, reportPath)).toThrow(/exists/i);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("seeds all 10,000 scopes then executes the fixed mix with deterministic approval decisions", async () => {
+    const workload = buildDeterministicBaselineWorkload({ seededConversations: 10_000, concurrency: 20 });
+    const calls: { phase: string; fixture: string; decision?: string }[] = [];
+    const driver = new GateDWorkloadDriver({
+      async execute(input) {
+        calls.push({ phase: input.phase, fixture: input.fixture, decision: input.decision });
+        return {
+          admissionLatencyMs: 10,
+          durableReplayLatencyMs: 20,
+          hardFailures: []
+        };
+      }
+    });
+
+    await driver.seed(workload.operations);
+    await driver.runCycle(workload.operations);
+
+    expect(calls.filter(call => call.phase === "seed")).toHaveLength(10_000);
+    expect(calls.filter(call => call.phase === "seed").every(call => call.fixture === "gate-d-no-tool")).toBe(true);
+    const runCalls = calls.filter(call => call.phase === "run");
+    expect(runCalls.filter(call => call.fixture === "gate-d-no-tool")).toHaveLength(6_000);
+    expect(runCalls.filter(call => call.fixture === "tool-time")).toHaveLength(2_000);
+    expect(runCalls.filter(call => call.fixture === "mcp-qualification-echo" && call.decision === "approve")).toHaveLength(1_750);
+    expect(runCalls.filter(call => call.decision === "abort")).toHaveLength(250);
+    expect(driver.drainMetrics()).toMatchObject({
+      admissionLatenciesMs: { length: 20_000 },
+      durableReplayLatenciesMs: { length: 20_000 },
+      hardFailures: []
+    });
+    expect(driver.drainMetrics().admissionLatenciesMs).toEqual([]);
+  });
+
+  it("keeps 20 workers cycling until stopped without admitting the remaining queue", async () => {
+    const operations = buildDeterministicBaselineWorkload({ seededConversations: 40, concurrency: 20 }).operations;
+    let executions = 0;
+    let release!: () => void;
+    let reached!: () => void;
+    const released = new Promise<void>(resolve => { release = resolve; });
+    const atCeiling = new Promise<void>(resolve => { reached = resolve; });
+    const driver = new GateDWorkloadDriver({
+      async execute() {
+        executions += 1;
+        if (executions === 20) reached();
+        await released;
+        return { admissionLatencyMs: 1, durableReplayLatencyMs: 1, hardFailures: [] };
+      }
+    });
+    const workload = new GateDContinuousWorkload(driver, operations);
+
+    workload.start();
+    await atCeiling;
+    const stopping = workload.stop();
+    release();
+    await stopping;
+
+    expect(executions).toBe(20);
+    expect(workload.hardFailures).toEqual([]);
+  });
+
+  it("aborts active Runtime HTTP work when the workload stops", async () => {
+    let admitted!: () => void;
+    const admissionStarted = new Promise<void>(resolve => { admitted = resolve; });
+    const transport = new GateDRuntimeHttpTransport({
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "gate-d-service-token",
+      fetch: (async (_input, init) => {
+        admitted();
+        return await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+        });
+      }) as typeof fetch
+    });
+    const executing = transport.execute({
+      phase: "run",
+      operation: {
+        operationId: "op-stop",
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-stop",
+        kind: "no_tool"
+      },
+      fixture: "gate-d-no-tool"
+    });
+
+    await admissionStarted;
+    transport.stop();
+
+    await expect(executing).resolves.toMatchObject({ hardFailures: ["WORKLOAD_STOPPED"] });
+  });
+
+  it("drives the public Runtime HTTP lifecycle and approves only the exact qualification tool", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    let approved = false;
+    let now = 0;
+    const transport = new GateDRuntimeHttpTransport({
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "gate-d-service-token",
+      now: () => now += 5,
+      delay: async () => undefined,
+      fetch: (async (input, init) => {
+        const url = String(input);
+        calls.push({ url, init });
+        if (url.endsWith("/api/v1/agent/chat/stream")) return response(200, "");
+        if (url.endsWith("/api/v1/sessions/conv-000001")) {
+          return approved
+            ? response(200, {
+                messages: [{ role: "assistant", content: "done" }],
+                activeExecution: null,
+                pendingApprovals: [],
+                runtimeProgress: { requestId: "run-op-000001-00000000", status: "completed" }
+              })
+            : response(200, {
+                messages: [{ role: "user", content: "gate d" }],
+                activeExecution: { executionId: "exec-1", status: "waiting_approval" },
+                pendingApprovals: [{
+                  executionId: "exec-1",
+                  toolCallId: "call-1",
+                  toolName: "mcp_call",
+                  argumentsRaw: JSON.stringify({
+                    server: "qualification",
+                    tool: "qualification_echo",
+                    arguments: { value: "gate-d" }
+                  })
+                }]
+              });
+        }
+        if (url.endsWith("/api/v1/sessions/conv-000001/executions/exec-1/approvals/call-1")) {
+          approved = true;
+          return response(200, { status: "approved" });
+        }
+        throw new Error(`unexpected URL: ${url}`);
+      }) as typeof fetch
+    });
+
+    const observation = await transport.execute({
+      phase: "run",
+      operation: {
+        operationId: "op-000001",
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-000001",
+        kind: "mcp"
+      },
+      fixture: "mcp-qualification-echo",
+      decision: "approve"
+    });
+
+    expect(observation.hardFailures).toEqual([]);
+    expect(calls.map(call => `${call.init?.method ?? "GET"} ${new URL(call.url).pathname}`)).toEqual([
+      "POST /api/v1/agent/chat/stream",
+      "GET /api/v1/sessions/conv-000001",
+      "POST /api/v1/sessions/conv-000001/executions/exec-1/approvals/call-1",
+      "GET /api/v1/sessions/conv-000001"
+    ]);
+    expect(new Headers(calls[0]!.init?.headers).get("Authorization")).toBe("Bearer gate-d-service-token");
+    expect(new Headers(calls[0]!.init?.headers).get("X-Mock-Fixture")).toBe("mcp-qualification-echo");
+  });
+
+  it.each([
+    ["wrong server", JSON.stringify({ server: "other", tool: "qualification_echo", arguments: {} })],
+    ["wrong tool", JSON.stringify({ server: "qualification", tool: "other", arguments: {} })],
+    ["invalid JSON", "{not-json"]
+  ])("fails closed before approval for a qualification target with %s", async (_case, argumentsRaw) => {
+    const calledUrls: string[] = [];
+    const transport = new GateDRuntimeHttpTransport({
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "gate-d-service-token",
+      delay: async () => undefined,
+      fetch: (async (input, init) => {
+        const url = String(input);
+        calledUrls.push(`${init?.method ?? "GET"} ${new URL(url).pathname}`);
+        if (url.endsWith("/api/v1/agent/chat/stream")) return response(200, "");
+        if (url.endsWith("/api/v1/sessions/conv-target-binding")) {
+          return response(200, {
+            messages: [],
+            activeExecution: { executionId: "exec-target", status: "waiting_approval" },
+            pendingApprovals: [{
+              executionId: "exec-target",
+              toolCallId: "call-target",
+              toolName: "mcp_call",
+              argumentsRaw
+            }]
+          });
+        }
+        throw new Error(`approval oracle must not call ${url}`);
+      }) as typeof fetch
+    });
+
+    const observation = await transport.execute({
+      phase: "run",
+      operation: {
+        operationId: "op-target-binding",
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-target-binding",
+        kind: "mcp"
+      },
+      fixture: "mcp-qualification-echo",
+      decision: "approve"
+    });
+
+    expect(observation.hardFailures).toEqual(["APPROVAL_ORACLE_FAILURE"]);
+    expect(calledUrls).toEqual([
+      "POST /api/v1/agent/chat/stream",
+      "GET /api/v1/sessions/conv-target-binding"
+    ]);
+  });
+
+  it("uses the execution abort endpoint and fails closed on ambiguous approvals", async () => {
+    const calledUrls: string[] = [];
+    const transport = new GateDRuntimeHttpTransport({
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "gate-d-service-token",
+      delay: async () => undefined,
+      fetch: (async (input, init) => {
+        const url = String(input);
+        calledUrls.push(`${init?.method ?? "GET"} ${new URL(url).pathname}`);
+        if (url.endsWith("/api/v1/agent/chat/stream")) return response(200, "");
+        if (url.endsWith("/api/v1/sessions/conv-000002")) {
+          return response(200, {
+            messages: [],
+            activeExecution: { executionId: "exec-2", status: "waiting_approval" },
+            pendingApprovals: [{
+              executionId: "exec-2",
+              toolCallId: "call-2",
+              toolName: "mcp_call",
+              argumentsRaw: JSON.stringify({ server: "qualification", tool: "qualification_echo", arguments: {} })
+            }]
+          });
+        }
+        if (url.endsWith("/api/v1/sessions/conv-000002/executions/exec-2/abort")) {
+          return response(200, { status: "aborted" });
+        }
+        throw new Error(`unexpected URL: ${url}`);
+      }) as typeof fetch
+    });
+
+    const observation = await transport.execute({
+      phase: "run",
+      operation: {
+        operationId: "op-000002",
+        tenantId: "tenant-b",
+        userId: "user-b",
+        conversationId: "conv-000002",
+        kind: "approval_interruption"
+      },
+      fixture: "mcp-qualification-echo",
+      decision: "abort"
+    });
+
+    expect(observation.hardFailures).toEqual([]);
+    expect(calledUrls).toContain("POST /api/v1/sessions/conv-000002/executions/exec-2/abort");
+  });
+
+  it("does not treat stale session messages as success for an errored current execution", async () => {
+    const transport = new GateDRuntimeHttpTransport({
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "gate-d-service-token",
+      delay: async () => undefined,
+      fetch: (async (input) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/agent/chat/stream")) return response(200, "");
+        return response(200, {
+          messages: [{ role: "assistant", content: "stale prior answer" }],
+          activeExecution: null,
+          pendingApprovals: [],
+          runtimeProgress: {
+            requestId: "run-op-current-00000003",
+            status: "errored",
+            detail: { terminalClass: "TOOL_EXECUTION_FAILED" }
+          }
+        });
+      }) as typeof fetch
+    });
+
+    await expect(transport.execute({
+      phase: "run",
+      operation: {
+        operationId: "op-current",
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-current",
+        kind: "java_sandbox"
+      },
+      fixture: "tool-time",
+      invocationSequence: 3
+    })).resolves.toMatchObject({ hardFailures: ["TERMINAL_STATUS_MISMATCH"] });
+  });
+
+  it("keeps a worker alive across a scheduled Runtime restart and retries only without admission evidence", async () => {
+    const coordinator = new GateDRestartCoordinator();
+    let streamAttempts = 0;
+    let sessionAttempts = 0;
+    const transport = new GateDRuntimeHttpTransport({
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "gate-d-service-token",
+      restartCoordinator: coordinator,
+      delay: async () => undefined,
+      fetch: (async (input) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/agent/chat/stream")) {
+          streamAttempts += 1;
+          if (streamAttempts === 1) {
+            coordinator.begin();
+            setTimeout(() => coordinator.complete(), 0);
+            throw new Error("scheduled child restart");
+          }
+          return response(200, "");
+        }
+        if (url.endsWith("/api/v1/sessions/conv-restart")) {
+          sessionAttempts += 1;
+          if (sessionAttempts === 1) return response(404, { error: "not admitted" });
+          return response(200, {
+            messages: [{ role: "assistant", content: "done" }],
+            activeExecution: null,
+            pendingApprovals: [],
+            runtimeProgress: { requestId: "run-op-restart-00000042", status: "completed" }
+          });
+        }
+        throw new Error(`unexpected URL: ${url}`);
+      }) as typeof fetch
+    });
+
+    const observation = await transport.execute({
+      phase: "run",
+      operation: {
+        operationId: "op-restart",
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-restart",
+        kind: "no_tool"
+      },
+      fixture: "gate-d-no-tool",
+      invocationSequence: 42
+    });
+
+    expect(observation.hardFailures).toEqual([]);
+    expect(streamAttempts).toBe(2);
+    expect(sessionAttempts).toBe(2);
+  });
+
+  it("does not replay an admitted request after restart reconciliation marks it interrupted", async () => {
+    const coordinator = new GateDRestartCoordinator();
+    let streamAttempts = 0;
+    let sessionAttempts = 0;
+    const transport = new GateDRuntimeHttpTransport({
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "gate-d-service-token",
+      restartCoordinator: coordinator,
+      delay: async () => undefined,
+      fetch: (async (input) => {
+        const url = String(input);
+        if (url.endsWith("/api/v1/agent/chat/stream")) {
+          streamAttempts += 1;
+          return response(200, "");
+        }
+        if (url.endsWith("/api/v1/sessions/conv-interrupted")) {
+          sessionAttempts += 1;
+          if (sessionAttempts === 1) {
+            coordinator.begin();
+            setTimeout(() => coordinator.complete(), 0);
+            throw new Error("scheduled child restart");
+          }
+          return response(200, {
+            messages: [{ role: "user", content: "gate d" }],
+            activeExecution: null,
+            pendingApprovals: [],
+            runtimeProgress: {
+              requestId: "run-op-interrupted-00000007",
+              status: "errored",
+              detail: { terminalClass: "EXECUTION_INTERRUPTED" }
+            }
+          });
+        }
+        throw new Error(`unexpected URL: ${url}`);
+      }) as typeof fetch
+    });
+
+    const observation = await transport.execute({
+      phase: "run",
+      operation: {
+        operationId: "op-interrupted",
+        tenantId: "tenant-a",
+        userId: "user-a",
+        conversationId: "conv-interrupted",
+        kind: "mcp"
+      },
+      fixture: "mcp-qualification-echo",
+      decision: "approve",
+      invocationSequence: 7
+    });
+
+    expect(observation.hardFailures).toEqual([]);
+    expect(streamAttempts).toBe(1);
+    expect(sessionAttempts).toBe(2);
+  });
+
+  it("requires both cross-user and cross-tenant session probes to hide existence", async () => {
+    const identities: string[] = [];
+    const transport = new GateDRuntimeHttpTransport({
+      runtimeUrl: "http://127.0.0.1:3101",
+      serviceToken: "gate-d-service-token",
+      fetch: (async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        identities.push(`${headers.get("X-Tenant-Id")}:${headers.get("X-User-Id")}`);
+        return response(404, { error: "not found" });
+      }) as typeof fetch
+    });
+
+    await expect(transport.probeScopeIsolation({
+      operationId: "op-scope",
+      tenantId: "tenant-a",
+      userId: "user-a",
+      conversationId: "conv-shared",
+      kind: "no_tool"
+    })).resolves.toEqual([]);
+    expect(identities).toEqual([
+      "tenant-a:gate-d-forbidden-user",
+      "gate-d-forbidden-tenant:user-a"
+    ]);
+  });
+});
+
+function recordingDatabaseProbe(options: {
+  eventBatches?: unknown[][];
+  queryEvents?: (sql: string) => unknown[];
+  countForSql?: (sql: string) => number;
+  getForSql?: (sql: string) => unknown;
+} = {}) {
+  const statements: string[] = [];
+  let eventBatchIndex = 0;
+  return {
+    statements,
+    probe: {
+      all<T>(sql: string) {
+        statements.push(sql);
+        const rows = options.queryEvents?.(sql) ?? options.eventBatches?.[eventBatchIndex++] ?? [];
+        return rows as T[];
+      },
+      get<T>(sql: string) {
+        statements.push(sql);
+        return (options.getForSql?.(sql) ?? { count: options.countForSql?.(sql) ?? 0 }) as T;
+      },
+      run: () => ({ changes: 0 }),
+      close() {},
+      path: "/tmp/read-only.sqlite"
+    }
+  };
+}
+
+function incrementingClock(): () => number {
+  let now = 0;
+  return () => now++;
+}
+
+function sequenceClock(...values: number[]): () => number {
+  let index = 0;
+  return () => {
+    const value = values[index];
+    if (value === undefined) throw new Error("deterministic clock exhausted");
+    index += 1;
+    return value;
+  };
+}
+
+function formalSqlKind(sql: string): string {
+  if (sql.includes("WHERE rowid >")) return "incremental-events";
+  if (sql.includes("delivery_status = 'dead_letter'")) return "dead-letter";
+  if (sql.includes("FROM approvals a")) return "orphaned-approval";
+  if (sql.includes("UNION ALL")) return "duplicate-event";
+  if (sql.includes("LIKE '%SQLITE_BUSY%'")) return "sqlite-busy";
+  if (sql.includes("FROM runtime_events WHERE payload_json LIKE '%OPENHARNESS_SECRET_CANARY%'")) {
+    return "event-secret-canary";
+  }
+  if (sql.includes("FROM messages WHERE content_json LIKE '%OPENHARNESS_SECRET_CANARY%'")) {
+    return "message-secret-canary";
+  }
+  return "unknown";
+}
+
+function validEnvironment(): NodeJS.ProcessEnv {
+  return {
+    AGENT_RUNTIME_PROFILE: "production",
+    AGENT_RUNTIME_SQLITE_PATH: "/tmp/openharness-gate-d/runtime.sqlite",
+    GATE_D_MCP_CONFIG_PATH: "/tmp/openharness-gate-d/mcp.json",
+    JAVA_BACKEND_URL: "http://127.0.0.1:8080",
+    OPENHARNESS_SERVICE_TOKEN: "gate-d-service-token",
+    HOST: "127.0.0.1",
+    PORT: "3101"
+  };
+}
+
+function managedChild(pid: number, events: string[]): GateDManagedChild {
+  let resolveExit!: (exit: { code: number | null; signal: NodeJS.Signals | null }) => void;
+  const exited = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(resolve => {
+    resolveExit = resolve;
+  });
+  events.push(`spawn:${pid}`);
+  return {
+    pid,
+    exited,
+    stop() {
+      events.push(`stop:${pid}`);
+      resolveExit({ code: 0, signal: "SIGTERM" });
+    }
+  };
+}
+
+function response(status: number, body: unknown): Response {
+  return new Response(typeof body === "string" ? body : JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" }
+  });
+}
+
+function fileInvariant(path: string): {
+  bytes: Buffer;
+  sha256: string;
+  size: number;
+  mtimeMs: number;
+} {
+  const bytes = readFileSync(path);
+  const metadata = statSync(path);
+  return {
+    bytes,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    size: metadata.size,
+    mtimeMs: metadata.mtimeMs
+  };
+}
+
+async function waitForPath(path: string, timeoutMs: number): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!existsSync(path)) {
+    if (Date.now() >= deadline) throw new Error("actual child pause fixture did not become ready");
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+}
+
+async function waitForManagedChildExit(
+  child: GateDManagedChild,
+  timeoutMs: number
+): Promise<{
+  exit: { code: number | null; signal: NodeJS.Signals | null };
+  timedOut: boolean;
+}> {
+  return await new Promise(resolve => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      child.stop();
+      void child.exited.then(exit => resolve({ exit, timedOut: true }));
+    }, timeoutMs);
+    void child.exited.then(exit => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ exit, timedOut: false });
+    });
+  });
+}

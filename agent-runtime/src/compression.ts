@@ -56,19 +56,27 @@ export function shouldCompress(messages: AgentMessage[], threshold?: number): bo
 
 export async function compress(
   tenantId: string,
+  userId: string,
   conversationId: string,
   history: HistoryStore,
   javaClient: JavaClient,
   headers: Record<string, string>
 ): Promise<void> {
-  const messages = stableHistory(history.get(tenantId, conversationId));
+  const messages = stableHistory(await history.get(tenantId, userId, conversationId));
   if (messages.length <= KEEP_RECENT) return;
 
   const toCompress = messages.slice(0, messages.length - KEEP_RECENT);
   const toKeep = messages.slice(messages.length - KEEP_RECENT);
+  const compressionInstruction: AgentMessage = {
+    role: "user",
+    content: "Compress the preceding conversation into a durable continuation summary. Preserve decisions, constraints, unfinished work, identifiers, file paths, observed errors, and the next concrete actions. Do not invent facts.",
+    compressionInstruction: true
+  };
 
-  // Call Java compress endpoint
-  const summary = await callCompress(toCompress, javaClient, headers);
+  // Insert the instruction into the request-local conversation so the
+  // compression model sees the original history and the compression intent in
+  // one call. It is never appended to stable HistoryStore state.
+  const summary = await callCompress([...toCompress, compressionInstruction], javaClient, headers);
 
   // Archive old messages as chunk MD
   const chunkIndex = nextChunkIndex(tenantId, conversationId);
@@ -83,8 +91,8 @@ export async function compress(
   } as AgentMessage & { compressedSummary: boolean; chunkPath: string };
 
   const newMessages = [summaryMessage, ...toKeep];
-  history.replace(tenantId, conversationId, newMessages);
-  await history.save(tenantId, conversationId);
+  await history.replace(tenantId, userId, conversationId, newMessages);
+  await history.save(tenantId, userId, conversationId);
 }
 
 async function callCompress(
@@ -107,8 +115,7 @@ async function callCompress(
     return response.summary;
   }
 
-  // Safe default summary fallback for generic unit tests that do not mock compression endpoints
-  return `Summary of ${messages.length} messages.`;
+  throw new Error("Java client does not provide compression capability");
 }
 
 function nextChunkIndex(tenantId: string, conversationId: string): number {

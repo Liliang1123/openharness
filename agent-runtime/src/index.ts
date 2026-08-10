@@ -1,8 +1,9 @@
-import { createServer } from "./server";
+import { pathToFileURL } from "node:url";
+import { main } from "./productionEntrypoint";
 
-const port = Number(process.env.PORT ?? 3001);
-const host = process.env.HOST ?? "0.0.0.0";
-const app = await createServer();
+export { main } from "./productionEntrypoint";
 
-await app.listen({ port, host });
-console.log(`agent-runtime listening on http://${host}:${port}`);
+const entrypoint = process.argv[1];
+if (entrypoint && import.meta.url === pathToFileURL(entrypoint).href) {
+  await main();
+}

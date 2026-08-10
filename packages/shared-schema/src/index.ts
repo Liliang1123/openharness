@@ -277,13 +277,207 @@ export const StructuredErrorSchema = z.object({
 });
 export type StructuredError = z.infer<typeof StructuredErrorSchema>;
 
+const CodexIdentifierSchema = z.string().min(1).max(256);
+const CodexContentSchema = z.string().max(65_536);
+const MAX_CANONICAL_JSON_NESTING = 128;
+
+function hasBoundedJsonNesting(raw: string): boolean {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (const character of raw) {
+    if (inString) {
+      if (!escaped && character === "\"") inString = false;
+      escaped = !escaped && character === "\\";
+      continue;
+    }
+    if (character === "\"") {
+      inString = true;
+    } else if (character === "{" || character === "[") {
+      depth += 1;
+      if (depth > MAX_CANONICAL_JSON_NESTING) return false;
+    } else if (character === "}" || character === "]") {
+      depth -= 1;
+      if (depth < 0) return false;
+    }
+  }
+  return depth === 0 && !inString;
+}
+
+class CanonicalJsonParser {
+  private position = 0;
+
+  constructor(private readonly raw: string) {}
+
+  parseObjectText(): boolean {
+    return this.parseObject() && this.position === this.raw.length;
+  }
+
+  private parseValue(): boolean {
+    const character = this.raw[this.position];
+    if (character === "{") return this.parseObject();
+    if (character === "[") return this.parseArray();
+    if (character === "\"") return this.parseString() !== undefined;
+    if (character === "t") return this.consume("true");
+    if (character === "f") return this.consume("false");
+    if (character === "n") return this.consume("null");
+    return this.parseNumber();
+  }
+
+  private parseObject(): boolean {
+    if (!this.consume("{")) return false;
+    if (this.consume("}")) return true;
+
+    const keys = new Set<string>();
+    let previousKey: string | undefined;
+    while (true) {
+      const key = this.parseString();
+      if (key === undefined || keys.has(key) || (previousKey !== undefined && previousKey >= key)) return false;
+      keys.add(key);
+      previousKey = key;
+      if (!this.consume(":") || !this.parseValue()) return false;
+      if (this.consume("}")) return true;
+      if (!this.consume(",")) return false;
+    }
+  }
+
+  private parseArray(): boolean {
+    if (!this.consume("[")) return false;
+    if (this.consume("]")) return true;
+    while (true) {
+      if (!this.parseValue()) return false;
+      if (this.consume("]")) return true;
+      if (!this.consume(",")) return false;
+    }
+  }
+
+  private parseString(): string | undefined {
+    if (this.raw[this.position] !== "\"") return undefined;
+    const start = this.position++;
+    let escaped = false;
+    while (this.position < this.raw.length) {
+      const character = this.raw[this.position++];
+      if (!escaped && character === "\"") {
+        const token = this.raw.slice(start, this.position);
+        try {
+          const decoded: unknown = JSON.parse(token);
+          if (typeof decoded !== "string" || JSON.stringify(decoded) !== token || this.hasLoneSurrogate(decoded)) {
+            return undefined;
+          }
+          return decoded;
+        } catch {
+          return undefined;
+        }
+      }
+      if (!escaped && character === "\\") {
+        escaped = true;
+      } else {
+        escaped = false;
+      }
+    }
+    return undefined;
+  }
+
+  private parseNumber(): boolean {
+    const match = this.raw.slice(this.position).match(/^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:e[+-]?\d+)?/);
+    if (!match) return false;
+    const token = match[0];
+    const value = Number(token);
+    if (!Number.isFinite(value) || Object.is(value, -0) || JSON.stringify(value) !== token) return false;
+    this.position += token.length;
+    return true;
+  }
+
+  private hasLoneSurrogate(value: string): boolean {
+    for (let index = 0; index < value.length; index += 1) {
+      const codeUnit = value.charCodeAt(index);
+      if (codeUnit >= 0xd800 && codeUnit <= 0xdbff) {
+        if (index + 1 >= value.length) return true;
+        const next = value.charCodeAt(index + 1);
+        if (next < 0xdc00 || next > 0xdfff) return true;
+        index += 1;
+      } else if (codeUnit >= 0xdc00 && codeUnit <= 0xdfff) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private consume(expected: string): boolean {
+    if (!this.raw.startsWith(expected, this.position)) return false;
+    this.position += expected.length;
+    return true;
+  }
+}
+
+const CanonicalJsonObjectTextSchema = z.string().min(2).max(65_536).refine((raw) => {
+  return hasBoundedJsonNesting(raw) && new CanonicalJsonParser(raw).parseObjectText();
+}, "argumentsRaw must be canonical JSON object text");
+
+const UtcExpirySchema = z.string().refine((raw) => {
+  const match = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(\.\d{3})?Z$/.exec(raw);
+  if (!match) return false;
+  const normalized = `${match[1]}${match[2] ?? ".000"}Z`;
+  const timestamp = Date.parse(normalized);
+  return Number.isFinite(timestamp) && new Date(timestamp).toISOString() === normalized;
+}, "expiresAt must be a valid UTC timestamp with seconds or milliseconds precision");
+
+export const PendingCodexTurnSchema = z
+  .object({
+    bridgeId: CodexIdentifierSchema,
+    threadId: CodexIdentifierSchema,
+    turnId: CodexIdentifierSchema,
+    callId: CodexIdentifierSchema,
+    toolName: z.string().min(1).max(256),
+    argumentsRaw: CanonicalJsonObjectTextSchema,
+    expiresAt: UtcExpirySchema
+  })
+  .strict();
+export type PendingCodexTurn = z.infer<typeof PendingCodexTurnSchema>;
+
+export const CodexToolResultSubmissionSchema = z
+  .object({
+    requestId: CodexIdentifierSchema,
+    conversationId: CodexIdentifierSchema,
+    threadId: CodexIdentifierSchema,
+    turnId: CodexIdentifierSchema,
+    callId: CodexIdentifierSchema,
+    idempotencyKey: CodexIdentifierSchema,
+    status: z.enum(["ok", "error", "rejected", "timeout"]),
+    content: CodexContentSchema
+  })
+  .strict();
+export type CodexToolResultSubmission = z.infer<typeof CodexToolResultSubmissionSchema>;
+
+export const CodexTurnCancelRequestSchema = z
+  .object({
+    requestId: CodexIdentifierSchema,
+    conversationId: CodexIdentifierSchema,
+    threadId: CodexIdentifierSchema,
+    turnId: CodexIdentifierSchema,
+    callId: CodexIdentifierSchema
+  })
+  .strict();
+export type CodexTurnCancelRequest = z.infer<typeof CodexTurnCancelRequestSchema>;
+
 export const ModelChatResponseSchema = z.object({
-  requestId: z.string(),
-  conversationId: z.string(),
+  requestId: z.string().min(1).max(256),
+  conversationId: z.string().min(1).max(256),
   message: AgentMessageSchema.optional(),
+  pendingTurn: PendingCodexTurnSchema.optional(),
   usage: UsageSchema.optional(),
-  rawProvider: z.string(),
-  error: StructuredErrorSchema.optional()
+  rawProvider: z.string().min(1).max(256),
+  error: StructuredErrorSchema.optional(),
+  idempotentReplay: z.boolean().optional()
+}).strict().superRefine((response, context) => {
+  const outcomeCount = [response.message, response.pendingTurn, response.error]
+    .filter((outcome) => outcome !== undefined).length;
+  if (outcomeCount !== 1) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "exactly one of message, pendingTurn, or error is required"
+    });
+  }
 });
 export type ModelChatResponse = z.infer<typeof ModelChatResponseSchema>;
 
@@ -489,6 +683,78 @@ export const QualificationReportSchema = z
     }
   });
 export type QualificationReport = z.infer<typeof QualificationReportSchema>;
+
+export const GateCProviderEvidencePathSchema = z.string().min(1).refine((path) => {
+  if (path.startsWith("/") || /^[a-zA-Z]:\//.test(path) || path.includes("\\")) {
+    return false;
+  }
+  return path.split("/").every((segment) => segment !== "" && segment !== "." && segment !== "..");
+}, "evidence path must be a normalized project-relative path");
+export type GateCProviderEvidencePath = z.infer<typeof GateCProviderEvidencePathSchema>;
+
+export const GateCProviderEvidenceRefSchema = z
+  .object({
+    authority: z.enum(["required", "advisory"]),
+    path: GateCProviderEvidencePathSchema,
+    sha256: z.string().regex(/^[a-f0-9]{64}$/),
+    track: QualificationTrackSchema,
+    reportResult: QualificationReportResultSchema
+  })
+  .strict();
+export type GateCProviderEvidenceRef = z.infer<typeof GateCProviderEvidenceRefSchema>;
+
+export const GateCRequiredRowIdsSchema = z.tuple([
+  z.literal("codex-real-sync"),
+  z.literal("codex-real-reasoning"),
+  z.literal("codex-real-usage"),
+  z.literal("codex-real-stream"),
+  z.literal("codex-real-cancellation"),
+  z.literal("codex-real-redaction")
+]);
+export type GateCRequiredRowIds = z.infer<typeof GateCRequiredRowIdsSchema>;
+
+export const GateCProviderDecisionSchema = z
+  .object({
+    schemaVersion: z.literal(1),
+    policy: z.literal("codex-oauth-required-v1"),
+    generatedAt: z.string().datetime(),
+    result: z.enum(["pass", "blocked"]),
+    required: GateCProviderEvidenceRefSchema.extend({
+      authority: z.literal("required"),
+      clientImplementationSha256: z.string().regex(/^[a-f0-9]{64}$/),
+      requiredRowIds: GateCRequiredRowIdsSchema
+    }).strict(),
+    advisory: z.array(GateCProviderEvidenceRefSchema.extend({
+      authority: z.literal("advisory")
+    }).strict()),
+    blockers: z.array(z.string().min(1))
+  })
+  .strict()
+  .superRefine((decision, context) => {
+    if (decision.result === "pass" && decision.blockers.length > 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["blockers"],
+        message: "pass decision cannot contain blockers"
+      });
+    }
+    if (decision.result === "pass"
+      && (decision.required.track !== "production" || decision.required.reportResult !== "pass")) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["required"],
+        message: "pass decision requires a production pass report"
+      });
+    }
+    if (decision.result === "blocked" && decision.blockers.length === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["blockers"],
+        message: "blocked decision must contain blockers"
+      });
+    }
+  });
+export type GateCProviderDecision = z.infer<typeof GateCProviderDecisionSchema>;
 
 export const RuntimeBaselineOperationKindSchema = z.enum(["no_tool", "java_sandbox", "mcp", "approval_interruption"]);
 export type RuntimeBaselineOperationKind = z.infer<typeof RuntimeBaselineOperationKindSchema>;

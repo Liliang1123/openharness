@@ -1,6 +1,7 @@
 import type { FastifyReply } from "fastify";
 import type { AgentDefinition } from "@openharness/shared-schema";
 import type { AgentExecutionRunner } from "./agentExecutionRunner";
+import type { RuntimeChatLifecycleLogger } from "./runtimeChatLifecycleLog";
 import type { RuntimeEventStore } from "./runtimeEventStore";
 import type { SessionEvent } from "./types";
 
@@ -14,6 +15,7 @@ export interface StreamInput {
   headers: Record<string, string>;
   agentDefinition: AgentDefinition;
   stepBudget?: number;
+  lifecycleLogger?: RuntimeChatLifecycleLogger;
 }
 
 /**
@@ -29,6 +31,11 @@ export class AgentStreamLoop {
 
   async stream(input: StreamInput, reply: FastifyReply): Promise<void> {
     const origin = reply.request.headers.origin ?? "*";
+
+    // Durable admission happens before the client observes HTTP 200. start()
+    // commits the execution and its initial lifecycle events.
+    const handle = this.runner.start(input);
+    await handle.admitted;
     reply.raw.writeHead(200, {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
@@ -36,9 +43,7 @@ export class AgentStreamLoop {
       "Access-Control-Allow-Origin": origin,
       "Access-Control-Expose-Headers": "X-Trace-Id, X-Request-Id"
     });
-
-    // Start the detached runner. It synchronously emits agent_start to the store.
-    const handle = this.runner.start(input);
+    reply.raw.flushHeaders();
 
     let closed = false;
     let closePromise: () => void = () => {};
@@ -47,6 +52,8 @@ export class AgentStreamLoop {
     const seen = new Set<string>();
     let unsubscribe: (() => void) | null = null;
     let heartbeat: NodeJS.Timeout | null = null;
+    let replaying = true;
+    const bufferedLive: SessionEvent[] = [];
 
     const close = () => {
       if (closed) return;
@@ -83,11 +90,26 @@ export class AgentStreamLoop {
       if (e.kind === "stream_done" || e.kind === "stream_error") close();
     };
 
-    // Subscribe first, then drain any events already emitted synchronously by runner.start().
-    unsubscribe = this.runtimeEventStore.subscribe(input.tenantId, input.conversationId, writeSse);
-    for (const e of this.runtimeEventStore.since(input.tenantId, input.conversationId, null)) {
+    // Subscribe before async replay. Live events are buffered until replay is emitted,
+    // then drained in durable event order with eventId de-duplication in writeSse.
+    unsubscribe = this.runtimeEventStore.subscribe(input.tenantId, input.userId, input.conversationId, event => {
+      if (replaying) bufferedLive.push(event);
+      else writeSse(event);
+    });
+    const replayed = await this.runtimeEventStore.forExecution(
+      input.tenantId,
+      input.userId,
+      input.conversationId,
+      handle.executionId
+    );
+    for (const e of replayed) {
       if (closed) break;
       writeSse(e);
+    }
+    replaying = false;
+    for (const event of bufferedLive.sort(compareEventOrder)) {
+      if (closed) break;
+      writeSse(event);
     }
 
     if (closed) return;
@@ -106,4 +128,13 @@ export class AgentStreamLoop {
 
     await closed$;
   }
+}
+
+function compareEventOrder(left: SessionEvent, right: SessionEvent): number {
+  const leftCursor = Number(left.eventId.slice(left.eventId.lastIndexOf(":") + 1));
+  const rightCursor = Number(right.eventId.slice(right.eventId.lastIndexOf(":") + 1));
+  if (Number.isSafeInteger(leftCursor) && Number.isSafeInteger(rightCursor)) {
+    return leftCursor - rightCursor;
+  }
+  return left.createdAt - right.createdAt || left.eventId.localeCompare(right.eventId);
 }

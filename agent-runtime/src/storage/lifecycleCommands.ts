@@ -1,4 +1,4 @@
-import type { AgentMessage, RuntimeEventKind, SessionEvent, StopReason } from "../types";
+import type { AgentMessage, Awaitable, RuntimeEventKind, SessionEvent, StopReason } from "../types";
 import type { RuntimeEventStore } from "../runtimeEventStore";
 import type { RuntimeDatabase, RuntimeTransaction } from "./runtimeStorage";
 import type { SqliteApprovalStatus } from "./sqliteApprovalStore";
@@ -49,22 +49,58 @@ export interface RecordToolPlanInput extends LifecycleScope {
 export interface CompleteToolInput extends LifecycleScope {
   toolResult: AgentMessage;
   stepIndex: number;
+  status?: "ok" | "rejected";
 }
 
 export interface CompleteExecutionInput extends LifecycleScope {
   assistantMessage: AgentMessage;
   stopReason: StopReason;
+  usage?: { costUsdMicros?: number };
+}
+
+export interface RecordInjectedMessagesInput extends LifecycleScope {
+  messages: AgentMessage[];
 }
 
 export interface InterruptExecutionInput extends LifecycleScope {
   errorMessage: string;
 }
 
+export interface FailExecutionInput extends LifecycleScope {
+  errorClass: string;
+  errorMessage: string;
+  details?: Record<string, unknown>;
+}
+
+export interface AbortExecutionInput extends LifecycleScope {
+  errorMessage: string;
+}
+
+export interface RecordRuntimeEventInput extends LifecycleScope {
+  kind: RuntimeEventKind;
+  data: Record<string, unknown>;
+}
+
+
 export interface LifecycleCommit {
   events: SessionEvent[];
 }
 
-export class RuntimeLifecycleCommands {
+export interface RuntimeLifecycleWriter {
+  startExecution(input: StartExecutionInput): Awaitable<LifecycleCommit>;
+  enterApproval(input: EnterApprovalInput): Awaitable<LifecycleCommit>;
+  decideApproval(input: DecideApprovalInput): Awaitable<LifecycleCommit>;
+  recordToolPlan(input: RecordToolPlanInput): Awaitable<LifecycleCommit>;
+  completeTool(input: CompleteToolInput): Awaitable<LifecycleCommit>;
+  completeExecution(input: CompleteExecutionInput): Awaitable<LifecycleCommit>;
+  failExecution(input: FailExecutionInput): Awaitable<LifecycleCommit>;
+  abortExecution(input: AbortExecutionInput): Awaitable<LifecycleCommit>;
+  recordEvent(input: RecordRuntimeEventInput): Awaitable<LifecycleCommit>;
+  recordInjectedMessages(input: RecordInjectedMessagesInput): Awaitable<LifecycleCommit>;
+  interruptExecution(input: InterruptExecutionInput): Awaitable<LifecycleCommit>;
+}
+
+export class RuntimeLifecycleCommands implements RuntimeLifecycleWriter {
   constructor(
     private readonly database: RuntimeDatabase,
     private readonly repositories: SqliteRuntimeRepositories
@@ -73,7 +109,7 @@ export class RuntimeLifecycleCommands {
   startExecution(input: StartExecutionInput): LifecycleCommit {
     return this.runBoundary(input, (tx) => {
       const existing = this.repositories.execution.get(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
-      if (existing) return this.replayAll(tx, input);
+      if (existing) return [];
 
       this.repositories.history.ensureConversation(tx, input);
       this.repositories.history.append(tx, input.tenantId, input.userId, input.conversationId, {
@@ -91,7 +127,7 @@ export class RuntimeLifecycleCommands {
   enterApproval(input: EnterApprovalInput): LifecycleCommit {
     return this.runBoundary(input, (tx) => {
       const existing = this.repositories.approval.get(tx, input.tenantId, input.userId, input.conversationId, input.approvalId);
-      if (existing) return this.replayAll(tx, input);
+      if (existing) return [];
 
       this.repositories.approval.createPending(tx, {
         approvalId: input.approvalId,
@@ -123,7 +159,7 @@ export class RuntimeLifecycleCommands {
   decideApproval(input: DecideApprovalInput): LifecycleCommit {
     return this.runBoundary(input, (tx) => {
       const approval = this.repositories.approval.get(tx, input.tenantId, input.userId, input.conversationId, input.approvalId);
-      if (!approval || approval.status === input.nextStatus) return this.replayAll(tx, input);
+      if (!approval || approval.status === input.nextStatus) return [];
       const changed = this.repositories.approval.compareAndSetStatus(tx, {
         tenantId: input.tenantId,
         userId: input.userId,
@@ -132,15 +168,12 @@ export class RuntimeLifecycleCommands {
         expectedStatus: "pending",
         nextStatus: input.nextStatus
       });
-      if (!changed) return this.replayAll(tx, input);
+      if (!changed) return [];
       this.repositories.execution.transition(tx, {
         ...input,
         status: "running"
       });
-      return [this.appendEvent(tx, input, "tool_result", {
-        approvalId: input.approvalId,
-        status: input.nextStatus
-      })];
+      return [];
     });
   }
 
@@ -148,7 +181,7 @@ export class RuntimeLifecycleCommands {
     return this.runBoundary(input, (tx) => {
       const messages = this.repositories.history.get(tx, input.tenantId, input.userId, input.conversationId);
       if (messages.some((message) => hasProvisionalExecution(message, input.executionId))) {
-        return this.replayAll(tx, input);
+        return [];
       }
       this.repositories.history.append(tx, input.tenantId, input.userId, input.conversationId, markProvisional(input.assistantMessage, input.executionId));
       return [this.appendEvent(tx, input, "model_call_end", {
@@ -160,16 +193,31 @@ export class RuntimeLifecycleCommands {
 
   completeTool(input: CompleteToolInput): LifecycleCommit {
     return this.runBoundary(input, (tx) => {
-      const messages = this.repositories.history.get(tx, input.tenantId, input.userId, input.conversationId);
       const toolCallId = input.toolResult.toolCallId;
-      if (toolCallId && messages.some((message) => message.role === "tool" && message.toolCallId === toolCallId)) {
-        return this.replayAll(tx, input);
+      if (toolCallId && this.repositories.history.hasToolResultForExecution(
+        tx, input.tenantId, input.userId, input.conversationId, input.executionId, toolCallId
+      )) {
+        return [];
       }
-      this.repositories.history.append(tx, input.tenantId, input.userId, input.conversationId, input.toolResult);
+      this.repositories.history.append(tx, input.tenantId, input.userId, input.conversationId, {
+        ...input.toolResult,
+        lifecycleExecutionId: input.executionId
+      } as AgentMessage);
+      const updated = this.repositories.history.get(tx, input.tenantId, input.userId, input.conversationId);
+      const provisional = updated.find(message => hasProvisionalExecution(message, input.executionId));
+      const plannedToolCallIds = provisional?.toolCalls?.map(toolCall => toolCall.id) ?? [];
+      const completedToolCallIds = new Set(this.repositories.history.toolResultIdsForExecution(
+        tx, input.tenantId, input.userId, input.conversationId, input.executionId
+      ));
+      if (plannedToolCallIds.length > 0 && plannedToolCallIds.every(toolCallId => completedToolCallIds.has(toolCallId))) {
+        this.repositories.history.finalizeProvisionalByExecution(
+          tx, input.tenantId, input.userId, input.conversationId, input.executionId
+        );
+      }
       return [this.appendEvent(tx, input, "tool_result", {
         toolCallId: input.toolResult.toolCallId,
         toolName: input.toolResult.toolName,
-        status: "ok",
+        status: input.status ?? "ok",
         stepIndex: input.stepIndex
       })];
     });
@@ -178,7 +226,7 @@ export class RuntimeLifecycleCommands {
   completeExecution(input: CompleteExecutionInput): LifecycleCommit {
     return this.runBoundary(input, (tx) => {
       const execution = this.repositories.execution.get(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
-      if (execution?.status === "completed") return this.replayAll(tx, input);
+      if (!execution || isTerminalStatus(execution.status)) return [];
 
       this.repositories.history.append(tx, input.tenantId, input.userId, input.conversationId, input.assistantMessage);
       this.repositories.execution.transition(tx, {
@@ -187,7 +235,10 @@ export class RuntimeLifecycleCommands {
         stopReason: input.stopReason
       });
       return [
-        this.appendEvent(tx, input, "final_answer", { answer: input.assistantMessage.content }),
+        this.appendEvent(tx, input, "final_answer", {
+          answer: input.assistantMessage.content,
+          ...(input.usage ? { usage: input.usage } : {})
+        }),
         this.appendEvent(tx, input, "agent_end", { stopReason: input.stopReason }),
         this.appendEvent(tx, input, "stream_done", { stopReason: input.stopReason })
       ];
@@ -197,7 +248,7 @@ export class RuntimeLifecycleCommands {
   interruptExecution(input: InterruptExecutionInput): LifecycleCommit {
     return this.runBoundary(input, (tx) => {
       const execution = this.repositories.execution.get(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
-      if (execution?.status === "errored" && execution.stopReason === "EXECUTION_INTERRUPTED") return this.replayAll(tx, input);
+      if (!execution || isTerminalStatus(execution.status)) return [];
 
       this.repositories.history.removeProvisionalByExecution(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
       for (const approval of this.repositories.approval.listPending(tx, input.tenantId, input.userId, input.conversationId)) {
@@ -222,6 +273,66 @@ export class RuntimeLifecycleCommands {
     });
   }
 
+  failExecution(input: FailExecutionInput): LifecycleCommit {
+    return this.runBoundary(input, (tx) => {
+      const execution = this.repositories.execution.get(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
+      if (!execution || isTerminalStatus(execution.status)) return [];
+      this.repositories.history.removeProvisionalByExecution(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
+      this.repositories.execution.transition(tx, {
+        ...input,
+        status: "errored",
+        stopReason: input.errorClass
+      });
+      return [this.appendEvent(tx, input, "stream_error", {
+        errorClass: input.errorClass,
+        errorMessage: input.errorMessage,
+        ...(input.details ?? {})
+      })];
+    });
+  }
+
+  abortExecution(input: AbortExecutionInput): LifecycleCommit {
+    return this.runBoundary(input, (tx) => {
+      const execution = this.repositories.execution.get(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
+      if (!execution || isTerminalStatus(execution.status)) return [];
+      this.repositories.history.removeProvisionalByExecution(tx, input.tenantId, input.userId, input.conversationId, input.executionId);
+      for (const approval of this.repositories.approval.listPending(tx, input.tenantId, input.userId, input.conversationId)) {
+        if (approval.executionId !== input.executionId) continue;
+        this.repositories.approval.compareAndSetStatus(tx, {
+          tenantId: input.tenantId,
+          userId: input.userId,
+          conversationId: input.conversationId,
+          approvalId: approval.approvalId,
+          expectedStatus: "pending",
+          nextStatus: "invalidated"
+        });
+      }
+      this.repositories.execution.transition(tx, {
+        ...input,
+        status: "aborted",
+        stopReason: "EXECUTION_ABORTED"
+      });
+      return [this.appendEvent(tx, input, "stream_error", {
+        errorClass: "EXECUTION_ABORTED",
+        errorMessage: input.errorMessage
+      })];
+    });
+  }
+
+  recordEvent(input: RecordRuntimeEventInput): LifecycleCommit {
+    return this.runBoundary(input, (tx) => [this.appendEvent(tx, input, input.kind, input.data)]);
+  }
+
+  recordInjectedMessages(input: RecordInjectedMessagesInput): LifecycleCommit {
+    return this.runBoundary(input, (tx) => {
+      for (const message of input.messages) {
+        this.repositories.history.append(tx, input.tenantId, input.userId, input.conversationId, message);
+      }
+      return [];
+    });
+  }
+
+
   private runBoundary(input: LifecycleScope, work: (tx: RuntimeTransaction) => SessionEvent[]): LifecycleCommit {
     const events = this.database.transaction((tx) => {
       const committed = work(tx);
@@ -241,7 +352,7 @@ export class RuntimeLifecycleCommands {
     const cursor = (this.repositories.runtimeEvent.latestCursor(tx, input.tenantId, input.userId, input.conversationId) ?? 0) + 1;
     return this.repositories.runtimeEvent.append(tx, {
       durability: "durable",
-      eventId: `${input.tenantId}::${input.conversationId}:${cursor}`,
+      eventId: `${input.tenantId}::${input.userId}::${input.conversationId}:${cursor}`,
       executionId: input.executionId,
       conversationId: input.conversationId,
       tenantId: input.tenantId,
@@ -255,17 +366,14 @@ export class RuntimeLifecycleCommands {
     });
   }
 
-  private replayAll(tx: RuntimeTransaction, input: LifecycleScope): SessionEvent[] {
-    return this.repositories.runtimeEvent.replayAfter(tx, input.tenantId, input.userId, input.conversationId, null);
-  }
 }
 
 export function publishCommittedLifecycleEvents(
-  store: Pick<RuntimeEventStore, "append">,
+  store: Pick<RuntimeEventStore, "publish">,
   commit: LifecycleCommit
 ): void {
   for (const event of commit.events) {
-    store.append(event.tenantId, event.conversationId, event);
+    store.publish(event);
   }
 }
 
@@ -279,4 +387,8 @@ function markProvisional(message: AgentMessage, executionId: string): AgentMessa
 
 function hasProvisionalExecution(message: AgentMessage, executionId: string): boolean {
   return (message as AgentMessage & { provisionalExecutionId?: string }).provisionalExecutionId === executionId;
+}
+
+function isTerminalStatus(status: string): boolean {
+  return status === "completed" || status === "errored" || status === "aborted";
 }

@@ -91,6 +91,25 @@ export class SqliteApprovalStore {
     ).map(fromRow);
   }
 
+  getPendingByExecutionToolCall(
+    tx: RuntimeTransaction,
+    tenantId: string,
+    userId: string,
+    conversationId: string,
+    executionId: string,
+    toolCallId: string
+  ): SqliteApprovalRecord | null {
+    const row = tx.get<ApprovalRow>(
+      `SELECT approval_id,tenant_id,user_id,conversation_id,execution_id,status,payload_json,created_at,updated_at
+       FROM approvals
+       WHERE tenant_id = ? AND user_id = ? AND conversation_id = ? AND execution_id = ?
+         AND status = 'pending' AND json_extract(payload_json, '$.toolCallId') = ?
+       LIMIT 1`,
+      [tenantId, userId, conversationId, executionId, toolCallId]
+    );
+    return row ? fromRow(row) : null;
+  }
+
   compareAndSetStatus(tx: RuntimeTransaction, input: ApprovalCompareAndSetInput): boolean {
     return tx.run(
       `UPDATE approvals

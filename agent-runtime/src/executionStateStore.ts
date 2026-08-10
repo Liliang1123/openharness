@@ -6,7 +6,7 @@ export interface ExecutionState {
   executionId: ExecutionId;
   conversationId: string;
   tenantId: string;
-  userId?: string;
+  userId: string;
   status: ExecutionStatus;
   startedAt: number;
   updatedAt: number;
@@ -16,15 +16,18 @@ export interface ExecutionState {
 }
 
 export interface ExecutionStateStore {
-  create(input: { executionId: ExecutionId; conversationId: string; tenantId: string; userId?: string }): ExecutionState;
-  get(executionId: ExecutionId): ExecutionState | null;
-  getActive(tenantId: string, conversationId: string, userId?: string): ExecutionState | null;
-  transition(executionId: ExecutionId, status: ExecutionStatus, endReason?: string): ExecutionState | null;
+  create(input: { executionId: ExecutionId; conversationId: string; tenantId: string; userId: string }): ExecutionState;
+  get(tenantId: string, userId: string, conversationId: string, executionId: ExecutionId): ExecutionState | null;
+  getActive(tenantId: string, userId: string, conversationId: string): ExecutionState | null;
+  transition(tenantId: string, userId: string, conversationId: string, executionId: ExecutionId, status: ExecutionStatus, endReason?: string): ExecutionState | null;
   /**
    * Transition a running execution to a terminal state. No-op if already terminal.
    * Returns the (possibly unchanged) state, or null if the execution is unknown.
    */
   transitionToTerminal(
+    tenantId: string,
+    userId: string,
+    conversationId: string,
     executionId: ExecutionId,
     status: Exclude<ExecutionStatus, "running">,
     endReason?: string
@@ -33,17 +36,17 @@ export interface ExecutionStateStore {
    * Trigger AbortController and transition to "aborted". Returns true if the call
    * actually changed state, false if no-op (already terminal or unknown).
    */
-  abort(executionId: ExecutionId): boolean;
+  abort(tenantId: string, userId: string, conversationId: string, executionId: ExecutionId): boolean;
 }
 
 function isTerminal(status: ExecutionStatus): boolean {
   return status === "completed" || status === "aborted" || status === "errored";
 }
 
-export class InMemoryExecutionStateStore implements ExecutionStateStore {
-  private readonly states = new Map<ExecutionId, ExecutionState>();
+export class ProcessExecutionStateStore implements ExecutionStateStore {
+  private readonly states = new Map<string, ExecutionState>();
 
-  create(input: { executionId: ExecutionId; conversationId: string; tenantId: string; userId?: string }): ExecutionState {
+  create(input: { executionId: ExecutionId; conversationId: string; tenantId: string; userId: string }): ExecutionState {
     const now = Date.now();
     const state: ExecutionState = {
       executionId: input.executionId,
@@ -56,20 +59,20 @@ export class InMemoryExecutionStateStore implements ExecutionStateStore {
       endedAt: null,
       abortController: new AbortController()
     };
-    this.states.set(input.executionId, state);
+    this.states.set(stateKey(input.tenantId, input.userId, input.conversationId, input.executionId), state);
     return state;
   }
 
-  get(executionId: ExecutionId): ExecutionState | null {
-    return this.states.get(executionId) ?? null;
+  get(tenantId: string, userId: string, conversationId: string, executionId: ExecutionId): ExecutionState | null {
+    return this.states.get(stateKey(tenantId, userId, conversationId, executionId)) ?? null;
   }
 
-  getActive(tenantId: string, conversationId: string, userId?: string): ExecutionState | null {
+  getActive(tenantId: string, userId: string, conversationId: string): ExecutionState | null {
     for (const state of this.states.values()) {
       if (
         state.tenantId === tenantId &&
         state.conversationId === conversationId &&
-        (userId === undefined || state.userId === undefined || state.userId === userId) &&
+        state.userId === userId &&
         !isTerminal(state.status)
       ) {
         return state;
@@ -78,8 +81,8 @@ export class InMemoryExecutionStateStore implements ExecutionStateStore {
     return null;
   }
 
-  transition(executionId: ExecutionId, status: ExecutionStatus, endReason?: string): ExecutionState | null {
-    const state = this.states.get(executionId);
+  transition(tenantId: string, userId: string, conversationId: string, executionId: ExecutionId, status: ExecutionStatus, endReason?: string): ExecutionState | null {
+    const state = this.get(tenantId, userId, conversationId, executionId);
     if (!state) return null;
     if (isTerminal(state.status)) return state;
 
@@ -92,18 +95,21 @@ export class InMemoryExecutionStateStore implements ExecutionStateStore {
   }
 
   transitionToTerminal(
+    tenantId: string,
+    userId: string,
+    conversationId: string,
     executionId: ExecutionId,
     status: Exclude<ExecutionStatus, "running">,
     endReason?: string
   ): ExecutionState | null {
-    const state = this.states.get(executionId);
+    const state = this.get(tenantId, userId, conversationId, executionId);
     if (!state) return null;
     if (isTerminal(state.status)) return state;
-    return this.transition(executionId, status, endReason);
+    return this.transition(tenantId, userId, conversationId, executionId, status, endReason);
   }
 
-  abort(executionId: ExecutionId): boolean {
-    const state = this.states.get(executionId);
+  abort(tenantId: string, userId: string, conversationId: string, executionId: ExecutionId): boolean {
+    const state = this.get(tenantId, userId, conversationId, executionId);
     if (!state) return false;
     if (isTerminal(state.status)) return false;
 
@@ -115,4 +121,10 @@ export class InMemoryExecutionStateStore implements ExecutionStateStore {
     state.abortController.abort();
     return true;
   }
+}
+
+export { ProcessExecutionStateStore as InMemoryExecutionStateStore };
+
+function stateKey(tenantId: string, userId: string, conversationId: string, executionId: ExecutionId): string {
+  return `${tenantId}:${userId}:${conversationId}:${executionId}`;
 }

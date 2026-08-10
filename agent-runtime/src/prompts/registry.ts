@@ -1,4 +1,4 @@
-import type { AgentMessage } from "../types";
+import type { AgentMessage, Awaitable } from "../types";
 import type { PromptTemplate } from "@openharness/shared-schema";
 
 const DEFAULT_PROMPT_REF = "openharness-default@v1";
@@ -56,20 +56,21 @@ export function buildSessionContext(options: {
   return `[Session context: Today is ${dateStr}. Current model: ${options.model}. OS: ${osStr}. Working directory: ${options.workingDir}]`;
 }
 
-export function injectSessionContextIfNeeded(
+export async function injectSessionContextIfNeeded(
   history: {
-    get(tenantId: string, conversationId: string): AgentMessage[];
-    append(tenantId: string, conversationId: string, message: AgentMessage): void;
+    get(tenantId: string, userId: string, conversationId: string): Awaitable<AgentMessage[]>;
+    append(tenantId: string, userId: string, conversationId: string, message: AgentMessage): Awaitable<void>;
   },
   tenantId: string,
+  userId: string,
   conversationId: string,
   modelName = "default"
-): void {
+): Promise<void> {
   if (process.env.VITEST === "true" && !process.env.CACHE_STRATEGY) {
     return;
   }
 
-  const existingMessages = history.get(tenantId, conversationId);
+  const existingMessages = await history.get(tenantId, userId, conversationId);
   const dateStr = new Date().toISOString().split("T")[0];
   const hasSessionContext = existingMessages.some(
     (m) => typeof m.content === "string" && m.content.startsWith(`[Session context: Today is ${dateStr}`)
@@ -77,7 +78,7 @@ export function injectSessionContextIfNeeded(
 
   if (!hasSessionContext) {
     const sessionCtxContent = `[Session context: Today is ${dateStr}. Current model: ${modelName}. OS: ${process.platform}. Working directory: ${process.cwd()}]`;
-    history.append(tenantId, conversationId, {
+    await history.append(tenantId, userId, conversationId, {
       role: "user",
       content: sessionCtxContent,
       systemInjected: true,
@@ -85,5 +86,3 @@ export function injectSessionContextIfNeeded(
     } as AgentMessage);
   }
 }
-
-

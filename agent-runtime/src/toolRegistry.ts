@@ -10,6 +10,26 @@ interface FrozenEntry {
   sources: Map<string, ToolSource>;
 }
 
+export const MCP_CALL_TOOL: ToolDefinition = {
+  name: "mcp_call",
+  description: "Call one tool on one configured MCP server using a stable broker envelope.",
+  permission: "sensitive",
+  isReadOnly: false,
+  isDestructive: false,
+  requiresApproval: false,
+  isConcurrencySafe: true,
+  parameters: {
+    type: "object",
+    properties: {
+      server: { type: "string", description: "Configured MCP server name." },
+      tool: { type: "string", description: "Tool name advertised by that MCP server." },
+      arguments: { type: "object", description: "Arguments matching the selected MCP tool schema." }
+    },
+    required: ["server", "tool", "arguments"],
+    additionalProperties: false
+  }
+};
+
 export class ToolRegistry {
   private static readonly entries = new Map<string, FrozenEntry>();
   private readonly localEntries = new Map<string, FrozenEntry>();
@@ -47,10 +67,14 @@ export class ToolRegistry {
     const isTest = process.env.VITEST === "true";
     const skillsEnabled = !isTest || process.env.OPENHARNESS_SKILLS_ENABLED === "true";
     if (skillsEnabled) {
+      const virtualSkillCatalog = this.mcpRegistry?.listVirtualSkillDescriptors() ?? [];
+      const virtualSkillDescription = virtualSkillCatalog.length === 0
+        ? ""
+        : ` Available MCP virtual skills: ${JSON.stringify(virtualSkillCatalog)}.`;
       sources.set("invoke_skill", "catalog");
       mergedTools.push({
         name: "invoke_skill",
-        description: "Invoke an agent skill dynamically by loading its instructions and state.",
+        description: `Invoke an agent skill dynamically by loading its instructions and state.${virtualSkillDescription}`,
         permission: "sensitive",
         isReadOnly: false,
         isDestructive: false,
@@ -67,18 +91,12 @@ export class ToolRegistry {
       } as ToolDefinition);
     }
 
-    if (this.mcpRegistry) {
-      const mcpEntries = await this.mcpRegistry.refreshToolDefinitions();
-      for (const entry of mcpEntries) {
-        if (sources.has(entry.tool.name)) {
-          console.warn(
-            `[mcp] tool name conflict: "${entry.tool.name}" exists in catalog; dropping MCP version from server "${entry.serverName}"`
-          );
-          continue;
-        }
-        sources.set(entry.tool.name, `mcp:${entry.serverName}`);
-        mergedTools.push(entry.tool);
+    if (this.mcpRegistry?.hasConfiguredServers()) {
+      if (sources.has(MCP_CALL_TOOL.name)) {
+        throw new Error(`Reserved Runtime tool name conflict: ${MCP_CALL_TOOL.name}`);
       }
+      sources.set(MCP_CALL_TOOL.name, "mcp:broker");
+      mergedTools.push(MCP_CALL_TOOL);
     }
 
     const merged: CatalogResponse = {
@@ -138,5 +156,3 @@ export class ToolRegistry {
     ToolRegistry.entries.delete(key);
   }
 }
-
-
