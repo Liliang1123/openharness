@@ -3,9 +3,44 @@
   "project": {
     "name": "openharness",
     "root": ".",
-    "updatedAt": "2026-07-11"
+    "updatedAt": "2026-08-10"
   },
   "entries": [
+    {
+      "changeId": "refactor-gate-closure-evidence-scope",
+      "title": "Refactor Gate Closure Evidence Scope",
+      "status": "proposed",
+      "date": "2026-08-10",
+      "type": "tooling",
+      "summary": "在 v21 C31 clean-checkout 阻塞后，将 mcpRegistry 与 traceOutbox 的 correction-only 测试从混合 dirty 文件中拆出，扩展 locked closure/provenance，显式绑定 secret-scan dependency set，并为 fresh v22-or-later allowlist 与独立 PIR 建立治理门禁。",
+      "tags": [
+        "gate-closure",
+        "provenance",
+        "secret-scan",
+        "allowlist",
+        "governance",
+        "agent-runtime"
+      ],
+      "openspec": {
+        "proposal": "openspec/changes/refactor-gate-closure-evidence-scope/proposal.md",
+        "design": "openspec/changes/refactor-gate-closure-evidence-scope/design.md",
+        "tasks": "openspec/changes/refactor-gate-closure-evidence-scope/tasks.md",
+        "specDeltas": [
+          "openspec/changes/refactor-gate-closure-evidence-scope/specs/gate-closure-evidence/spec.md"
+        ],
+        "currentSpecs": []
+      },
+      "next": [
+        "按已批准的 correction-only scope 完成精确 staging/commit，并保持 v21 closure-only 路径不重复纳入",
+        "在 fresh v22 allowlist 下执行 C23-C51；C39/C48 若复现已接受的 baseline 缺口则记录为 BLOCKED_BASELINE 并继续至 C51",
+        "C23-C51 后由不同 session identity 执行独立 PIR；若 baseline 阻断则结论为 BLOCKED/需修改，不宣称完成"
+      ],
+      "nonGoals": [
+        "不把两个原始 dirty 测试文件整体纳入 correction commit",
+        "不读取 credential，不做真实 provider/MCP/browser 外呼或 24 小时 soak",
+        "不做 Gate C/D promotion、OpenSpec archive、push 或主 worktree broad cleanup"
+      ]
+    },
     {
       "changeId": "add-chatgpt-oauth-auth",
       "title": "Add ChatGPT OAuth Auth For OpenAI Models",
@@ -106,7 +141,7 @@
     {
       "changeId": "harden-agent-runtime-single-node-production",
       "title": "Harden Agent Runtime for Single-Node Production",
-      "status": "proposed",
+      "status": "partial",
       "date": "2026-07-03",
       "type": "feature",
       "summary": "将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：以 SQLite 统一持久化和崩溃恢复；先完成 fake Provider、真实本地 Java 沙箱与 MCP 的 local_verified 全链路，再以独立生产证据完成真实 Provider、迁移和 24 小时 soak 门禁。",
@@ -144,13 +179,171 @@
         ]
       },
       "superpowers": {
-        "plan": "docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md"
+        "plan": "docs/superpowers/plans/2026-08-07-gate-closure-persistence-fix-correction-plan.md"
       },
+      "implementation": {
+        "sourceFiles": [
+          "agent-runtime/src/qualification/gateCProviderPolicy.ts",
+          "agent-runtime/src/qualification/gateCProviderReconcileCli.ts",
+          "agent-runtime/src/baseline/gateDPerformanceDiagnostics.ts",
+          "agent-runtime/src/baseline/gateDPerformanceDiagnosticCli.ts",
+          "agent-runtime/src/baseline/formalSoakCli.ts",
+          "agent-runtime/src/baseline/formalSoakExecution.ts",
+          "agent-runtime/src/baseline/formalSoakRunner.ts",
+          "agent-runtime/src/baseline/formalSoakRuntimeChild.ts",
+          "agent-runtime/src/productionEntrypoint.ts",
+          "agent-runtime/src/index.ts",
+          "agent-runtime/src/server.ts",
+          "agent-runtime/src/storage/productionRuntimeContext.ts",
+          "agent-runtime/src/storage/runtimeStorage.ts",
+          "agent-runtime/src/jsonFileHistoryStore.ts",
+          "agent-runtime/package.json",
+          "agent-runtime/scripts/start-production-runtime.sh",
+          "integration-tests/tsconfig.json",
+          "docs/review/2026-08-05-gate-closure-persistence-fix-provenance-verify.mjs",
+          "docs/review/2026-08-05-gate-closure-persistence-fix-provenance-manifest.json",
+          "docs/review/2026-08-05-gate-closure-persistence-fix-provenance-manifest.md"
+        ],
+        "testFiles": [
+          "agent-runtime/test/gateCProviderPolicy.test.ts",
+          "agent-runtime/test/gateDPerformanceDiagnostics.test.ts",
+          "agent-runtime/test/formalSoakCli.test.ts",
+          "agent-runtime/test/formalSoakExecution.test.ts",
+          "agent-runtime/test/formalSoakRunner.test.ts",
+          "agent-runtime/test/productionEntrypoint.test.ts",
+          "agent-runtime/test/productionRunnerPersistence.test.ts",
+          "agent-runtime/test/productionServerLifecycle.test.ts",
+          "agent-runtime/test/productionStartupScript.test.ts",
+          "agent-runtime/test/jsonFileHistoryStore.test.ts",
+          "integration-tests/test/p1b.integration.test.ts",
+          "docs/review/2026-08-07-gate-closure-persistence-fix-governance.test.mjs"
+        ]
+      },
+      "verification": [
+        {
+          "command": "pnpm --filter @openharness/agent-runtime exec vitest run test/gateCProviderPolicy.test.ts",
+          "result": "failed",
+          "note": "RED baseline before implementation; final Gate C behavior passed in the Runtime full suite (C11: 7/7 included, 693/693 overall)."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime exec vitest run test/gateDPerformanceDiagnostics.test.ts test/formalSoakCli.test.ts test/formalSoakExecution.test.ts test/formalSoakRunner.test.ts test/productionEntrypoint.test.ts test/productionRunnerPersistence.test.ts test/productionServerLifecycle.test.ts test/productionStartupScript.test.ts",
+          "result": "failed",
+          "note": "Initial dependency-closure baseline lacked the formal Gate D packet/scripts; corrected and covered by C11 (86 files, 693 tests passed)."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime exec vitest run test/jsonFileHistoryStore.test.ts",
+          "result": "passed",
+          "note": "10/10 passed."
+        },
+        {
+          "command": "pnpm --filter @openharness/integration-tests exec vitest run test/p1b.integration.test.ts",
+          "result": "failed",
+          "note": "Initial path assertion was intentionally RED; corrected cross-user isolation passed in C13 (5 files, 18 tests)."
+        },
+        {
+          "command": "pnpm --filter @openharness/shared-schema test -- schema",
+          "result": "passed",
+          "note": "49/49 passed; public shared schema authority unchanged."
+        },
+        {
+          "command": "node /Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-closure-verify.mjs --require-locked --role=executor",
+          "result": "passed",
+          "note": "closure_ok entries=15 paths=85."
+        },
+        {
+          "command": "node /Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-verify.mjs --require-closure --role=executor",
+          "result": "passed",
+          "note": "provenance_ok rows=90 closure=locked."
+        },
+        {
+          "command": "node /Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-secret-scan.mjs --role=executor",
+          "result": "passed",
+          "note": "secret_scan_ok."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime exec tsc --noEmit",
+          "result": "passed",
+          "note": "Runtime typecheck passed."
+        },
+        {
+          "command": "pnpm --filter @openharness/integration-tests exec tsc --noEmit",
+          "result": "failed",
+          "note": "One-time baseline failed before integration tsconfig rootDir correction; not rerun under the single-use allowlist. Post-correction integration tests passed, but this exact gate remains an evidence gap."
+        },
+        {
+          "command": "pnpm --filter @openharness/integration-tests exec tsc --noEmit",
+          "result": "passed",
+          "note": "C10R v21 targeted retry after independent amendment reviewer 019fdbc7-43b8-74d0-a18a-95ca9401af96 PASS; exit 0 after rootDir correction. This is the single permitted retry; original C10 failure remains immutable and no further retry is allowed."
+        },
+        {
+          "command": "pnpm --filter @openharness/agent-runtime test",
+          "result": "passed",
+          "note": "86 files and 693 tests passed."
+        },
+        {
+          "command": "pnpm --filter @openharness/frontend test",
+          "result": "passed",
+          "note": "6 files and 24 tests passed."
+        },
+        {
+          "command": "pnpm --filter @openharness/integration-tests test",
+          "result": "passed",
+          "note": "5 files and 18 tests passed, including P1b cross-user isolation."
+        },
+        {
+          "command": "pnpm typecheck",
+          "result": "passed",
+          "note": "Shared schema, Runtime and Frontend typechecks passed."
+        },
+        {
+          "command": "/Users/elvis/file/develop/environment/apache-maven-3.6.3/bin/mvn --version",
+          "result": "passed",
+          "note": "Apache Maven 3.6.3 with Java 21.0.8."
+        },
+        {
+          "command": "/Users/elvis/file/develop/environment/apache-maven-3.6.3/bin/mvn -o -s /Users/elvis/.m2/setting-new.xml -Dmaven.repo.local=/Users/elvis/.m2/repository -f /Users/elvis/file/develop/opensource/openharness/backend/pom.xml -Dtest=OpenAiFakeProviderMatrixTest,QualificationReportPromoterTest,ModelControllerTest test",
+          "result": "passed",
+          "note": "8/8 Java critical tests passed."
+        },
+        {
+          "command": "/Users/elvis/file/develop/environment/apache-maven-3.6.3/bin/mvn -o -s /Users/elvis/.m2/setting-new.xml -Dmaven.repo.local=/Users/elvis/.m2/repository -f /Users/elvis/file/develop/opensource/openharness/backend/pom.xml test",
+          "result": "passed",
+          "note": "81/81 Java tests passed."
+        },
+        {
+          "command": "npx openspec validate harden-agent-runtime-single-node-production --strict --no-interactive",
+          "result": "passed",
+          "note": "Active OpenSpec change is valid."
+        },
+        {
+          "command": "npx openspec validate defer-anthropic-from-gate-c --strict --no-interactive",
+          "result": "passed",
+          "note": "Deferred Anthropic change is valid."
+        },
+        {
+          "command": "pnpm dashboard:check",
+          "result": "passed",
+          "note": "Dashboard generated outputs are current after the correction sync."
+        },
+        {
+          "command": "pnpm test",
+          "result": "passed",
+          "note": "Root aggregation passed: shared schema 49/49, Runtime 693/693, Frontend 24/24, Integration 18/18."
+        }
+      ],
       "next": [
         "Gate C required: complete OpenAI-compatible real matrix (3.1) — Zhipu evidence still blocked on timeout/retry/terminal_error/cancellation/reasoning gaps",
         "Task 3.2 Anthropic real matrix is deferred/post-Gate-C and no longer blocks Gate C",
         "Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review",
-        "Do not archive or promote Stage 0 until remaining production gates pass"
+        "Do not archive or promote Stage 0 until remaining production gates pass",
+        "2026-08-05 v16 pre-plan governance review: pending closure accepted; stdout-only reviewer protocol and expanded closure/secret/provenance checks require independent fresh review before correction plan",
+        "2026-08-07 v17 fresh PPR was BLOCKED on diff stdout truncation, unverifiable reviewer identity, non-canonical closure self-reporting, and unknown evidence extension skip; governance-only correction tests now cover canonical closure and fail-closed traversal; fresh PPR remains required before correction plan",
+        "2026-08-07 v18 identity clarification: parent control plane records orchestrator reviewer agent_id and reviewer echoes it; pre-plan executor=none; v18 author-preflight and independent PPR must be fresh",
+        "2026-08-07 v19 transport correction: second fresh reviewer verified identity/canonical closure/secret scan but PPR3/PPR10 diff was 116530 tokens and truncated at 100000; raise reviewer stdout budget to at least 150000 and rerun full PPR",
+        "2026-08-07 v20 complete diff representation: third fresh reviewer still saw 117039-token raw diff truncation at 150000 budget; use deterministic gzip -n plus base64 stdout encoding, compare complete encoded output, and rerun full PPR",
+        "2026-08-07 correction implementation: Gate C now requires OpenAI-compatible Chat Completions evidence; Gate D/formal soak/startup/P1b corrections are implemented; closure locked at 15 entrypoints, 14 boundaries and 85 paths; provenance rows=90 and secret scan pass.",
+        "Phase A remains partial: original integration tsc C10 failed once before the rootDir correction; v21 independent amendment review PASS authorized exactly one C10R, which exited 0. No further retry, staging, commit, clean-checkout probe or PIR was executed.",
+        "Do not promote Gate C or archive OpenSpec: the real OpenAI-compatible report remains production/blocked and external provider/MCP/24-hour evidence is still pending."
       ],
       "nonGoals": [
         "Multi-node high availability or PostgreSQL deployment",
@@ -164,7 +357,13 @@
         "Independent review initially returned BLOCK; after six revision/re-review rounds, both architecture and contract reviewers returned PASS with no remaining findings.",
         "OpenSpec proposal formally approved on 2026-07-03; staged strict-evidence implementation plan generated.",
         "Dual-track qualification approved on 2026-07-06: local_verified may proceed through fake Provider plus real local Java/MCP chains while Gate B remains pending_production_evidence; local evidence cannot promote production state.",
-        "2026-07-09: Gate C provider-family scope amended via approved defer-anthropic-from-gate-c — OpenAI-compatible required only; Anthropic real matrix deferred/post-Gate-C. Tasks 3.2 wording updated; 3.1 still open."
+        "2026-07-09: Gate C provider-family scope amended via approved defer-anthropic-from-gate-c — OpenAI-compatible required only; Anthropic real matrix deferred/post-Gate-C. Tasks 3.2 wording updated; 3.1 still open.",
+        "2026-08-05: v16 governance correction keeps Scheme A authority unchanged, separates pending pre-plan from locked post-implementation review, forbids reviewer temp-file writes, and records author-preflight only; runtime implementation and external qualification remain not-run.",
+        "2026-08-07: v17 governance-only correction adds canonical 15-entrypoint/14-boundary closure validation and fail-closed unknown evidence traversal; runtime implementation remains unchanged and pre-plan fresh review is still blocked until complete stdout diff and identity evidence are re-established.",
+        "2026-08-07: v18 clarifies reviewer identity evidence around the parent dispatch record and no-executor pre-plan state; v17 evidence is invalidated and must be re-established.",
+        "2026-08-07: v19 raises stdout transport budget after the second fresh PPR proved the diff exceeds 100000 tokens; runtime implementation remains unchanged and correction plan remains gated.",
+        "2026-08-07: v20 switches reviewer diff evidence to a deterministic reversible gzip+base64 stdout representation after raw transport remained truncated; no temp files or runtime changes.",
+        "2026-08-07: approved correction plan implemented without changing runtime provider credentials or public shared-schema authority; Gate C/D, production startup, JSON tenant+user isolation, and P1b evidence are locally covered. v21 independently reviewed the targeted C10 amendment and the single C10R exited 0; the original C10 failure remains immutable. Dashboard intentionally remains partial pending exact-scope staging/commit, clean-checkout probe, PIR and real qualification evidence."
       ]
     },
     {

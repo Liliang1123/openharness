@@ -1,9 +1,13 @@
 # openharness — 开发导航台
 
 > 自动生成，请勿直接编辑。数据源：`development-log.json`  
-> 最后更新：2026-07-11
+> 最后更新：2026-08-10
 
 ## Timeline
+
+### 2026-08-10
+
+- 📋 proposed **refactor-gate-closure-evidence-scope** — 在 v21 C31 clean-checkout 阻塞后，将 mcpRegistry 与 traceOutbox 的 correction-only 测试从混合 dirty 文件中拆出，扩展 locked closure/provenance，显式绑定 secret-scan dependency set，并为 fresh v22-or-later allowlist 与独立 PIR 建立治理门禁。
 
 ### 2026-07-09
 
@@ -12,7 +16,7 @@
 
 ### 2026-07-03
 
-- 📋 proposed **harden-agent-runtime-single-node-production** — 将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：以 SQLite 统一持久化和崩溃恢复；先完成 fake Provider、真实本地 Java 沙箱与 MCP 的 local_verified 全链路，再以独立生产证据完成真实 Provider、迁移和 24 小时 soak 门禁。
+- ⚠️ partial **harden-agent-runtime-single-node-production** — 将功能完整的 Agent Runtime MVP 提升为单机生产可用 v1：以 SQLite 统一持久化和崩溃恢复；先完成 fake Provider、真实本地 Java 沙箱与 MCP 的 local_verified 全链路，再以独立生产证据完成真实 Provider、迁移和 24 小时 soak 门禁。
 
 ### 2026-06-29
 
@@ -67,9 +71,10 @@
 
 | 功能点 | 状态 | Spec | Plan | Code | Tests | Closeout |
 |---|---|---|---|---|---|---|
+| refactor-gate-closure-evidence-scope | 📋 proposed | — | — | — | — | — |
 | add-chatgpt-oauth-auth | 📋 proposed | provider-adapter, backend-gateway | [plan](docs/superpowers/plans/2026-07-10-add-chatgpt-oauth-auth.md) | — | — | — |
 | defer-anthropic-from-gate-c | ⚠️ partial | provider-adapter | — | — | — | — |
-| harden-agent-runtime-single-node-production | 📋 proposed | agent-runtime, agent-sse, shared-schema, backend-gateway, message-history, long-term-memory, provider-adapter, mcp-tools | [plan](docs/superpowers/plans/2026-07-03-agent-runtime-single-node-production-final-plan.md) | — | — | — |
+| harden-agent-runtime-single-node-production | ⚠️ partial | agent-runtime, agent-sse, shared-schema, backend-gateway, message-history, long-term-memory, provider-adapter, mcp-tools | [plan](docs/superpowers/plans/2026-08-07-gate-closure-persistence-fix-correction-plan.md) | 20 files | 12 files | — |
 | add-runtime-progress-panel | 📦 archived | agent-runtime, frontend-runtime, shared-schema | [plan](docs/superpowers/plans/2026-06-29-add-runtime-progress-panel.md) | 8 files | 6 files | [closeout](docs/design/2026-06-29-add-runtime-progress-panel-closeout.md) |
 | add-subagent-trace-tree | 📦 archived | agent-runtime, backend-gateway, frontend-runtime, shared-schema | [plan](docs/superpowers/plans/2026-06-23-add-subagent-trace-tree.md) | 7 files | 5 files | [closeout](docs/design/2026-06-29-add-subagent-trace-tree-closeout.md) |
 | add-subagent-dispatcher | 📦 archived | agent-loop, agent-runtime | [plan](docs/superpowers/plans/2026-06-22-add-subagent-dispatcher.md) | 3 files | 3 files | [closeout](docs/design/2026-06-22-add-subagent-dispatcher-closeout.md) |
@@ -122,7 +127,8 @@
 
 ### agent-runtime
 
-- 📋 proposed harden-agent-runtime-single-node-production
+- 📋 proposed refactor-gate-closure-evidence-scope
+- ⚠️ partial harden-agent-runtime-single-node-production
 - 📦 archived add-runtime-progress-panel
 - 📦 archived add-runtime-cache-stability
 - 📦 archived add-agent-definition-model-selection
@@ -147,6 +153,10 @@
 - ⚠️ partial add-p1a-provider-adapter
 - ⚠️ partial implement-p0b-hookable
 - ⚠️ partial implement-p0a-skeleton
+
+### allowlist
+
+- 📋 proposed refactor-gate-closure-evidence-scope
 
 ### anthropic
 
@@ -260,6 +270,14 @@
 ### gate-c
 
 - ⚠️ partial defer-anthropic-from-gate-c
+
+### gate-closure
+
+- 📋 proposed refactor-gate-closure-evidence-scope
+
+### governance
+
+- 📋 proposed refactor-gate-closure-evidence-scope
 
 ### hookable
 
@@ -386,7 +404,7 @@
 ### production-readiness
 
 - ⚠️ partial defer-anthropic-from-gate-c
-- 📋 proposed harden-agent-runtime-single-node-production
+- ⚠️ partial harden-agent-runtime-single-node-production
 
 ### progress
 
@@ -405,6 +423,10 @@
 - 📦 archived add-agent-definition-runtime-selection
 - ⚠️ partial add-p4b-prompt-registry
 
+### provenance
+
+- 📋 proposed refactor-gate-closure-evidence-scope
+
 ### provider-adapter
 
 - 📋 proposed add-chatgpt-oauth-auth
@@ -418,11 +440,11 @@
 
 ### real-provider
 
-- 📋 proposed harden-agent-runtime-single-node-production
+- ⚠️ partial harden-agent-runtime-single-node-production
 
 ### recovery
 
-- 📋 proposed harden-agent-runtime-single-node-production
+- ⚠️ partial harden-agent-runtime-single-node-production
 
 ### renderer
 
@@ -443,6 +465,10 @@
 ### schema
 
 - ✅ verified harden-project-dashboard-validation
+
+### secret-scan
+
+- 📋 proposed refactor-gate-closure-evidence-scope
 
 ### security
 
@@ -486,11 +512,11 @@
 
 ### soak-test
 
-- 📋 proposed harden-agent-runtime-single-node-production
+- ⚠️ partial harden-agent-runtime-single-node-production
 
 ### sqlite
 
-- 📋 proposed harden-agent-runtime-single-node-production
+- ⚠️ partial harden-agent-runtime-single-node-production
 
 ### sse
 
@@ -547,6 +573,9 @@
 
 ### 推荐下一步
 
+- 按已批准的 correction-only scope 完成精确 staging/commit，并保持 v21 closure-only 路径不重复纳入 _(from refactor-gate-closure-evidence-scope)_
+- 在 fresh v22 allowlist 下执行 C23-C51；C39/C48 若复现已接受的 baseline 缺口则记录为 BLOCKED_BASELINE 并继续至 C51 _(from refactor-gate-closure-evidence-scope)_
+- C23-C51 后由不同 session identity 执行独立 PIR；若 baseline 阻断则结论为 BLOCKED/需修改，不宣称完成 _(from refactor-gate-closure-evidence-scope)_
 - Task 4.1: RED shared-schema tests for exactly-one message/pendingTurn/error and typed result/cancel submissions _(from add-chatgpt-oauth-auth)_
 - Task 4.2-4.5: implement the reviewed pending-turn registry/client/controller and TS-owned approval/execution continuation with TDD _(from add-chatgpt-oauth-auth)_
 - Require strict Task 4 implementation Review PASS and secret-canary evidence before provider adapter wiring _(from add-chatgpt-oauth-auth)_
@@ -557,6 +586,14 @@
 - Task 3.2 Anthropic real matrix is deferred/post-Gate-C and no longer blocks Gate C _(from harden-agent-runtime-single-node-production)_
 - Keep Gate B pending until production backup/import/quarantine/restore and measured RPO/RTO evidence passes review _(from harden-agent-runtime-single-node-production)_
 - Do not archive or promote Stage 0 until remaining production gates pass _(from harden-agent-runtime-single-node-production)_
+- 2026-08-05 v16 pre-plan governance review: pending closure accepted; stdout-only reviewer protocol and expanded closure/secret/provenance checks require independent fresh review before correction plan _(from harden-agent-runtime-single-node-production)_
+- 2026-08-07 v17 fresh PPR was BLOCKED on diff stdout truncation, unverifiable reviewer identity, non-canonical closure self-reporting, and unknown evidence extension skip; governance-only correction tests now cover canonical closure and fail-closed traversal; fresh PPR remains required before correction plan _(from harden-agent-runtime-single-node-production)_
+- 2026-08-07 v18 identity clarification: parent control plane records orchestrator reviewer agent_id and reviewer echoes it; pre-plan executor=none; v18 author-preflight and independent PPR must be fresh _(from harden-agent-runtime-single-node-production)_
+- 2026-08-07 v19 transport correction: second fresh reviewer verified identity/canonical closure/secret scan but PPR3/PPR10 diff was 116530 tokens and truncated at 100000; raise reviewer stdout budget to at least 150000 and rerun full PPR _(from harden-agent-runtime-single-node-production)_
+- 2026-08-07 v20 complete diff representation: third fresh reviewer still saw 117039-token raw diff truncation at 150000 budget; use deterministic gzip -n plus base64 stdout encoding, compare complete encoded output, and rerun full PPR _(from harden-agent-runtime-single-node-production)_
+- 2026-08-07 correction implementation: Gate C now requires OpenAI-compatible Chat Completions evidence; Gate D/formal soak/startup/P1b corrections are implemented; closure locked at 15 entrypoints, 14 boundaries and 85 paths; provenance rows=90 and secret scan pass. _(from harden-agent-runtime-single-node-production)_
+- Phase A remains partial: original integration tsc C10 failed once before the rootDir correction; v21 independent amendment review PASS authorized exactly one C10R, which exited 0. No further retry, staging, commit, clean-checkout probe or PIR was executed. _(from harden-agent-runtime-single-node-production)_
+- Do not promote Gate C or archive OpenSpec: the real OpenAI-compatible report remains production/blocked and external provider/MCP/24-hour evidence is still pending. _(from harden-agent-runtime-single-node-production)_
 - 真实 Java Gateway 联调与 trace tree 视图优化 _(from add-subagent-dispatcher)_
 - 按独立 OpenSpec 评估子智能体系统级隔离能力 _(from add-subagent-dispatcher)_
 - 如需更细粒度成本归因，扩展 token usage 聚合契约 _(from add-subagent-dispatcher)_
@@ -617,6 +654,9 @@
 
 ### 暂不建议
 
+- 不把两个原始 dirty 测试文件整体纳入 correction commit _(from refactor-gate-closure-evidence-scope)_
+- 不读取 credential，不做真实 provider/MCP/browser 外呼或 24 小时 soak _(from refactor-gate-closure-evidence-scope)_
+- 不做 Gate C/D promotion、OpenSpec archive、push 或主 worktree broad cleanup _(from refactor-gate-closure-evidence-scope)_
 - Full OpenClaw Codex app-server harness parity in v1 _(from add-chatgpt-oauth-auth)_
 - Anthropic Claude CLI / setup-token reuse _(from add-chatgpt-oauth-auth)_
 - Platform multi-tenant end-user login UI _(from add-chatgpt-oauth-auth)_
