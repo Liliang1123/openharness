@@ -1,15 +1,12 @@
-import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { extname, join } from "node:path";
-
-const evidenceRoots = [
-  "docs/verification/agent-runtime-v1/providers",
-  "docs/verification/agent-runtime-v1/gate-d",
-  "docs/verification/agent-runtime-v1/baseline",
-  "docs/verification/agent-runtime-v1/tools"
-];
-const testRoots = ["agent-runtime/test", "packages/shared-schema/test", "integration-tests/test"];
-const sourceRoots = ["agent-runtime/src", "packages/shared-schema/src", "integration-tests/src"];
+import { extname } from "node:path";
+import {
+  collectSensitiveLiterals,
+  fileContainsSecret,
+  readableExtensions,
+  readCandidateManifest,
+  resolveCandidateBytes,
+  validateSecretScanDependencies
+} from "./2026-08-05-gate-closure-persistence-fix-secret-scan-lib.mjs";
 
 function rule(entries) {
   return new Map(entries);
@@ -68,7 +65,7 @@ const fixtureLiteralRules = new Map([
     ["sensitive:authorization:8fac0aef7838c4b46012eddf3e5a3bea6ecf9daac1f2da141ba6e6de827e72b9", 2]
   ])],
   ["agent-runtime/test/terminalErrors.test.ts", rule([["sensitive:authorization:e47800f0be84febf6a4f71ff92d9ddf6c531f7e6fba972659598a6eec12620c2", 1]])],
-  ["agent-runtime/test/traceOutbox.test.ts", rule([
+  ["agent-runtime/test/traceOutbox.correction.test.ts", rule([
     ["bearer:ca64faa2f21a66699571463505fdf124b2046e98f1424f3bc28cb3e199ebd68f", 2],
     ["sensitive:authorization:ca64faa2f21a66699571463505fdf124b2046e98f1424f3bc28cb3e199ebd68f", 2]
   ])],
@@ -121,7 +118,7 @@ const fixtureLiteralRules = new Map([
   ["agent-runtime/test/jsonImporter.test.ts", rule([
     ["provider-key:c0fccc65dc27b87b682c2abd603df0817148a87a031a10eb2c1ae781ef922e09", 2]
   ])],
-  ["agent-runtime/test/mcpRegistry.test.ts", rule([
+  ["agent-runtime/test/mcpRegistry.correction.test.ts", rule([
     ["sensitive:service-token:6541f48460214a1e86c4d0603880d3c42e51f3e80184c4e3db6f07e4f6e60db1", 1],
     ["sensitive:api-key:6541f48460214a1e86c4d0603880d3c42e51f3e80184c4e3db6f07e4f6e60db1", 1]
   ])],
@@ -183,118 +180,42 @@ const fixtureLiteralRules = new Map([
   ])]
 ]);
 
-const rawSecretPattern = /OPENHARNESS_SECRET_CANARY|Bearer\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk|rk|pk)-[A-Za-z0-9][A-Za-z0-9_-]{7,}\b/i;
-const rawSecretPatternGlobal = /OPENHARNESS_SECRET_CANARY|Bearer\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk|rk|pk)-[A-Za-z0-9][A-Za-z0-9_-]{7,}\b/gi;
-const sensitiveAssignmentPattern = /["'`]?((?:authorization|access[_-]?token|refresh[_-]?token|oauth[_-]?access[_-]?token|oauth[_-]?refresh[_-]?token|api[_-]?key|x-api-key|provider[_-]?key|service[_-]?token|client[_-]?secret|secret[_-]?key))["'`]?\s*[:=]\s*(["'`])([^"'`]*?)\2/gi;
-const sensitiveKeyPattern = /^(authorization|access[-_]?token|refresh[-_]?token|oauth[-_]?access[-_]?token|oauth[-_]?refresh[-_]?token|api[-_]?key|x-api-key|provider[-_]?key|service[-_]?token|client[-_]?secret|secret[-_]?key)$/i;
-const readableExtensions = new Set([".cjs", ".js", ".json", ".jsonl", ".mjs", ".md", ".log", ".txt", ".ts", ".tsx"]);
-
 function fail() {
   process.stderr.write("secret_scan_failed\n");
   process.exit(1);
 }
 
-function filesUnder(root) {
-  const result = [];
-  if (!existsSync(root)) return result;
-  const walk = (directory) => {
-    for (const entry of readdirSync(directory, { withFileTypes: true })) {
-      const path = join(directory, entry.name);
-      if (entry.isDirectory()) {
-        walk(path);
-      } else if (entry.isFile()) {
-        if (!readableExtensions.has(extname(entry.name))) fail();
-        result.push(path);
-      } else {
+const repoRoot = process.cwd();
+let manifest;
+try {
+  manifest = readCandidateManifest(repoRoot);
+  validateSecretScanDependencies(manifest, [...fixtureLiteralRules.keys()]);
+} catch {
+  fail();
+}
+
+const rows = new Map(manifest.rows.map((row) => [row.path, row]));
+for (const row of manifest.rows) {
+  if (!readableExtensions.has(extname(row.path))) continue;
+  try {
+    const bytes = resolveCandidateBytes(repoRoot, row);
+    const relativePath = row.path.replaceAll("\\", "/");
+    if (fixtureLiteralRules.has(relativePath)) {
+      const actual = collectSensitiveLiterals(bytes.toString("utf8"));
+      const expected = fixtureLiteralRules.get(relativePath);
+      if (actual.size !== expected.size || [...actual].some(([key, count]) => expected.get(key) !== count)) {
         fail();
       }
+    } else if (fileContainsSecret(relativePath, bytes)) {
+      fail();
     }
-  };
-  walk(root);
-  return result;
-}
-
-function digest(value) {
-  return createHash("sha256").update(value).digest("hex");
-}
-
-function collectSensitiveLiterals(text) {
-  const matches = new Map();
-  const add = (key) => matches.set(key, (matches.get(key) ?? 0) + 1);
-  for (const match of text.matchAll(rawSecretPatternGlobal)) {
-    const value = match[0];
-    const lower = value.toLowerCase();
-    const kind = lower.startsWith("bearer ")
-      ? "bearer"
-      : /^(?:sk|rk|pk)-/i.test(value)
-        ? "provider-key"
-        : "canary";
-    add(`${kind}:${digest(value)}`);
-  }
-  for (const match of text.matchAll(sensitiveAssignmentPattern)) {
-    const value = match[3];
-    if (value === "Bearer " || value === "[REDACTED]") continue;
-    add(`sensitive:${match[1].toLowerCase().replaceAll("_", "-")}:${digest(value)}`);
-  }
-  return matches;
-}
-
-function objectContainsSecret(value, key = "") {
-  if (typeof value === "string") {
-    return rawSecretPattern.test(value) || (sensitiveKeyPattern.test(key) && value !== "[REDACTED]");
-  }
-  if (Array.isArray(value)) return value.some((child) => objectContainsSecret(child, key));
-  if (value !== null && typeof value === "object") {
-    return Object.entries(value).some(([childKey, child]) => objectContainsSecret(child, childKey));
-  }
-  return false;
-}
-
-function fileContainsSecret(path) {
-  const text = readFileSync(path, "utf8");
-  if (rawSecretPattern.test(text)) return true;
-  if (collectSensitiveLiterals(text).size > 0) return true;
-  if (path.endsWith(".json")) return objectContainsSecret(JSON.parse(text));
-  if (path.endsWith(".jsonl")) {
-    return text.split("\n").filter(Boolean).some((line) => objectContainsSecret(JSON.parse(line)));
-  }
-  return false;
-}
-
-for (const root of evidenceRoots) {
-  for (const path of filesUnder(root)) {
-    try {
-      if (fileContainsSecret(path)) fail(`evidence:${path}`);
-    } catch {
-      fail(`evidence-parse:${path}`);
-    }
+  } catch {
+    fail();
   }
 }
 
-for (const root of sourceRoots) {
-  for (const path of filesUnder(root)) {
-    try {
-      const relativePath = path.replaceAll("\\", "/");
-      const actual = collectSensitiveLiterals(readFileSync(path, "utf8"));
-      const expected = fixtureLiteralRules.get(relativePath) ?? new Map();
-      if (actual.size !== expected.size || [...actual].some(([key, count]) => expected.get(key) !== count)) {
-        fail(`source:${relativePath}`);
-      }
-    } catch {
-      fail(`source-parse:${path}`);
-    }
-  }
-}
-
-for (const root of testRoots) {
-  for (const path of filesUnder(root)) {
-    const relativePath = path.replaceAll("\\", "/");
-    const actual = collectSensitiveLiterals(readFileSync(path, "utf8"));
-    const expected = fixtureLiteralRules.get(relativePath) ?? new Map();
-    if (actual.size !== expected.size || [...actual].some(([key, count]) => expected.get(key) !== count)) {
-      fail(`test:${relativePath}`);
-    }
-  }
+for (const path of manifest.secretScanDependencies) {
+  if (!rows.has(path)) fail();
 }
 
 process.stdout.write("secret_scan_ok\n");

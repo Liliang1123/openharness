@@ -124,9 +124,10 @@ try {
   fail();
 }
 
-exactKeys(manifest, ["baseCommit", "closure", "rows", "schemaVersion"]);
-if (manifest.schemaVersion !== 1 || !/^[0-9a-f]{40}$/.test(manifest.baseCommit)
-  || !Array.isArray(manifest.rows) || manifest.rows.length === 0) fail();
+exactKeys(manifest, ["baseCommit", "closure", "rows", "schemaVersion", "secretScanDependencies"]);
+if (manifest.schemaVersion !== 2 || !/^[0-9a-f]{40}$/.test(manifest.baseCommit)
+  || !Array.isArray(manifest.rows) || manifest.rows.length === 0
+  || !Array.isArray(manifest.secretScanDependencies)) fail();
 validateClosure(manifest.closure);
 if (runGit(["cat-file", "-t", manifest.baseCommit]).trim() !== "commit") fail();
 
@@ -183,6 +184,13 @@ if (manifest.closure.status === "locked") {
   if (closurePaths.size !== manifestClosurePaths.size
     || [...closurePaths].some((path) => !manifestClosurePaths.has(path))
     || [...closurePaths].some((path) => !seenPaths.has(path))) fail();
+}
+
+const secretScanDependencies = manifest.secretScanDependencies.map(normalizedRelativePath);
+if (new Set(secretScanDependencies).size !== secretScanDependencies.length) fail();
+const closurePaths = new Set(manifest.closure.expectedPaths.map(normalizedRelativePath));
+for (const path of secretScanDependencies) {
+  if (!closurePaths.has(path) || !seenPaths.has(path)) fail();
 }
 
 const humanRows = parseHumanRows(humanManifest);

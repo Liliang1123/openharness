@@ -65,6 +65,7 @@ const closure = manifest.closure;
 if (!closure || closure.status !== "pending" && closure.status !== "locked") fail();
 if (!Array.isArray(closure.entryPoints) || !Array.isArray(closure.nonTypeScriptBoundaries)
   || !Array.isArray(closure.expectedPaths) || !Array.isArray(closure.manifestPaths)) fail();
+if (!Array.isArray(manifest.secretScanDependencies)) fail();
 
 const expectedEntryPoints = new Map([
   ["agent-runtime", "agent-runtime/tsconfig.json"],
@@ -85,7 +86,9 @@ const canonicalEntryPoints = [
   ["agent-runtime/test/productionEntrypoint.test.ts", "agent-runtime", "production-entrypoint-test"],
   ["agent-runtime/test/productionRunnerPersistence.test.ts", "agent-runtime", "production-persistence-test"],
   ["agent-runtime/test/productionServerLifecycle.test.ts", "agent-runtime", "production-server-test"],
-  ["agent-runtime/test/productionStartupScript.test.ts", "agent-runtime", "production-startup-test"]
+  ["agent-runtime/test/productionStartupScript.test.ts", "agent-runtime", "production-startup-test"],
+  ["agent-runtime/test/mcpRegistry.correction.test.ts", "agent-runtime", "mcp-correction-test"],
+  ["agent-runtime/test/traceOutbox.correction.test.ts", "agent-runtime", "trace-outbox-correction-test"]
 ];
 const canonicalBoundaries = [
   "agent-runtime/scripts/start-production-runtime.sh",
@@ -137,6 +140,14 @@ if (actualBoundarySet.size !== closure.nonTypeScriptBoundaries.length
   || actualBoundarySet.size !== expectedBoundarySet.size
   || [...expectedBoundarySet].some((path) => !actualBoundarySet.has(path))) fail();
 
+const secretScanDependencySet = new Set(manifest.secretScanDependencies.map((path) => {
+  if (typeof path !== "string" || !path || path.startsWith("/") || path.includes("\\")
+    || path.split("/").some((part) => !part || part === "." || part === "..")) fail();
+  return normalizePath(path);
+}));
+if (secretScanDependencySet.size !== manifest.secretScanDependencies.length) fail();
+if (closure.status === "locked" && [...secretScanDependencySet].some((path) => !existsSync(resolve(repoRoot, path)))) fail();
+
 let ts;
 try {
   ts = require("typescript");
@@ -155,6 +166,7 @@ for (const [project, entryPaths] of projects) {
     if (isWorkspaceSource(ts, sourceFile)) actual.add(relativePath(sourceFile.fileName));
   }
 }
+for (const path of secretScanDependencySet) actual.add(path);
 
 const expected = new Set(closure.expectedPaths.map(normalizePath));
 const manifestClosure = new Set(closure.manifestPaths.map(normalizePath));
@@ -168,6 +180,7 @@ if (closure.status === "locked" || requireLocked) {
   );
   if ([...expected].some((path) => !manifestRows.has(path))) fail();
   if (actual.size !== expected.size || [...actual].some((path) => !expected.has(path))) fail();
+  if ([...secretScanDependencySet].some((path) => !expected.has(path))) fail();
   process.stdout.write(`closure_ok entries=${closure.entryPoints.length} paths=${actual.size}\n`);
   process.exit(0);
 }
