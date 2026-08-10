@@ -37,15 +37,23 @@ test("every scanner fixture rule path is declared by the dependency set", () => 
   const declared = new Set(manifest.secretScanDependencies ?? []);
   const missing = [...new Set(fixtureRulePaths())].filter(path => !declared.has(path));
   assert.deepEqual(missing, []);
+  assert.equal(declared.size, fixtureRulePaths().length);
+  assert.deepEqual(new Set(fixtureRulePaths()), declared);
 });
 
 test("every scanner dependency is a locked closure path with one provenance row", () => {
   const closure = new Set(manifest.closure?.expectedPaths ?? []);
-  const rows = new Map((manifest.rows ?? []).map(row => [row.path, row]));
+  const rowCounts = new Map();
+  for (const row of manifest.rows ?? []) rowCounts.set(row.path, (rowCounts.get(row.path) ?? 0) + 1);
   for (const path of manifest.secretScanDependencies ?? []) {
     assert.equal(closure.has(path), true, `dependency outside closure: ${path}`);
-    assert.equal(rows.has(path), true, `dependency without provenance row: ${path}`);
+    assert.equal(rowCounts.get(path), 1, `dependency does not have exactly one provenance row: ${path}`);
   }
+});
+
+test("scanner fixture rule source does not contain duplicate path keys", () => {
+  const paths = fixtureRulePaths();
+  assert.equal(new Set(paths).size, paths.length);
 });
 
 test("dependency validation rejects a fixture rule outside the declared set", () => {
@@ -72,18 +80,33 @@ test("dependency validation rejects duplicate and unbound rows", () => {
     () => validateSecretScanDependencies({
       closure: { expectedPaths: ["candidate.ts"] },
       secretScanDependencies: ["candidate.ts"],
-      rows: []
+      rows: [{ path: "candidate.ts" }, { path: "candidate.ts" }]
     }, ["candidate.ts"]),
-    /row/i
+    /one provenance row/i
+  );
+  assert.throws(
+    () => validateSecretScanDependencies({
+      closure: { expectedPaths: ["candidate.ts", "extra.ts"] },
+      secretScanDependencies: ["candidate.ts", "extra.ts"],
+      rows: [{ path: "candidate.ts" }, { path: "extra.ts" }]
+    }, ["candidate.ts"]),
+    /exactly match/i
   );
 });
 
 test("source-pinned dependencies resolve from Git rather than the dirty worktree", () => {
   const row = manifest.rows.find(candidate => !candidate.requireCurrent);
   assert.ok(row);
-  const bytes = resolveCandidateBytes(process.cwd(), row);
+  let currentRead = false;
+  const bytes = resolveCandidateBytes(process.cwd(), row, {
+    readCurrent() {
+      currentRead = true;
+      return Buffer.from("dirty-worktree-copy");
+    }
+  });
   assert.ok(Buffer.isBuffer(bytes));
   assert.ok(bytes.length > 0);
+  assert.equal(currentRead, false);
   const pinned = spawnSync("git", [
     "--no-optional-locks",
     "show",
@@ -91,6 +114,25 @@ test("source-pinned dependencies resolve from Git rather than the dirty worktree
   ], { cwd: process.cwd(), encoding: null });
   assert.equal(pinned.status, 0);
   assert.deepEqual(bytes, Buffer.from(pinned.stdout));
+
+  const currentRow = manifest.rows.find(candidate => candidate.requireCurrent);
+  assert.ok(currentRow);
+  let currentPath = "";
+  const currentBytes = resolveCandidateBytes(process.cwd(), currentRow, {
+    readCurrent(path) {
+      currentPath = path;
+      return Buffer.from("declared-current-content");
+    }
+  });
+  assert.equal(currentPath.endsWith(currentRow.path), true);
+  assert.deepEqual(currentBytes, Buffer.from("declared-current-content"));
+  assert.throws(
+    () => resolveCandidateBytes(process.cwd(), {
+      path: "docs/review/missing-current-candidate.txt",
+      requireCurrent: true
+    }),
+    /current candidate missing/i
+  );
 });
 
 test("the two mixed originals are not correction-only entrypoints", () => {

@@ -2,7 +2,7 @@
 
 状态：evidence scope v22 candidate；closure 已锁定；尚未 main-worktree staging/commit、clean-checkout probe 或归档。
 
-日期：2026-08-10；候选基线：`HEAD=42bd977078d4811a2969949c7be6587c75615c35`。
+日期：2026-08-10；候选基线：`HEAD=c25000ceb2d02f775735a6b2dee78d9e4210d2cd`。
 
 [机器可校验清单](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-manifest.json)；[只读 closure verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-closure-verify.mjs)；[只读 provenance verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-verify.mjs)。
 

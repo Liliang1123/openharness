@@ -62,13 +62,13 @@ export function readCandidateManifest(repoRoot) {
   return JSON.parse(readFileSync(manifestPath, "utf8"));
 }
 
-export function resolveCandidateBytes(repoRoot, row) {
+export function resolveCandidateBytes(repoRoot, row, { readCurrent = readFileSync } = {}) {
   if (row.requireCurrent) {
     const currentPath = resolve(repoRoot, row.path);
     if (!existsSync(currentPath) || !lstatSync(currentPath).isFile()) {
       throw new Error(`current candidate missing: ${row.path}`);
     }
-    return readFileSync(currentPath);
+    return readCurrent(currentPath);
   }
   const result = spawnSync("git", ["--no-optional-locks", "show", `${row.sourceCommit}:${row.path}`], {
     cwd: repoRoot,
@@ -86,18 +86,25 @@ export function validateSecretScanDependencies(manifest, fixtureRulePaths) {
     || !Array.isArray(manifest.secretScanDependencies)) {
     throw new Error("secret-scan dependency contract missing");
   }
+  if (!Array.isArray(fixtureRulePaths) || fixtureRulePaths.some(path => typeof path !== "string" || !path)) {
+    throw new Error("secret-scan fixture rule contract missing");
+  }
   const dependencies = manifest.secretScanDependencies;
   const unique = new Set(dependencies);
   if (unique.size !== dependencies.length || dependencies.some(path => typeof path !== "string" || !path)) {
     throw new Error("secret-scan dependency set is not unique");
   }
+  const fixturePaths = new Set(fixtureRulePaths);
+  if (fixturePaths.size !== fixtureRulePaths.length || fixturePaths.size !== dependencies.length
+    || [...fixturePaths].some(path => !unique.has(path))
+    || [...unique].some(path => !fixturePaths.has(path))) {
+    throw new Error("secret-scan dependency set does not exactly match fixture rules");
+  }
   const closure = new Set(manifest.closure.expectedPaths);
-  const rows = new Set(manifest.rows.map(row => row.path));
+  const rowCounts = new Map();
+  for (const row of manifest.rows) rowCounts.set(row.path, (rowCounts.get(row.path) ?? 0) + 1);
   for (const path of dependencies) {
     if (!closure.has(path)) throw new Error(`secret-scan dependency outside closure: ${path}`);
-    if (!rows.has(path)) throw new Error(`secret-scan dependency without provenance row: ${path}`);
-  }
-  for (const path of new Set(fixtureRulePaths)) {
-    if (!unique.has(path)) throw new Error(`fixture rule outside dependency set: ${path}`);
+    if (rowCounts.get(path) !== 1) throw new Error(`secret-scan dependency requires one provenance row: ${path}`);
   }
 }

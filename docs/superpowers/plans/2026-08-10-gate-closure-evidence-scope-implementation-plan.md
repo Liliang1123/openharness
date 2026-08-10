@@ -38,10 +38,11 @@
 
 - Create: [mcpRegistry correction test](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/mcpRegistry.correction.test.ts)
 - Create: [traceOutbox correction test](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/traceOutbox.correction.test.ts)
+- Create: [scope ledger](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-10-gate-closure-evidence-scope-ledger.md)
 - Test source reference only: [original mcpRegistry test](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/mcpRegistry.test.ts)
 - Test source reference only: [original traceOutbox test](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/traceOutbox.test.ts)
 
-- [x] **Step 1: Write the smallest correction-only tests.** The MCP artifact contains only the config-env redaction test and a local fake client; it must preserve the two expected sensitive-literal fixture categories without exposing the literal in assertion output. The trace artifact contains only the durable trace header/redaction and retry-identity test needed for the correction contract, with a local seeded outbox and no imports from the mixed original file. No unrelated lifecycle/concurrency/routing tests are copied.
+- [x] **Step 1: Write the smallest correction-only tests and ledger.** The MCP artifact contains only the config-env redaction test and a local fake client; it preserves the two expected sensitive-literal fixture categories without exposing the literal in assertion output. The trace artifact contains only the durable trace header/redaction and retry-identity test needed for the correction contract, with a local seeded outbox and no imports from the mixed original file. The ledger maps included/excluded blocks and dependencies; no unrelated lifecycle/concurrency/routing tests are copied.
 
 - [x] **Step 2: Run the two focused tests.**
 
@@ -60,7 +61,7 @@
 - Modify: [provenance verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-verify.mjs)
 - Modify: [closure verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-closure-verify.mjs)
 
-- [x] **Step 1: Add RED assertions to the governance test.** Cover missing dependency, duplicate dependency, fixture-rule key outside dependency set, dirty worktree content for a source-pinned row, and unbound current-required row.
+- [x] **Step 1: Add RED assertions to the governance test.** Cover missing dependency, duplicate dependency/row, bidirectional exact dependency equality, fixture-rule key outside dependency set, injected dirty worktree content for a source-pinned row, and declared current-required resolution.
 
 - [x] **Step 2: Run the governance test and capture the expected failures.**
 
@@ -82,7 +83,7 @@
 
 - [x] **Step 1: Add the two correction-only entrypoints and scanner dependency paths in locked form.** The dependency inventory is generated from all unique fixture-rule keys, then sorted and compared mechanically; the two original mixed test files are not correction entrypoints.
 
-- [x] **Step 2: Create the candidate implementation commit in the isolated branch after scope approval.** The manifest is pinned to the candidate source commit `42bd977078d4811a2969949c7be6587c75615c35`; main-worktree staging/commit remains gated by the fresh v22 scope confirmation.
+- [x] **Step 2: Create the candidate implementation commit in the isolated branch after scope approval.** The manifest is pinned to the candidate source commit `c25000ceb2d02f775735a6b2dee78d9e4210d2cd`; main-worktree staging/commit remains gated by the fresh v22 scope confirmation.
 
 - [x] **Step 3: Recompute closure and rows from the candidate commit.** Added source blob/hash/mode and current hash/mode only for current-required rows. Locked closure after `expectedPaths`, `manifestPaths`, dependency paths, and rows were equal; updated the human Markdown binding without changing v21's historical artifact.
 
@@ -117,6 +118,6 @@
 ## Task 6: Review, verification, and handoff
 
 - [x] **Step 1: Run the focused correction tests, governance tests, closure/provenance verifiers, and scanner in the isolated candidate.** Kept the known clean-v21 full-suite baseline failure separate from new results.
-- [ ] **Step 2: Request a code review with a distinct reviewer identity.** Review exact scope, scanner candidate source, dependency set, manifest rows, and allowlist command counts; fix all important findings before integration.
+- [x] **Step 2: Request a code review with a distinct reviewer identity.** Reviewer `019fea6e-8fee-7760-83b1-319f1748c8bf` checked exact scope, scanner candidate source, dependency set, manifest rows, and allowlist command counts; ledger and dependency/test gaps were fixed. The known clean full-suite baseline remains a staging/execution blocker.
 - [ ] **Step 3: Before any main-worktree staging/commit, present the exact allowlist path set and obtain fresh confirmation for the changed scope.** Do not use `git add .`.
 - [ ] **Step 4: After the user confirms, execute only the new allowlist's fresh C23-C51 sequence and then the independent PIR.** Do not claim completion until fresh output verifies every required gate.

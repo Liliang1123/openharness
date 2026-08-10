@@ -26,6 +26,8 @@ v21 的 [allowlist](file:///Users/elvis/file/develop/opensource/openharness/docs
 - [secret-scan candidate library](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-secret-scan-lib.mjs)
 - [scope governance test](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-10-gate-closure-evidence-scope-governance.test.mjs)
 - [scope diagnostic](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-10-gate-closure-evidence-scope-diagnostic.mjs)
+- [scope ledger](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-10-gate-closure-evidence-scope-ledger.md)
+- [implementation review](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-10-gate-closure-evidence-scope-implementation-review.md)
 - [scope preflight Review](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-10-gate-closure-evidence-scope-preflight-review.md)
 - [scope implementation plan](file:///Users/elvis/file/develop/opensource/openharness/docs/superpowers/plans/2026-08-10-gate-closure-evidence-scope-implementation-plan.md)
 - [v22 allowlist](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-10-gate-closure-persistence-fix-command-allowlist-v22.md)
@@ -41,6 +43,10 @@ v21 的 [allowlist](file:///Users/elvis/file/develop/opensource/openharness/docs
 - [dashboard HTML artifact](file:///Users/elvis/file/develop/opensource/openharness/docs/project-dashboard/index.html)
 
 The original mixed [mcpRegistry test](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/mcpRegistry.test.ts) and [traceOutbox test](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/traceOutbox.test.ts) are explicitly excluded. No real credential/provider/MCP/browser call, promotion, archive, push, or broad cleanup is authorized.
+
+## Known clean-suite baseline blocker
+
+The v21 clean candidate was already observed to fail the full Runtime/root suites because the v21 commit does not contain the broader main-worktree dirty/untracked tests and Gate-D packet. The v22 correction candidate does not silently widen scope to those unreviewed files. Therefore C39 and C48 below are baseline-observation commands, not pass gates: a known matching nonzero result must be recorded as `BLOCKED_BASELINE`, and no PIR may claim completion. Before C23, the user must either approve a separately reviewed dependency expansion that makes the full suites executable, or explicitly approve this baseline-exception treatment. No C23-C51 execution starts while that choice is unresolved.
 
 ## Roles, phases, counts, and exit status
 
@@ -101,7 +107,7 @@ The user-authorized correction commit must exist before C23. C23 writes the comp
 | C36 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm --filter @openharness/integration-tests exec vitest run test/p1b.integration.test.ts` | executor-clean / phase-b-integration | 1 | `0`; P1b local write/read and negative isolation |
 | C37 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm --filter @openharness/agent-runtime exec tsc --noEmit` | executor-clean / phase-b-runtime-typecheck | 1 | `0`; Runtime typecheck |
 | C38 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm --filter @openharness/integration-tests exec tsc --noEmit` | executor-clean / phase-b-integration-typecheck | 1 | `0`; integration typecheck |
-| C39 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm --filter @openharness/agent-runtime test` | executor-clean / phase-b-runtime-full | 1 | `0`; clean Runtime full test |
+| C39 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm --filter @openharness/agent-runtime test` | executor-clean / phase-b-runtime-full | 1 | `0` required for a pass; known v21-derived missing-test/packet baseline may be nonzero and must be recorded `BLOCKED_BASELINE` |
 | C40 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm --filter @openharness/frontend test` | executor-clean / phase-b-frontend | 1 | `0`; clean frontend regression |
 | C41 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm --filter @openharness/integration-tests test` | executor-clean / phase-b-integration-full | 1 | `0`; clean integration regression |
 | C42 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm typecheck` | executor-clean / phase-b-workspace-typecheck | 1 | `0`; workspace typecheck |
@@ -110,7 +116,7 @@ The user-authorized correction commit must exist before C23. C23 writes the comp
 | C45 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && /Users/elvis/file/develop/environment/apache-maven-3.6.3/bin/mvn -o -s /Users/elvis/.m2/setting-new.xml -Dmaven.repo.local=/Users/elvis/.m2/repository -f /tmp/openharness-gate-closure-evidence-scope-v22-clean/backend/pom.xml test` | executor-clean / phase-b-java-full | 1 | `0`; local backend full test |
 | C46 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && npx --no-install openspec validate refactor-gate-closure-evidence-scope --strict --no-interactive && npx --no-install openspec validate harden-agent-runtime-single-node-production --strict --no-interactive && npx --no-install openspec validate defer-anthropic-from-gate-c --strict --no-interactive` | executor-clean / phase-b-openspec | 1 | `0`; active OpenSpec changes remain active and strict-valid |
 | C47 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm dashboard:check` | executor-clean / phase-b-dashboard | 1 | `0`; dashboard source and generated artifacts fresh; product state remains `partial` |
-| C48 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm test` | executor-clean / phase-b-root-full | 1 | `0`; clean root aggregation |
+| C48 | `cd /tmp/openharness-gate-closure-evidence-scope-v22-clean && pnpm test` | executor-clean / phase-b-root-full | 1 | `0` required for a pass; known v21-derived missing-test/packet baseline may be nonzero and must be recorded `BLOCKED_BASELINE` |
 | C49 | `git --no-optional-locks -C /tmp/openharness-gate-closure-evidence-scope-v22-clean status --porcelain=v1 --untracked-files=all` | executor-clean / phase-b-clean-status | 1 | `0`; no dependency artifacts or dirty clean tree |
 
 ## Disposable cleanup (C50-C51)
