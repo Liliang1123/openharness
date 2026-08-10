@@ -26,7 +26,7 @@
 ### 高
 
 1. Whole-file admission is not permitted. The two dirty files mix the C31-sensitive fixture with additional lifecycle, routing, concurrency, and error-path tests. The implementation must create independently reviewable correction-only artifacts and leave the original files outside the candidate.
-2. The scanner has 32 unique fixture-rule paths; 19 are outside the locked v21 closure. The implementation must bind the complete declared dependency set to provenance rows or fail closed. Adding only two staging paths is insufficient.
+2. The scanner has 29 unique fixture-rule paths; 16 are outside the locked v21 closure. The implementation must bind the complete declared dependency set to provenance rows or fail closed. The candidate also adds one transitive TypeScript test helper, so the relocked closure adds 17 paths and 17 rows; adding only two staging paths is insufficient.
 
 ### 中
 

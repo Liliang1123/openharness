@@ -19,10 +19,6 @@ const fixtureLiteralRules = new Map([
     ["sensitive:authorization:e6851af8c176eb8682f730c1baf372c0c9ca07439a42c3d8f4ca20ba833be6c4", 1]
   ])],
   ["agent-runtime/test/approvalTimeout.test.ts", rule([["sensitive:authorization:e47800f0be84febf6a4f71ff92d9ddf6c531f7e6fba972659598a6eec12620c2", 1]])],
-  ["agent-runtime/test/codexPendingTurn.test.ts", rule([
-    ["bearer:64d7efad441708af69c9eef019556d897f823f86fa95ad58e510a0ca44967525", 2],
-    ["sensitive:authorization:64d7efad441708af69c9eef019556d897f823f86fa95ad58e510a0ca44967525", 1]
-  ])],
   ["agent-runtime/test/executionTimeout.test.ts", rule([["sensitive:authorization:e47800f0be84febf6a4f71ff92d9ddf6c531f7e6fba972659598a6eec12620c2", 1]])],
   ["agent-runtime/test/formalSoakExecution.test.ts", rule([
     ["canary:f9be458ae2c8ca4d20ac591e03402f9cfbf735eec0c95c609609cb6768f994f6", 9],
@@ -49,16 +45,6 @@ const fixtureLiteralRules = new Map([
     ["bearer:0c6e4493920989c327f6e0bac2948b17b71d119dbc9fdafb75435df6e0b87d4c", 1],
     ["sensitive:authorization:0c6e4493920989c327f6e0bac2948b17b71d119dbc9fdafb75435df6e0b87d4c", 1]
   ])],
-  ["agent-runtime/test/runtimeChatLifecycleLog.test.ts", rule([
-    ["bearer:64d7efad441708af69c9eef019556d897f823f86fa95ad58e510a0ca44967525", 1],
-    ["sensitive:authorization:64d7efad441708af69c9eef019556d897f823f86fa95ad58e510a0ca44967525", 1]
-  ])],
-  ["agent-runtime/test/runtimeStorageAdmission.test.ts", rule([
-    ["bearer:68de4003731e9a5d609f80b94cc3a8064344b2eaf9173172c840fc88b18567ea", 1],
-    ["bearer:6fff43b45fb8776548b78ae5c938be97a9a74e48edd3fcba9da94ad4875a8256", 1],
-    ["sensitive:authorization:68de4003731e9a5d609f80b94cc3a8064344b2eaf9173172c840fc88b18567ea", 1],
-    ["sensitive:authorization:6fff43b45fb8776548b78ae5c938be97a9a74e48edd3fcba9da94ad4875a8256", 1]
-  ])],
   ["agent-runtime/test/serviceAuth.test.ts", rule([
     ["bearer:8fac0aef7838c4b46012eddf3e5a3bea6ecf9daac1f2da141ba6e6de827e72b9", 2],
     ["sensitive:authorization:1a3ffb6a90d519dcb2034911e8f96152fc4e4f51d61695a8a5a42f68541555be", 1],
@@ -67,7 +53,7 @@ const fixtureLiteralRules = new Map([
   ["agent-runtime/test/terminalErrors.test.ts", rule([["sensitive:authorization:e47800f0be84febf6a4f71ff92d9ddf6c531f7e6fba972659598a6eec12620c2", 1]])],
   ["agent-runtime/test/traceOutbox.correction.test.ts", rule([
     ["bearer:ca64faa2f21a66699571463505fdf124b2046e98f1424f3bc28cb3e199ebd68f", 2],
-    ["sensitive:authorization:ca64faa2f21a66699571463505fdf124b2046e98f1424f3bc28cb3e199ebd68f", 2]
+    ["sensitive:authorization:ca64faa2f21a66699571463505fdf124b2046e98f1424f3bc28cb3e199ebd68f", 1]
   ])],
   ["packages/shared-schema/test/schema.test.ts", rule([["sensitive:authorization:bffde20413347b7a00e1363de3f97ca69e419dc0aea55f4a4a75018fab3a0e8e", 1]])],
   ["integration-tests/test/p0a.integration.test.ts", rule([
@@ -140,13 +126,6 @@ const fixtureLiteralRules = new Map([
     ["provider-key:a03d43d254a4ccb8f1921be6b2037423b14cd1d0bd460164980730e0fd1948f8", 1],
     ["sensitive:x-api-key:c0fccc65dc27b87b682c2abd603df0817148a87a031a10eb2c1ae781ef922e09", 1],
     ["sensitive:apikey:024f6c9525465fbec0047e2686f02a413c52241fde8af273148c419fa18fb312", 1]
-  ])],
-  ["agent-runtime/test/runtimeStorageAdmission.test.ts", rule([
-    ["bearer:68de4003731e9a5d609f80b94cc3a8064344b2eaf9173172c840fc88b18567ea", 1],
-    ["bearer:6fff43b45fb8776548b78ae5c938be97a9a74e48edd3fcba9da94ad4875a8256", 1],
-    ["sensitive:authorization:68de4003731e9a5d609f80b94cc3a8064344b2eaf9173172c840fc88b18567ea", 1],
-    ["sensitive:authorization:6fff43b45fb8776548b78ae5c938be97a9a74e48edd3fcba9da94ad4875a8256", 1],
-    ["sensitive:servicetoken:784c8e01994654a577f492116789bb8d9153c8774836fc8cb6bfa2cc773ae549", 2]
   ])],
   ["agent-runtime/test/serviceAuth.test.ts", rule([
     ["bearer:8fac0aef7838c4b46012eddf3e5a3bea6ecf9daac1f2da141ba6e6de827e72b9", 2],

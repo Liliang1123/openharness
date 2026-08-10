@@ -1,21 +1,56 @@
 # 全量门禁与持久化回归修复 Provenance Manifest
 
-状态：实现阶段 closure 已锁定；尚未 staging、commit、clean-checkout probe 或归档。
+状态：evidence scope v22 candidate；closure 已锁定；尚未 main-worktree staging/commit、clean-checkout probe 或归档。
 
-日期：2026-08-07
+日期：2026-08-10；候选基线：`HEAD=42bd977078d4811a2969949c7be6587c75615c35`。
 
-基线：[当前工作区](file:///Users/elvis/file/develop/opensource/openharness/)；`HEAD=9188ca7223ba50b444bd18703272533b03360788`。
+[机器可校验清单](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-manifest.json)；[只读 closure verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-closure-verify.mjs)；[只读 provenance verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-verify.mjs)。
 
-机器可校验清单：[JSON manifest](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-manifest.json)；[只读 verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-verify.mjs)。
+固定 17 个 canonical entrypoints 与 14 个 canonical non-TypeScript boundaries；`closure.status=locked`，closure 与 scanner dependency union 共 102 条路径，107 条 provenance rows。
 
-入口闭包校验：[closure verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-closure-verify.mjs)。固定 15 个 canonical entrypoints 与 14 个 canonical non-TypeScript boundaries；`closure.status=locked`，`expectedPaths` 与 `manifestPaths` 为 verifier 计算的 85 条路径同序等值。每条 closure path 均有 machine row。
+## Secret-scan dependency closure
 
-JSON manifest 是 policy/source 的 canonical machine record；本 Markdown 是人工审阅视图。每条记录保留 source commit、source blob、内容 SHA-256、mode、evidence state、restore permission 与 maxRestores。标记为 `current` 的 hash 是当前工作区 hash；标记为 `source` 的 hash 是 source commit 内容 hash。当前 correction 不伪装为历史 restore。
+scanner fixture-rule 去重后为 29 条路径；每条路径均必须同时出现在 `closure.expectedPaths` 与 provenance rows 中。
+
+- [agent-runtime/src/baseline/formalSoakCli.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/baseline/formalSoakCli.ts)
+- [agent-runtime/src/baseline/formalSoakExecution.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/baseline/formalSoakExecution.ts)
+- [agent-runtime/src/baseline/gateDPerformanceDiagnosticCli.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/baseline/gateDPerformanceDiagnosticCli.ts)
+- [agent-runtime/src/baseline/gateDPerformanceDiagnostics.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/baseline/gateDPerformanceDiagnostics.ts)
+- [agent-runtime/src/baseline/localBaseline.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/baseline/localBaseline.ts)
+- [agent-runtime/src/evalReplayHarness.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/evalReplayHarness.ts)
+- [agent-runtime/src/server.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/server.ts)
+- [agent-runtime/test/agentExecutionRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/agentExecutionRunner.test.ts)
+- [agent-runtime/test/agentRuntime.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/agentRuntime.test.ts)
+- [agent-runtime/test/approvalTimeout.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/approvalTimeout.test.ts)
+- [agent-runtime/test/executionTimeout.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/executionTimeout.test.ts)
+- [agent-runtime/test/formalSoakCli.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/formalSoakCli.test.ts)
+- [agent-runtime/test/formalSoakExecution.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/formalSoakExecution.test.ts)
+- [agent-runtime/test/gateCProviderPolicy.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/gateCProviderPolicy.test.ts)
+- [agent-runtime/test/gateDPerformanceDiagnostics.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/gateDPerformanceDiagnostics.test.ts)
+- [agent-runtime/test/jsonImporter.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/jsonImporter.test.ts)
+- [agent-runtime/test/localBaselineSampler.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/localBaselineSampler.test.ts)
+- [agent-runtime/test/mcpRegistry.correction.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/mcpRegistry.correction.test.ts)
+- [agent-runtime/test/productionEntrypoint.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/productionEntrypoint.test.ts)
+- [agent-runtime/test/productionRunnerPersistence.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/productionRunnerPersistence.test.ts)
+- [agent-runtime/test/productionServerLifecycle.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/productionServerLifecycle.test.ts)
+- [agent-runtime/test/qualificationRedaction.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/qualificationRedaction.test.ts)
+- [agent-runtime/test/qualificationReport.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/qualificationReport.test.ts)
+- [agent-runtime/test/serviceAuth.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/serviceAuth.test.ts)
+- [agent-runtime/test/terminalErrors.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/terminalErrors.test.ts)
+- [agent-runtime/test/traceOutbox.correction.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/traceOutbox.correction.test.ts)
+- [integration-tests/test/p0a.integration.test.ts](file:///Users/elvis/file/develop/opensource/openharness/integration-tests/test/p0a.integration.test.ts)
+- [integration-tests/test/p0b.integration.test.ts](file:///Users/elvis/file/develop/opensource/openharness/integration-tests/test/p0b.integration.test.ts)
+- [packages/shared-schema/test/schema.test.ts](file:///Users/elvis/file/develop/opensource/openharness/packages/shared-schema/test/schema.test.ts)
+
+两个原始 mixed test 文件不纳入 correction entrypoints；只纳入以下 correction-only artifacts：
+
+- [mcpRegistry correction test](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/mcpRegistry.correction.test.ts)
+- [traceOutbox correction test](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/traceOutbox.correction.test.ts)
 
 ## Evidence state policy
 
 - `executable_source`、`startup_boundary` 与历史 evidence states：允许恢复一次，`maxRestores=1`。
-- `current_matches_non_ancestor_reference`、`explicit_script_merge_required`、`explicit_correction_required`、`tdd_cross_user_correction_required` 与 tracked-dirty correction states：禁止恢复，`maxRestores=0`，必须绑定当前 hash。
+- `explicit_correction_required` 与其他 tracked-dirty correction states：禁止恢复，`maxRestores=0`，绑定当前 hash。
 - Gate C required authority 仍是 OpenAI-compatible production report；现有 report 保持 production/blocked，不能被本 manifest 升格。
 
 ## Closure and provenance rows
@@ -112,3 +147,20 @@ JSON manifest 是 policy/source 的 canonical machine record；本 Markdown 是�
 | [pnpm-lock.yaml](file:///Users/elvis/file/develop/opensource/openharness/pnpm-lock.yaml) | `9188ca7223ba50b444bd18703272533b03360788` | `ef0f8e809b0b60cf492e701e6ff98b28bcfd5847` | `c0cbe7b6af5361203e87a38e768f0aa98fbbbfc118d9eed777fa018c85c7f356` | `100644` | `executable_source` | `source` |
 | [pnpm-workspace.yaml](file:///Users/elvis/file/develop/opensource/openharness/pnpm-workspace.yaml) | `9188ca7223ba50b444bd18703272533b03360788` | `77ee35a0d485763f5ce24bc6ac0fe665a553472e` | `ef5e9b41537e4d569490c17546954d23e03a2b35b58ecd43756b692e6921551d` | `100644` | `executable_source` | `source` |
 | [tsconfig.base.json](file:///Users/elvis/file/develop/opensource/openharness/tsconfig.base.json) | `9188ca7223ba50b444bd18703272533b03360788` | `8032152bc9b8f7a45f04fe712d3971050e4afdb5` | `1b2865216b4aacbf723409c87856bbd9fc3f1a1de49fc670706da51b03c63a29` | `100644` | `executable_source` | `source` |
+| [mcpRegistry.correction.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/mcpRegistry.correction.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `520551b223aa485ddc17af9920bf2be281a03fe0` | `ebd1eea7a68fe85d57b816d4c78c9d78021b4b4d2ba7e028c9b35cd55d0d4f96` | `100644` | `explicit_correction_required` | `current` |
+| [sqliteRepositoryTestUtils.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/sqliteRepositoryTestUtils.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `258f403a6a631d8e207916791b32cac61eadb980` | `8bee073cb2620e096c95e4e7524b8380bf33ccef34ec79d30a8f2f367d08865b` | `100644` | `executable_source` | `source` |
+| [traceOutbox.correction.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/traceOutbox.correction.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `12bd7d5d0d83e23e9dd0cc4018f5a85feccce03f` | `17da9faf5d6c123cca231d94b16e9ec500dfb6a67369094c23be2bfa3881a824` | `100644` | `explicit_correction_required` | `current` |
+| [evalReplayHarness.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/evalReplayHarness.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `ebb7a733d2902a2e93442e7f50f34798dabfa53b` | `e9cf287dbd166094b6db2616bc8c34882761891009c6a609778ffa60f823b3cf` | `100644` | `executable_source` | `source` |
+| [agentExecutionRunner.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/agentExecutionRunner.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `9d40d7da78768dd4de08a02c082d278a2fa54e52` | `19dd06e1e6d24bed16a7c34a5879604c3a3dd63933dd854ea4fed3d0a0eade6d` | `100644` | `executable_source` | `source` |
+| [agentRuntime.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/agentRuntime.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `e058359a8652524da8775269f141da495d7fee45` | `9fb1611081f243682cb8d7f0fbb4b08f673616ad59374568803c47aa2cffd48c` | `100644` | `executable_source` | `source` |
+| [approvalTimeout.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/approvalTimeout.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `bc283c2ef48bffc2c1002522efce1b51a80636e4` | `e7f89322ab7c8237ce40d092e41ea6f89239bd3d93c7db869ef3e08a57c027a7` | `100644` | `executable_source` | `source` |
+| [executionTimeout.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/executionTimeout.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `03943ef3729563be46eb7ee6b444c9a937c5a33e` | `abbce946728a2e284db2f93f7d16734643de54e80578b0e6d8e5a0394c615af3` | `100644` | `executable_source` | `source` |
+| [jsonImporter.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/jsonImporter.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `9a233c90cb2e9f1d72cca68420e0274c3184514a` | `8159b215139932966512f566922bc814521d4ae9f63d740e5d640386fd72cb23` | `100644` | `executable_source` | `source` |
+| [localBaselineSampler.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/localBaselineSampler.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `4df200d07f088b32f2756941d947e24bebed39a9` | `b552d28d3d33daa7d095de7d669c5a2d23557c2be93deaa3fc5282c7f7d139bc` | `100644` | `executable_source` | `source` |
+| [qualificationRedaction.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/qualificationRedaction.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `4c600522160b8f557050e30f0044ed0a8f5c7c3b` | `f10a5fd1155e778a5f968895f996f60eecf19b2999baa00429f69ea28704d7fd` | `100644` | `executable_source` | `source` |
+| [qualificationReport.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/qualificationReport.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `5cea65ba5a7d8cc29b3f847b3f13050a4de56ef2` | `85f252368e87c3f58f4cb64dbcff1d814b96f85c7e3e909c7520ae4e6bbeb603` | `100644` | `executable_source` | `source` |
+| [serviceAuth.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/serviceAuth.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `0f88bfc248bc797c76fa480dc9099d56e2b8e3ae` | `9dbb569cf80cdd40a44aa74c8db207622becbb2daee0ceb12d8d9fe935558d08` | `100644` | `executable_source` | `source` |
+| [terminalErrors.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/terminalErrors.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `8b0b37f51c4c97ca4bf29eaf30ff84aaa2e033b5` | `8c6494f6e4686a2030314a84433de4dba02658c48da415f6681574e86a63524b` | `100644` | `executable_source` | `source` |
+| [p0a.integration.test.ts](file:///Users/elvis/file/develop/opensource/openharness/integration-tests/test/p0a.integration.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `f489135f3b41e12a269595533667da3aad9efe59` | `8c35431b283c71113c6eb4a0b430ea61d4a7e8cecc4d67bbfad231e3ebc08d6b` | `100644` | `executable_source` | `source` |
+| [p0b.integration.test.ts](file:///Users/elvis/file/develop/opensource/openharness/integration-tests/test/p0b.integration.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `53319b60b6004b125757be051e4a6498deadc62a` | `7b1261984104cb5fd5cb68ee9c18928187fb94770c5b31637c6efbe6b2ef5cf1` | `100644` | `executable_source` | `source` |
+| [schema.test.ts](file:///Users/elvis/file/develop/opensource/openharness/packages/shared-schema/test/schema.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `2dcd96bf3afbf93b66633349bcdf44e9927a0c3c` | `026d483971c3908c627f721237837a6a3cc076f343ed489f713aecd487f0632a` | `100644` | `executable_source` | `source` |

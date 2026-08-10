@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "baseCommit": "9188ca7223ba50b444bd18703272533b03360788",
+  "schemaVersion": 2,
+  "baseCommit": "42bd977078d4811a2969949c7be6587c75615c35",
   "closure": {
     "status": "locked",
     "entryPoints": [
@@ -78,6 +78,16 @@
         "path": "agent-runtime/test/productionStartupScript.test.ts",
         "project": "agent-runtime",
         "role": "production-startup-test"
+      },
+      {
+        "path": "agent-runtime/test/mcpRegistry.correction.test.ts",
+        "project": "agent-runtime",
+        "role": "mcp-correction-test"
+      },
+      {
+        "path": "agent-runtime/test/traceOutbox.correction.test.ts",
+        "project": "agent-runtime",
+        "role": "trace-outbox-correction-test"
       }
     ],
     "nonTypeScriptBoundaries": [
@@ -181,7 +191,24 @@
       "packages/shared-schema/tsconfig.json",
       "pnpm-lock.yaml",
       "pnpm-workspace.yaml",
-      "tsconfig.base.json"
+      "tsconfig.base.json",
+      "agent-runtime/test/mcpRegistry.correction.test.ts",
+      "agent-runtime/test/sqliteRepositoryTestUtils.ts",
+      "agent-runtime/test/traceOutbox.correction.test.ts",
+      "agent-runtime/src/evalReplayHarness.ts",
+      "agent-runtime/test/agentExecutionRunner.test.ts",
+      "agent-runtime/test/agentRuntime.test.ts",
+      "agent-runtime/test/approvalTimeout.test.ts",
+      "agent-runtime/test/executionTimeout.test.ts",
+      "agent-runtime/test/jsonImporter.test.ts",
+      "agent-runtime/test/localBaselineSampler.test.ts",
+      "agent-runtime/test/qualificationRedaction.test.ts",
+      "agent-runtime/test/qualificationReport.test.ts",
+      "agent-runtime/test/serviceAuth.test.ts",
+      "agent-runtime/test/terminalErrors.test.ts",
+      "integration-tests/test/p0a.integration.test.ts",
+      "integration-tests/test/p0b.integration.test.ts",
+      "packages/shared-schema/test/schema.test.ts"
     ],
     "manifestPaths": [
       "agent-runtime/package.json",
@@ -268,7 +295,24 @@
       "packages/shared-schema/tsconfig.json",
       "pnpm-lock.yaml",
       "pnpm-workspace.yaml",
-      "tsconfig.base.json"
+      "tsconfig.base.json",
+      "agent-runtime/test/mcpRegistry.correction.test.ts",
+      "agent-runtime/test/sqliteRepositoryTestUtils.ts",
+      "agent-runtime/test/traceOutbox.correction.test.ts",
+      "agent-runtime/src/evalReplayHarness.ts",
+      "agent-runtime/test/agentExecutionRunner.test.ts",
+      "agent-runtime/test/agentRuntime.test.ts",
+      "agent-runtime/test/approvalTimeout.test.ts",
+      "agent-runtime/test/executionTimeout.test.ts",
+      "agent-runtime/test/jsonImporter.test.ts",
+      "agent-runtime/test/localBaselineSampler.test.ts",
+      "agent-runtime/test/qualificationRedaction.test.ts",
+      "agent-runtime/test/qualificationReport.test.ts",
+      "agent-runtime/test/serviceAuth.test.ts",
+      "agent-runtime/test/terminalErrors.test.ts",
+      "integration-tests/test/p0a.integration.test.ts",
+      "integration-tests/test/p0b.integration.test.ts",
+      "packages/shared-schema/test/schema.test.ts"
     ]
   },
   "rows": [
@@ -1327,6 +1371,228 @@
       "restoreAllowed": true,
       "maxRestores": 1,
       "requireCurrent": false
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "520551b223aa485ddc17af9920bf2be281a03fe0",
+      "sourceSha256": "ebd1eea7a68fe85d57b816d4c78c9d78021b4b4d2ba7e028c9b35cd55d0d4f96",
+      "sourceMode": "100644",
+      "evidenceState": "explicit_correction_required",
+      "maxRestores": 0,
+      "path": "agent-runtime/test/mcpRegistry.correction.test.ts",
+      "requireCurrent": true,
+      "restoreAllowed": false,
+      "currentMode": "100644",
+      "currentSha256": "ebd1eea7a68fe85d57b816d4c78c9d78021b4b4d2ba7e028c9b35cd55d0d4f96"
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "258f403a6a631d8e207916791b32cac61eadb980",
+      "sourceSha256": "8bee073cb2620e096c95e4e7524b8380bf33ccef34ec79d30a8f2f367d08865b",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/sqliteRepositoryTestUtils.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "12bd7d5d0d83e23e9dd0cc4018f5a85feccce03f",
+      "sourceSha256": "17da9faf5d6c123cca231d94b16e9ec500dfb6a67369094c23be2bfa3881a824",
+      "sourceMode": "100644",
+      "evidenceState": "explicit_correction_required",
+      "maxRestores": 0,
+      "path": "agent-runtime/test/traceOutbox.correction.test.ts",
+      "requireCurrent": true,
+      "restoreAllowed": false,
+      "currentMode": "100644",
+      "currentSha256": "17da9faf5d6c123cca231d94b16e9ec500dfb6a67369094c23be2bfa3881a824"
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "ebb7a733d2902a2e93442e7f50f34798dabfa53b",
+      "sourceSha256": "e9cf287dbd166094b6db2616bc8c34882761891009c6a609778ffa60f823b3cf",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/src/evalReplayHarness.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "9d40d7da78768dd4de08a02c082d278a2fa54e52",
+      "sourceSha256": "19dd06e1e6d24bed16a7c34a5879604c3a3dd63933dd854ea4fed3d0a0eade6d",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/agentExecutionRunner.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "e058359a8652524da8775269f141da495d7fee45",
+      "sourceSha256": "9fb1611081f243682cb8d7f0fbb4b08f673616ad59374568803c47aa2cffd48c",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/agentRuntime.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "bc283c2ef48bffc2c1002522efce1b51a80636e4",
+      "sourceSha256": "e7f89322ab7c8237ce40d092e41ea6f89239bd3d93c7db869ef3e08a57c027a7",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/approvalTimeout.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "03943ef3729563be46eb7ee6b444c9a937c5a33e",
+      "sourceSha256": "abbce946728a2e284db2f93f7d16734643de54e80578b0e6d8e5a0394c615af3",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/executionTimeout.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "9a233c90cb2e9f1d72cca68420e0274c3184514a",
+      "sourceSha256": "8159b215139932966512f566922bc814521d4ae9f63d740e5d640386fd72cb23",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/jsonImporter.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "4df200d07f088b32f2756941d947e24bebed39a9",
+      "sourceSha256": "b552d28d3d33daa7d095de7d669c5a2d23557c2be93deaa3fc5282c7f7d139bc",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/localBaselineSampler.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "4c600522160b8f557050e30f0044ed0a8f5c7c3b",
+      "sourceSha256": "f10a5fd1155e778a5f968895f996f60eecf19b2999baa00429f69ea28704d7fd",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/qualificationRedaction.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "5cea65ba5a7d8cc29b3f847b3f13050a4de56ef2",
+      "sourceSha256": "85f252368e87c3f58f4cb64dbcff1d814b96f85c7e3e909c7520ae4e6bbeb603",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/qualificationReport.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "0f88bfc248bc797c76fa480dc9099d56e2b8e3ae",
+      "sourceSha256": "9dbb569cf80cdd40a44aa74c8db207622becbb2daee0ceb12d8d9fe935558d08",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/serviceAuth.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "8b0b37f51c4c97ca4bf29eaf30ff84aaa2e033b5",
+      "sourceSha256": "8c6494f6e4686a2030314a84433de4dba02658c48da415f6681574e86a63524b",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/terminalErrors.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "f489135f3b41e12a269595533667da3aad9efe59",
+      "sourceSha256": "8c35431b283c71113c6eb4a0b430ea61d4a7e8cecc4d67bbfad231e3ebc08d6b",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "integration-tests/test/p0a.integration.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "53319b60b6004b125757be051e4a6498deadc62a",
+      "sourceSha256": "7b1261984104cb5fd5cb68ee9c18928187fb94770c5b31637c6efbe6b2ef5cf1",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "integration-tests/test/p0b.integration.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "42bd977078d4811a2969949c7be6587c75615c35",
+      "sourceBlob": "2dcd96bf3afbf93b66633349bcdf44e9927a0c3c",
+      "sourceSha256": "026d483971c3908c627f721237837a6a3cc076f343ed489f713aecd487f0632a",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "packages/shared-schema/test/schema.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
     }
+  ],
+  "secretScanDependencies": [
+    "agent-runtime/src/baseline/formalSoakCli.ts",
+    "agent-runtime/src/baseline/formalSoakExecution.ts",
+    "agent-runtime/src/baseline/gateDPerformanceDiagnosticCli.ts",
+    "agent-runtime/src/baseline/gateDPerformanceDiagnostics.ts",
+    "agent-runtime/src/baseline/localBaseline.ts",
+    "agent-runtime/src/evalReplayHarness.ts",
+    "agent-runtime/src/server.ts",
+    "agent-runtime/test/agentExecutionRunner.test.ts",
+    "agent-runtime/test/agentRuntime.test.ts",
+    "agent-runtime/test/approvalTimeout.test.ts",
+    "agent-runtime/test/executionTimeout.test.ts",
+    "agent-runtime/test/formalSoakCli.test.ts",
+    "agent-runtime/test/formalSoakExecution.test.ts",
+    "agent-runtime/test/gateCProviderPolicy.test.ts",
+    "agent-runtime/test/gateDPerformanceDiagnostics.test.ts",
+    "agent-runtime/test/jsonImporter.test.ts",
+    "agent-runtime/test/localBaselineSampler.test.ts",
+    "agent-runtime/test/mcpRegistry.correction.test.ts",
+    "agent-runtime/test/productionEntrypoint.test.ts",
+    "agent-runtime/test/productionRunnerPersistence.test.ts",
+    "agent-runtime/test/productionServerLifecycle.test.ts",
+    "agent-runtime/test/qualificationRedaction.test.ts",
+    "agent-runtime/test/qualificationReport.test.ts",
+    "agent-runtime/test/serviceAuth.test.ts",
+    "agent-runtime/test/terminalErrors.test.ts",
+    "agent-runtime/test/traceOutbox.correction.test.ts",
+    "integration-tests/test/p0a.integration.test.ts",
+    "integration-tests/test/p0b.integration.test.ts",
+    "packages/shared-schema/test/schema.test.ts"
   ]
 }

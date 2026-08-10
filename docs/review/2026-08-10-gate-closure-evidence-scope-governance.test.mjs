@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { test } from "node:test";
 import { resolveCandidateBytes, validateSecretScanDependencies } from "./2026-08-05-gate-closure-persistence-fix-secret-scan-lib.mjs";
 
@@ -11,6 +13,10 @@ const scannerSource = readFileSync(
   new URL("./2026-08-05-gate-closure-persistence-fix-secret-scan.mjs", import.meta.url),
   "utf8"
 );
+const diagnosticPath = fileURLToPath(new URL(
+  "./2026-08-10-gate-closure-evidence-scope-diagnostic.mjs",
+  import.meta.url
+));
 
 function fixtureRulePaths() {
   return [...scannerSource.matchAll(/\["([^"]+\.tsx?)",\s*rule\(/g)]
@@ -53,18 +59,70 @@ test("dependency validation rejects a fixture rule outside the declared set", ()
   );
 });
 
+test("dependency validation rejects duplicate and unbound rows", () => {
+  assert.throws(
+    () => validateSecretScanDependencies({
+      closure: { expectedPaths: ["candidate.ts"] },
+      secretScanDependencies: ["candidate.ts", "candidate.ts"],
+      rows: [{ path: "candidate.ts" }]
+    }, ["candidate.ts"]),
+    /unique/i
+  );
+  assert.throws(
+    () => validateSecretScanDependencies({
+      closure: { expectedPaths: ["candidate.ts"] },
+      secretScanDependencies: ["candidate.ts"],
+      rows: []
+    }, ["candidate.ts"]),
+    /row/i
+  );
+});
+
 test("source-pinned dependencies resolve from Git rather than the dirty worktree", () => {
   const row = manifest.rows.find(candidate => !candidate.requireCurrent);
   assert.ok(row);
   const bytes = resolveCandidateBytes(process.cwd(), row);
   assert.ok(Buffer.isBuffer(bytes));
   assert.ok(bytes.length > 0);
+  const pinned = spawnSync("git", [
+    "--no-optional-locks",
+    "show",
+    `${row.sourceCommit}:${row.path}`
+  ], { cwd: process.cwd(), encoding: null });
+  assert.equal(pinned.status, 0);
+  assert.deepEqual(bytes, Buffer.from(pinned.stdout));
 });
 
 test("the two mixed originals are not correction-only entrypoints", () => {
   const entryPaths = new Set((manifest.closure?.entryPoints ?? []).map(entry => entry.path));
   assert.equal(entryPaths.has("agent-runtime/test/mcpRegistry.test.ts"), false);
   assert.equal(entryPaths.has("agent-runtime/test/traceOutbox.test.ts"), false);
+  assert.equal(fixtureRulePaths().includes("agent-runtime/test/mcpRegistry.test.ts"), false);
+  assert.equal(fixtureRulePaths().includes("agent-runtime/test/traceOutbox.test.ts"), false);
   assert.equal(entryPaths.has("agent-runtime/test/mcpRegistry.correction.test.ts"), true);
   assert.equal(entryPaths.has("agent-runtime/test/traceOutbox.correction.test.ts"), true);
+});
+
+test("scope diagnostic accepts only its declared role and phase", () => {
+  const result = spawnSync(process.execPath, [
+    diagnosticPath,
+    "--role=governance-test",
+    "--phase=scope-diagnostic-test"
+  ], { cwd: process.cwd(), encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^scope_diagnostic_ok$/m);
+  assert.match(result.stdout, /entrypoint_paths=/);
+  assert.match(result.stdout, /secret_scan_dependency_paths=/);
+  assert.doesNotMatch(result.stdout, /Bearer|OPENHARNESS|(?:sk|rk|pk)-/i);
+});
+
+test("scope diagnostic rejects unknown and sensitive-shaped arguments", () => {
+  const result = spawnSync(process.execPath, [
+    diagnosticPath,
+    "--role=governance-test",
+    "--phase=scope-diagnostic-test",
+    "--token=redacted"
+  ], { cwd: process.cwd(), encoding: "utf8" });
+  assert.notEqual(result.status, 0);
+  assert.equal(`${result.stdout}${result.stderr}`, "scope_diagnostic_failed\n");
 });
