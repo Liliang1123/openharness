@@ -6,7 +6,7 @@
 
 主工作目录：[OpenHarness](file:///Users/elvis/file/develop/opensource/openharness/)
 
-状态：候选实现已在隔离 worktree 完成本地验证；主 worktree 尚未按本文件 staging/commit，C23-C51 与 PIR 尚未执行。
+状态：候选实现已在隔离 worktree 完成本地验证；用户已于 2026-08-10 授权精确 staging/commit，并明确接受 C39/C48 的 `BLOCKED_BASELINE` 处置；主 worktree 的 C22 与 C23-C51、PIR 尚未执行。
 
 v21 的 [allowlist](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-command-allowlist.md) 与一次性 C31 失败证据保持不可变。v22 不重跑、不改写、不重标 v21 C31；C31 只能由本 allowlist 在 fresh anchor 的 clean worktree 中执行一次。
 
@@ -46,14 +46,14 @@ The original mixed [mcpRegistry test](file:///Users/elvis/file/develop/opensourc
 
 ## Known clean-suite baseline blocker
 
-The v21 clean candidate was already observed to fail the full Runtime/root suites because the v21 commit does not contain the broader main-worktree dirty/untracked tests and Gate-D packet. The v22 correction candidate does not silently widen scope to those unreviewed files. Therefore C39 and C48 below are baseline-observation commands, not pass gates: a known matching nonzero result must be recorded as `BLOCKED_BASELINE`, and no PIR may claim completion. Before C23, the user must either approve a separately reviewed dependency expansion that makes the full suites executable, or explicitly approve this baseline-exception treatment. No C23-C51 execution starts while that choice is unresolved.
+The v21 clean candidate was already observed to fail the full Runtime/root suites because the v21 commit does not contain the broader main-worktree dirty/untracked tests and Gate-D packet. The v22 correction candidate does not silently widen scope to those unreviewed files. Therefore C39 and C48 below are baseline-observation commands, not pass gates: a known matching nonzero result must be recorded as `BLOCKED_BASELINE`, and no PIR may claim completion. The user explicitly selected this baseline-exception treatment on 2026-08-10; C23-C51 may proceed, C39/C48 must be recorded as `BLOCKED_BASELINE` if the known result reproduces, and the sequence must continue to C51 without any completion claim.
 
 ## Roles, phases, counts, and exit status
 
 - `author-preflight` may run only local syntax, governance, verifier, focused-test, dashboard, and the one-time scope diagnostic commands listed before Phase B. It cannot sign a commit or clean checkout.
 - `executor` runs the fresh Phase B sequence from the committed anchor. Every C23-C51 command has maximum invocation count `1`; any retry, changed argument, changed path, changed role/phase, or changed scope requires v23 and a new review.
 - `executor-clean` is the Phase B clean-worktree role. It must use a different session identity from `executor`.
-- `reviewer-post-implementation` is a distinct session identity and may run only the separate PIR protocol after C23-C51 succeeds. No self-review may be reported as an independent PIR.
+- `reviewer-post-implementation` is a distinct session identity and may run only the separate PIR protocol after C23-C51 completes either with all required gates passing or with the explicitly accepted C39/C48 `BLOCKED_BASELINE` observations. In the latter mode, PIR must conclude `BLOCKED`/`需修改`; no self-review may be reported as an independent PIR.
 - Every Git command uses `--no-optional-locks`. Offline dependency preparation failing is a hard stop; it must not be replaced with network access.
 
 ## One-time author-preflight diagnostic
@@ -128,7 +128,7 @@ The user-authorized correction commit must exist before C23. C23 writes the comp
 
 ## Independent post-implementation review / PIR
 
-Only after every fresh C23-C51 command exits `0`, a distinct `reviewer-post-implementation` session may execute the following once each. The reviewer must preserve stdout in the conversation, compare initial/final snapshots and complete encoded diffs in memory, and report verifiable reviewer/executor identity evidence. The reviewer must not create temporary files.
+After the fresh C23-C51 sequence completes—either with every required command exiting `0`, or with the explicitly accepted C39/C48 `BLOCKED_BASELINE` observations—a distinct `reviewer-post-implementation` session may execute the following once each. The reviewer must preserve stdout in the conversation, compare initial/final snapshots and complete encoded diffs in memory, and report verifiable reviewer/executor identity evidence. If the baseline exception is observed, PIR must conclude `BLOCKED`/`需修改` and must not claim completion. The reviewer must not create temporary files.
 
 | ID | Exact command | Max | Expected evidence |
 | --- | --- | ---: | --- |

@@ -119,5 +119,5 @@
 
 - [x] **Step 1: Run the focused correction tests, governance tests, closure/provenance verifiers, and scanner in the isolated candidate.** Kept the known clean-v21 full-suite baseline failure separate from new results.
 - [x] **Step 2: Request a code review with a distinct reviewer identity.** Reviewer `019fea6e-8fee-7760-83b1-319f1748c8bf` checked exact scope, scanner candidate source, dependency set, manifest rows, and allowlist command counts; ledger and dependency/test gaps were fixed. The known clean full-suite baseline remains a staging/execution blocker.
-- [ ] **Step 3: Before any main-worktree staging/commit, present the exact allowlist path set and obtain fresh confirmation for the changed scope.** Do not use `git add .`.
-- [ ] **Step 4: After the user confirms, execute only the new allowlist's fresh C23-C51 sequence and then the independent PIR.** Do not claim completion until fresh output verifies every required gate.
+- [x] **Step 3: Before any main-worktree staging/commit, present the exact allowlist path set and obtain fresh confirmation for the changed scope.** The user authorized staging/commit and explicitly accepted C39/C48 `BLOCKED_BASELINE`; exact-path staging remains mandatory. Do not use `git add .`.
+- [ ] **Step 4: After the user confirms, execute only the new allowlist's fresh C23-C51 sequence and then the independent PIR.** The accepted C39/C48 baseline exception permits the sequence to reach C51; if reproduced, the independent PIR must conclude `BLOCKED`/`需修改`, and completion must not be claimed.

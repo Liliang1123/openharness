@@ -2,7 +2,7 @@
 
 ## 结论
 
-需修改：correction-only 拆分、manifest/closure relock、candidate-bound secret scan 与 dependency contract 已通过隔离候选验证；但当前 clean candidate 仍继承 v21 的 full-suite baseline 缺口，v22 C39/C48 不能在未明确 baseline treatment 前作为可执行通过门禁。主 worktree 暂停 staging/commit 与 C23-C51。
+需修改：correction-only 拆分、manifest/closure relock、candidate-bound secret scan 与 dependency contract 已通过隔离候选验证；当前 clean candidate 仍继承 v21 的 full-suite baseline 缺口，因此 C39/C48 只能记录为 `BLOCKED_BASELINE`，不能作为通过门禁或完成依据。用户已于 2026-08-10 明确接受该 baseline treatment，主 worktree 可按 v22 精确 allowlist 继续 staging/commit 与 C23-C51；完成后仍必须由独立 reviewer 执行 PIR，且最终不得宣称完成。
 
 ## Review 范围
 
@@ -49,14 +49,14 @@ Independent read-only reviewer session: `019fea6e-8fee-7760-83b1-319f1748c8bf`. 
 
 ## 最终建议
 
-1. Keep the current candidate isolated and do not stage the main worktree until the user explicitly selects the C39/C48 treatment.
-2. If the user does not authorize a broader, separately reviewed clean-suite dependency closure, retain C39/C48 as `BLOCKED_BASELINE` observations and do not claim a completed C23-C51/PIR.
-3. If the user authorizes the baseline exception, issue a final allowlist review confirmation before C22/C23; the sequence still must not perform credentials, external calls, promotion, archive, or push.
+1. Retain C39/C48 as `BLOCKED_BASELINE` observations; the accepted treatment does not authorize a broader, separately reviewed clean-suite dependency closure.
+2. Execute the exact v22 allowlist from C22 through C51. If the known nonzero baseline reproduces, continue the sequence but do not treat it as a pass.
+3. After C51, obtain a distinct reviewer-post-implementation PIR. Its conclusion must be `BLOCKED`/`需修改` when C39/C48 are blocked; the sequence still must not perform credentials, external calls, promotion, archive, or push.
 
 ## 后续门禁
 
 - OpenSpec proposal/design/tasks/spec delta remains active; no archive is permitted.
 - Dashboard product entry remains `partial`; only the proposed governance entry is added at the governed sync point.
-- Main worktree staging/commit requires fresh exact-scope confirmation and explicit treatment of C39/C48.
-- Independent PIR is required only after the fresh sequence; this document is not a PIR.
+- Main worktree staging/commit is authorized only for the fresh exact-scope allowlist; C39/C48 treatment is explicitly `BLOCKED_BASELINE`.
+- Independent PIR is required after the fresh sequence, including the accepted baseline-exception mode; this document is not a PIR.
 - Project rules were not modified.
