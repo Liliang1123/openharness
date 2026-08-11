@@ -1,10 +1,11 @@
-import { extname } from "node:path";
 import {
+  candidateScanRoots,
   collectSensitiveLiterals,
   fileContainsSecret,
-  readableExtensions,
+  listCandidateTreeEntries,
   readCandidateManifest,
   resolveCandidateBytes,
+  resolveCandidateTreeBytes,
   validateSecretScanDependencies
 } from "./2026-08-05-gate-closure-persistence-fix-secret-scan-lib.mjs";
 
@@ -23,6 +24,7 @@ const fixtureLiteralRules = new Map([
     ["sensitive:authorization:0c6e4493920989c327f6e0bac2948b17b71d119dbc9fdafb75435df6e0b87d4c", 1]
   ])],
   ["agent-runtime/test/terminalErrors.test.ts", rule([["sensitive:authorization:e47800f0be84febf6a4f71ff92d9ddf6c531f7e6fba972659598a6eec12620c2", 1]])],
+  ["agent-runtime/test/traceOutbox.test.ts", rule([["sensitive:authorization:e47800f0be84febf6a4f71ff92d9ddf6c531f7e6fba972659598a6eec12620c2", 5]])],
   ["agent-runtime/test/traceOutbox.correction.test.ts", rule([
     ["bearer:ca64faa2f21a66699571463505fdf124b2046e98f1424f3bc28cb3e199ebd68f", 2],
     ["sensitive:authorization:ca64faa2f21a66699571463505fdf124b2046e98f1424f3bc28cb3e199ebd68f", 1]
@@ -145,12 +147,24 @@ try {
   fail();
 }
 
+let entries;
+try {
+  entries = listCandidateTreeEntries(repoRoot, candidateScanRoots, "HEAD");
+} catch {
+  fail();
+}
+
 const rows = new Map(manifest.rows.map((row) => [row.path, row]));
-for (const row of manifest.rows) {
-  if (!readableExtensions.has(extname(row.path))) continue;
+const candidatePaths = new Set(entries.map((entry) => entry.path));
+for (const path of manifest.secretScanDependencies) {
+  if (!candidatePaths.has(path)) fail();
+}
+
+for (const entry of entries) {
+  const relativePath = entry.path.replaceAll("\\", "/");
+  const row = rows.get(relativePath);
   try {
-    const bytes = resolveCandidateBytes(repoRoot, row);
-    const relativePath = row.path.replaceAll("\\", "/");
+    const bytes = row ? resolveCandidateBytes(repoRoot, row) : resolveCandidateTreeBytes(repoRoot, entry, "HEAD");
     if (fixtureLiteralRules.has(relativePath)) {
       const actual = collectSensitiveLiterals(bytes.toString("utf8"));
       const expected = fixtureLiteralRules.get(relativePath);

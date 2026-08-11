@@ -73,6 +73,7 @@ const expectedEntryPoints = new Map([
 ]);
 const canonicalEntryPoints = [
   ["agent-runtime/src/index.ts", "agent-runtime", "startup"],
+  ["agent-runtime/src/storage/runtimeStorageWorker.ts", "agent-runtime", "storage-worker-entrypoint"],
   ["agent-runtime/src/qualification/gateCProviderReconcileCli.ts", "agent-runtime", "gate-c-cli"],
   ["agent-runtime/src/baseline/gateDPerformanceDiagnosticCli.ts", "agent-runtime", "gate-d-cli"],
   ["agent-runtime/src/baseline/formalSoakCli.ts", "agent-runtime", "formal-soak-cli"],
@@ -104,7 +105,9 @@ const canonicalBoundaries = [
   "package.json",
   "pnpm-workspace.yaml",
   "pnpm-lock.yaml",
-  "tsconfig.base.json"
+  "tsconfig.base.json",
+  "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-001/interruption-procedure.md",
+  "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/interruption-procedure.md"
 ];
 const projects = new Map();
 for (const entry of closure.entryPoints) {

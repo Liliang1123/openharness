@@ -1,6 +1,6 @@
 ## Context
 
-The v21 correction slice committed at `3693e62a665cf2d60399229e1231fb44d5817fa4` is the current implementation anchor. Its locked [provenance manifest](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-manifest.json) reports 15 entrypoints, 85 closure paths, and 90 rows. C23-C30 passed against that anchor; the single v21 C31 command failed in the clean probe. The existing [C31 review](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-10-gate-closure-persistence-fix-phase-b-c31-review.md) records the failure, and the subsequent review identified incomplete scope/provenance and implicit scanner dependencies.
+The v21 correction slice committed at `3693e62a665cf2d60399229e1231fb44d5817fa4` is historical and immutable. v22 was the first expanded candidate and locked at 17 entrypoints, 102 closure paths, and 107 rows; its fresh sequence passed C23-C33 and stopped at C34 with clean-tree `RUNTIME_STORAGE_UNAVAILABLE`/missing Gate-D packet failures. The [v22 blocked review](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-10-gate-closure-evidence-scope-implementation-review.md) and the current external findings require a fresh v23 remediation; v21/v22 evidence is not rerun or relabeled.
 
 The two original test files are large dirty files. They mix the correction behavior needed by the persistence fix with additional functional tests. Treating either complete file as a correction fixture would make the clean candidate depend on unrelated work and would invalidate the plan's “every fixture has a manifest row” contract.
 
@@ -10,6 +10,9 @@ The two original test files are large dirty files. They mix the correction behav
 - Make the candidate closure mechanically equal to the declared entrypoints, boundaries, scanner dependencies, and provenance rows.
 - Make scanner results independent of unrelated dirty copies in the main worktree while preserving fail-closed secret detection.
 - Preserve v21 as immutable historical evidence and create a fresh v22-or-later evidence namespace.
+- Ensure the scanner walks every ordinary file in the candidate Git-tree evidence/source/test roots and fails closed on unknown extensions, non-regular entries, parse errors, and uninspected paths.
+- Make the production worker's dynamic `new URL("./runtimeStorageWorker.ts", import.meta.url)` edge an explicit closure entrypoint, including the worker kernel graph and clean Gate-D packet directory markers needed by C34.
+- Require PIR to bind the executor's anchor to its parent and inspect a deterministic reversible commit diff for every committed path, while retaining the initial/final workspace and staged-diff checks.
 
 ## Non-Goals
 
@@ -42,6 +45,18 @@ The scanner continues to inspect evidence/source/test categories required by the
 The new allowlist is a new versioned document, not an edit that erases v21. It defines a fresh anchor/commit sequence and new counts for the complete C23-C51 flow. The one-time scope diagnostic is an exact command with declared role, phase, invocation count, numeric exit status, and redacted path/count output. It is diagnostic evidence only and cannot be promoted to C31 PASS.
 
 The fresh executor and the post-implementation reviewer must have distinct verifiable session identities. The reviewer must independently re-check locked closure, provenance rows, scanner dependencies, initial/final workspace evidence, and exact allowlist counts before any PIR conclusion.
+
+### 5. Candidate-tree scanner coverage
+
+The scanner obtains a Git tree snapshot from the fresh candidate anchor for the declared evidence/source/test roots. It parses every ordinary blob under those roots, rejects symlinks/submodules/other non-regular entries and unreadable extensions, and reads unbound non-fixture content from the candidate tree rather than the dirty worktree. Manifest rows remain authoritative for pinned/current fixture content and every fixture rule remains exactly bound to the dependency set. This preserves the v22 candidate-bound property without silently skipping newly added evidence files.
+
+### 6. Dynamic worker and C34 closure
+
+The storage worker file is a canonical dynamic entrypoint in addition to the static TypeScript entrypoints. Its kernel and transitive local imports are collected by the closure verifier. The two reviewed Gate-D interruption-procedure files are current candidate packet markers so clean C34 path-containment checks see the same immutable attempt directories as the reviewed main candidate; they do not constitute promotion or fresh production evidence.
+
+### 7. v23 PIR and cleanup identity
+
+v22's exact-command mismatch is recorded as a scope violation and cannot be retroactively passed. v23 declares `unlink` as its own exact anchor cleanup command. PIR runs after clean-worktree cleanup but before v23 anchor cleanup, verifies `HEAD` and `HEAD^` identity, captures the complete deterministic reversible `HEAD^..HEAD` commit diff, and checks each committed path against the v23 allowlist. A missing anchor/parent identity, truncated encoded output, or scope mismatch is `BLOCKED`.
 
 ## Alternatives Considered
 

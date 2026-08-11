@@ -12,7 +12,7 @@
       "status": "proposed",
       "date": "2026-08-10",
       "type": "tooling",
-      "summary": "在 v21 C31 clean-checkout 阻塞后，将 mcpRegistry 与 traceOutbox 的 correction-only 测试从混合 dirty 文件中拆出，扩展 locked closure/provenance，显式绑定 secret-scan dependency set，并为 fresh v22-or-later allowlist 与独立 PIR 建立治理门禁。",
+      "summary": "在 v22 C34 clean candidate 阻塞后，补齐 candidate Git-tree fail-closed secret scanning、动态 storage worker/Kernel 与 Gate-D packet closure，并为 fresh v23 allowlist 和 anchor-parent commit-diff PIR 建立治理门禁。",
       "tags": [
         "gate-closure",
         "provenance",
@@ -30,15 +30,21 @@
         ],
         "currentSpecs": []
       },
+      "superpowers": {
+        "plan": "docs/superpowers/plans/2026-08-11-gate-closure-evidence-scope-v23-remediation-plan.md"
+      },
       "next": [
-        "按已批准的 correction-only scope 完成精确 staging/commit，并保持 v21 closure-only 路径不重复纳入",
-        "在 fresh v22 allowlist 下执行 C23-C51；C39/C48 若复现已接受的 baseline 缺口则记录为 BLOCKED_BASELINE 并继续至 C51",
-        "C23-C51 后由不同 session identity 执行独立 PIR；若 baseline 阻断则结论为 BLOCKED/需修改，不宣称完成"
+        "完成 v23 candidate-tree scanner、动态 worker/Kernel、Gate-D marker 的 closure/provenance 重锁，并保持两个原始混合测试文件不作为 correction entrypoint",
+        "发布 fresh v23 allowlist；C34 必须在 Gate-D packet closure 完整后独立通过，v22 C39/C48 仅保留 BLOCKED_BASELINE 历史记录",
+        "在 fresh exact-path staging/commit 授权后执行 C23-C51，再由不同 session identity 做包含 HEAD^..HEAD 完整 commit diff 的独立 PIR；任一缺口保持 BLOCKED/需修改"
       ],
       "nonGoals": [
         "不把两个原始 dirty 测试文件整体纳入 correction commit",
         "不读取 credential，不做真实 provider/MCP/browser 外呼或 24 小时 soak",
         "不做 Gate C/D promotion、OpenSpec archive、push 或主 worktree broad cleanup"
+      ],
+      "notes": [
+        "v23 exact command allowlist: docs/review/2026-08-11-gate-closure-evidence-scope-command-allowlist-v23.md；fresh staging/commit 与 C23-C51 尚未执行。"
       ]
     },
     {

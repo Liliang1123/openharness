@@ -30,3 +30,11 @@
 - [x] 5.1 Dispatch a reviewer with a distinct verifiable session identity for the implementation candidate; reviewer checked locked closure, provenance, scanner dependency binding, correction-only scope, and allowlist risks. A separate post-execution PIR remains pending.
 - [ ] 5.2 Run the independent PIR after the fresh C23-C51 sequence, including the explicitly accepted C39/C48 `BLOCKED_BASELINE` mode; record the result as blocked/需修改 when reproduced and do not claim completion.
 - [x] 5.3 Update the dashboard source and generated outputs only at the governed proposed synchronization point; do not mark the existing product change promoted or archived.
+
+## 6. v23 remediation after blocked C34
+
+- [ ] 6.1 Add candidate-Git-tree root traversal and fail-closed adversarial tests for extra evidence files, unknown extensions, and non-regular entries; preserve provenance-bound fixture expectations.
+- [ ] 6.2 Add `runtimeStorageWorker.ts` as a canonical dynamic entrypoint and include `runtimeStorageWorkerKernel.ts` plus the reviewed Gate-D attempt procedure markers in the locked closure/provenance manifest.
+- [ ] 6.3 Run the focused clean production persistence/server tests and require the C34 dependency closure to pass before any fresh full-suite exception is considered.
+- [ ] 6.4 Publish a fresh v23 allowlist with an exact `unlink` cleanup command, fresh anchor, and PIR checks for `HEAD`/`HEAD^` identity and complete reversible commit diff.
+- [ ] 6.5 Keep v22 C34/C51 evidence immutable and record v22 as `BLOCKED`; do not rerun or relabel any consumed v22 command.

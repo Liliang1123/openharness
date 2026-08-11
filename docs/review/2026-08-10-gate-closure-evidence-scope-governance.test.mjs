@@ -3,7 +3,12 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { test } from "node:test";
-import { resolveCandidateBytes, validateSecretScanDependencies } from "./2026-08-05-gate-closure-persistence-fix-secret-scan-lib.mjs";
+import {
+  fileContainsSecret,
+  parseCandidateTreeEntries,
+  resolveCandidateBytes,
+  validateSecretScanDependencies
+} from "./2026-08-05-gate-closure-persistence-fix-secret-scan-lib.mjs";
 
 const manifest = JSON.parse(readFileSync(
   new URL("./2026-08-05-gate-closure-persistence-fix-provenance-manifest.json", import.meta.url),
@@ -94,6 +99,46 @@ test("dependency validation rejects duplicate and unbound rows", () => {
   );
 });
 
+test("candidate-tree parsing retains an unbound evidence file for inspection", () => {
+  const output = Buffer.from(
+    "100644 blob 0123456789012345678901234567890123456789\tdocs/verification/agent-runtime-v1/gate-d/extra.json\0",
+    "utf8"
+  );
+  const entries = parseCandidateTreeEntries(output, ["docs/verification/agent-runtime-v1/gate-d"]);
+  assert.deepEqual(entries, [{
+    mode: "100644",
+    type: "blob",
+    object: "0123456789012345678901234567890123456789",
+    path: "docs/verification/agent-runtime-v1/gate-d/extra.json"
+  }]);
+  const candidateEvidence = Buffer.from(["{\"authorization\":\"", ["Bearer ", "candidate"].join(""), "\"}"].join(""));
+  assert.equal(fileContainsSecret("docs/verification/agent-runtime-v1/gate-d/extra.json", candidateEvidence), true);
+});
+
+test("candidate-tree parsing rejects unknown extensions", () => {
+  const output = Buffer.from(
+    "100644 blob 0123456789012345678901234567890123456789\tdocs/verification/agent-runtime-v1/gate-d/extra.yaml\0",
+    "utf8"
+  );
+  assert.throws(
+    () => parseCandidateTreeEntries(output, ["docs/verification/agent-runtime-v1/gate-d"]),
+    /unknown extension/i
+  );
+});
+
+test("candidate-tree parsing rejects symlink and submodule entries", () => {
+  for (const modeType of ["120000 blob", "160000 commit"]) {
+    const output = Buffer.from(
+      `${modeType} 0123456789012345678901234567890123456789\tdocs/verification/agent-runtime-v1/gate-d/extra.txt\0`,
+      "utf8"
+    );
+    assert.throws(
+      () => parseCandidateTreeEntries(output, ["docs/verification/agent-runtime-v1/gate-d"]),
+      /non-regular/i
+    );
+  }
+});
+
 test("source-pinned dependencies resolve from Git rather than the dirty worktree", () => {
   const row = manifest.rows.find(candidate => !candidate.requireCurrent);
   assert.ok(row);
@@ -135,12 +180,13 @@ test("source-pinned dependencies resolve from Git rather than the dirty worktree
   );
 });
 
-test("the two mixed originals are not correction-only entrypoints", () => {
+test("the two mixed originals remain non-entrypoints while candidate fixtures stay bound", () => {
   const entryPaths = new Set((manifest.closure?.entryPoints ?? []).map(entry => entry.path));
   assert.equal(entryPaths.has("agent-runtime/test/mcpRegistry.test.ts"), false);
   assert.equal(entryPaths.has("agent-runtime/test/traceOutbox.test.ts"), false);
   assert.equal(fixtureRulePaths().includes("agent-runtime/test/mcpRegistry.test.ts"), false);
-  assert.equal(fixtureRulePaths().includes("agent-runtime/test/traceOutbox.test.ts"), false);
+  assert.equal(fixtureRulePaths().includes("agent-runtime/test/traceOutbox.test.ts"), true);
+  assert.equal(manifest.secretScanDependencies.includes("agent-runtime/test/traceOutbox.test.ts"), true);
   assert.equal(entryPaths.has("agent-runtime/test/mcpRegistry.correction.test.ts"), true);
   assert.equal(entryPaths.has("agent-runtime/test/traceOutbox.correction.test.ts"), true);
 });

@@ -6,7 +6,7 @@
 
 [机器可校验清单](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-manifest.json)；[只读 closure verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-closure-verify.mjs)；[只读 provenance verifier](file:///Users/elvis/file/develop/opensource/openharness/docs/review/2026-08-05-gate-closure-persistence-fix-provenance-verify.mjs)。
 
-固定 17 个 canonical entrypoints 与 14 个 canonical non-TypeScript boundaries；`closure.status=locked`，closure 与 scanner dependency union 共 102 条路径，107 条 provenance rows。
+固定 18 个 canonical entrypoints 与 16 个 canonical non-TypeScript boundaries；`closure.status=locked`，closure 与 scanner dependency union 共 107 条路径，110 条 provenance rows。`traceOutbox.test.ts` 仅作为候选树 scanner fixture 受 provenance 管理，不是 correction entrypoint。
 
 ## Secret-scan dependency closure
 
@@ -164,3 +164,6 @@ scanner fixture-rule 去重后为 29 条路径；每条路径均必须同时出�
 | [p0a.integration.test.ts](file:///Users/elvis/file/develop/opensource/openharness/integration-tests/test/p0a.integration.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `f489135f3b41e12a269595533667da3aad9efe59` | `8c35431b283c71113c6eb4a0b430ea61d4a7e8cecc4d67bbfad231e3ebc08d6b` | `100644` | `executable_source` | `source` |
 | [p0b.integration.test.ts](file:///Users/elvis/file/develop/opensource/openharness/integration-tests/test/p0b.integration.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `53319b60b6004b125757be051e4a6498deadc62a` | `7b1261984104cb5fd5cb68ee9c18928187fb94770c5b31637c6efbe6b2ef5cf1` | `100644` | `executable_source` | `source` |
 | [schema.test.ts](file:///Users/elvis/file/develop/opensource/openharness/packages/shared-schema/test/schema.test.ts) | `42bd977078d4811a2969949c7be6587c75615c35` | `2dcd96bf3afbf93b66633349bcdf44e9927a0c3c` | `026d483971c3908c627f721237837a6a3cc076f343ed489f713aecd487f0632a` | `100644` | `executable_source` | `source` |
+| [traceOutbox.test.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/test/traceOutbox.test.ts) | `715a82bdb8b67a3457fa635b0953c40c7fecae79` | `647555570480f16f1349d3469ad49d1a0ba5dec0` | `65d368fe67db14c104a27b2032860eb20893cf0e4244b482c10b21b331f31c59` | `100644` | `executable_source` | `source` |
+| [runtimeStorageWorker.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/storage/runtimeStorageWorker.ts) | `421a5ab4a0574ba885b4770753da59193297529a` | `40352fc2e221aa039f510a5c892212e8b148bf25` | `11f603e8108daf4a2f9079d590c210a30b308c3c9d39b4f7ed3da3a2a5de8289` | `100644` | `executable_source` | `source` |
+| [runtimeStorageWorkerKernel.ts](file:///Users/elvis/file/develop/opensource/openharness/agent-runtime/src/storage/runtimeStorageWorkerKernel.ts) | `421a5ab4a0574ba885b4770753da59193297529a` | `e34f920e1abd679c65fe3a94543116cac2473229` | `95c61797de677523510040de9e0c40e946c0cad02ba63b26777636bd18e33626` | `100644` | `executable_source` | `source` |

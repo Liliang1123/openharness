@@ -4,6 +4,18 @@ import { spawnSync } from "node:child_process";
 import { extname, resolve } from "node:path";
 
 export const readableExtensions = new Set([".cjs", ".js", ".json", ".jsonl", ".mjs", ".md", ".log", ".txt", ".ts", ".tsx"]);
+export const candidateScanRoots = Object.freeze([
+  "docs/verification/agent-runtime-v1/providers",
+  "docs/verification/agent-runtime-v1/gate-d",
+  "docs/verification/agent-runtime-v1/baseline",
+  "docs/verification/agent-runtime-v1/tools",
+  "agent-runtime/test",
+  "packages/shared-schema/test",
+  "integration-tests/test",
+  "agent-runtime/src",
+  "packages/shared-schema/src",
+  "integration-tests/src"
+]);
 
 const rawSecretPattern = /OPENHARNESS_SECRET_CANARY|Bearer\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk|rk|pk)-[A-Za-z0-9][A-Za-z0-9_-]{7,}\b/i;
 const rawSecretPatternGlobal = /OPENHARNESS_SECRET_CANARY|Bearer\s+[A-Za-z0-9._~+/=-]{8,}|\b(?:sk|rk|pk)-[A-Za-z0-9][A-Za-z0-9_-]{7,}\b/gi;
@@ -77,6 +89,83 @@ export function resolveCandidateBytes(repoRoot, row, { readCurrent = readFileSyn
   });
   if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
     throw new Error(`pinned candidate missing: ${row.path}`);
+  }
+  return result.stdout;
+}
+
+function normalizePath(path) {
+  return path.replaceAll("\\", "/").replace(/^\.\//, "");
+}
+
+function normalizeRoots(roots) {
+  if (!Array.isArray(roots) || roots.length === 0 || roots.some((root) => typeof root !== "string" || !root)) {
+    throw new Error("candidate scan roots missing");
+  }
+  const normalized = roots.map(normalizePath);
+  if (normalized.some((root) => root.startsWith("/") || root === "." || root.includes(".."))) {
+    throw new Error("candidate scan root escapes repository");
+  }
+  return [...new Set(normalized)];
+}
+
+function isUnderRoot(path, roots) {
+  return roots.some((root) => path === root || path.startsWith(`${root}/`));
+}
+
+export function parseCandidateTreeEntries(raw, roots = candidateScanRoots) {
+  const normalizedRoots = normalizeRoots(roots);
+  const bytes = Buffer.from(raw);
+  const entries = [];
+  const seen = new Set();
+  let offset = 0;
+  while (offset < bytes.length) {
+    const end = bytes.indexOf(0, offset);
+    if (end < 0) throw new Error("candidate tree record is not NUL terminated");
+    const record = bytes.subarray(offset, end).toString("utf8");
+    offset = end + 1;
+    if (!record) throw new Error("candidate tree contains an empty record");
+    const separator = record.indexOf("\t");
+    if (separator < 0) throw new Error("candidate tree record missing path separator");
+    const header = record.slice(0, separator).split(" ");
+    const path = normalizePath(record.slice(separator + 1));
+    if (header.length !== 3 || !path || path.startsWith("/") || path.includes("../") || !isUnderRoot(path, normalizedRoots)) {
+      throw new Error("candidate tree path is invalid");
+    }
+    const [mode, type, object] = header;
+    if ((mode !== "100644" && mode !== "100755") || type !== "blob") {
+      throw new Error(`candidate tree entry is non-regular: ${path}`);
+    }
+    if (!/^[0-9a-f]{40}$/.test(object)) throw new Error(`candidate tree object is invalid: ${path}`);
+    if (!readableExtensions.has(extname(path))) throw new Error(`candidate tree has unknown extension: ${path}`);
+    if (seen.has(path)) throw new Error(`candidate tree path is duplicated: ${path}`);
+    seen.add(path);
+    entries.push({ mode, type, object, path });
+  }
+  return entries;
+}
+
+export function listCandidateTreeEntries(repoRoot, roots = candidateScanRoots, ref = "HEAD") {
+  const normalizedRoots = normalizeRoots(roots);
+  const result = spawnSync(
+    "git",
+    ["--no-optional-locks", "ls-tree", "-r", "-z", ref, "--", ...normalizedRoots],
+    { cwd: repoRoot, encoding: null, maxBuffer: 64 * 1024 * 1024 }
+  );
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
+    throw new Error("candidate tree listing failed");
+  }
+  return parseCandidateTreeEntries(result.stdout, normalizedRoots);
+}
+
+export function resolveCandidateTreeBytes(repoRoot, entry, ref = "HEAD") {
+  if (!entry || typeof entry.path !== "string") throw new Error("candidate tree entry missing");
+  const result = spawnSync(
+    "git",
+    ["--no-optional-locks", "show", `${ref}:${normalizePath(entry.path)}`],
+    { cwd: repoRoot, encoding: null, maxBuffer: 64 * 1024 * 1024 }
+  );
+  if (result.status !== 0 || !Buffer.isBuffer(result.stdout)) {
+    throw new Error(`candidate tree blob missing: ${entry.path}`);
   }
   return result.stdout;
 }

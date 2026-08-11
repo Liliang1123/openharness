@@ -64,3 +64,35 @@ This governance change SHALL not authorize credential reads, real provider/MCP/b
 
 - **WHEN** the scope, manifest, scanner, and allowlist changes are validated
 - **THEN** verification SHALL use local deterministic commands only and SHALL leave the dashboard partial and OpenSpec changes active
+
+### Requirement: Candidate-tree secret scanning is fail-closed
+
+The secret scanner SHALL traverse every ordinary candidate-Git-tree file under its declared evidence, source, and test roots. It SHALL reject unknown extensions, non-regular tree entries, parse failures, and any candidate file that is not inspected; unbound non-fixture files SHALL be read from the candidate tree rather than an unrelated dirty worktree.
+
+#### Scenario: Extra evidence file is inspected
+
+- **WHEN** a candidate adds an evidence file under a declared scan root without a manifest row
+- **THEN** the scanner SHALL still inspect the candidate blob and SHALL fail if it contains a secret-shaped value rather than silently returning `secret_scan_ok`
+
+#### Scenario: Unknown or non-regular entry fails closed
+
+- **WHEN** a candidate scan root contains an unknown-extension file, symlink, submodule, or other non-regular Git tree entry
+- **THEN** the scanner SHALL exit non-zero before claiming a secret scan pass
+
+### Requirement: Dynamic production worker closure is explicit
+
+The locked closure SHALL include every canonical dynamic runtime entrypoint and its transitive local graph, including the production storage worker loaded through `new URL(..., import.meta.url)`. The clean candidate SHALL contain the reviewed Gate-D attempt directory markers required by the C34 production diagnostic path checks.
+
+#### Scenario: Clean production bootstrap resolves the worker
+
+- **WHEN** the production persistence and server lifecycle tests run from the fresh clean candidate
+- **THEN** the dynamic worker and kernel SHALL be present in the candidate closure and the tests SHALL not fail with `RUNTIME_STORAGE_UNAVAILABLE` solely because the worker files are absent
+
+### Requirement: PIR binds the complete committed change
+
+The independent PIR SHALL verify the executor's fresh anchor and parent identity, inspect a deterministic reversible diff from the parent to the anchor, and compare every committed path against the reviewed v23 allowlist in addition to checking working-tree and staged-diff stability.
+
+#### Scenario: Committed wiring cannot be hidden by a clean worktree
+
+- **WHEN** the correction commit is complete and the working tree is clean for its paths
+- **THEN** PIR SHALL inspect the complete `anchor^..anchor` commit diff and SHALL block on any truncation, identity mismatch, or out-of-allowlist committed path

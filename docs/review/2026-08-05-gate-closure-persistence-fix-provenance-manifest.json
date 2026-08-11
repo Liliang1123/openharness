@@ -10,6 +10,11 @@
         "role": "startup"
       },
       {
+        "path": "agent-runtime/src/storage/runtimeStorageWorker.ts",
+        "project": "agent-runtime",
+        "role": "storage-worker-entrypoint"
+      },
+      {
         "path": "agent-runtime/src/qualification/gateCProviderReconcileCli.ts",
         "project": "agent-runtime",
         "role": "gate-c-cli"
@@ -104,7 +109,9 @@
       "package.json",
       "pnpm-workspace.yaml",
       "pnpm-lock.yaml",
-      "tsconfig.base.json"
+      "tsconfig.base.json",
+      "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-001/interruption-procedure.md",
+      "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/interruption-procedure.md"
     ],
     "expectedPaths": [
       "agent-runtime/package.json",
@@ -208,7 +215,12 @@
       "agent-runtime/test/terminalErrors.test.ts",
       "integration-tests/test/p0a.integration.test.ts",
       "integration-tests/test/p0b.integration.test.ts",
-      "packages/shared-schema/test/schema.test.ts"
+      "packages/shared-schema/test/schema.test.ts",
+      "agent-runtime/test/traceOutbox.test.ts",
+      "agent-runtime/src/storage/runtimeStorageWorker.ts",
+      "agent-runtime/src/storage/runtimeStorageWorkerKernel.ts",
+      "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-001/interruption-procedure.md",
+      "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/interruption-procedure.md"
     ],
     "manifestPaths": [
       "agent-runtime/package.json",
@@ -312,7 +324,12 @@
       "agent-runtime/test/terminalErrors.test.ts",
       "integration-tests/test/p0a.integration.test.ts",
       "integration-tests/test/p0b.integration.test.ts",
-      "packages/shared-schema/test/schema.test.ts"
+      "packages/shared-schema/test/schema.test.ts",
+      "agent-runtime/test/traceOutbox.test.ts",
+      "agent-runtime/src/storage/runtimeStorageWorker.ts",
+      "agent-runtime/src/storage/runtimeStorageWorkerKernel.ts",
+      "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-001/interruption-procedure.md",
+      "docs/verification/agent-runtime-v1/gate-d/gate-d-20260716-002/interruption-procedure.md"
     ]
   },
   "rows": [
@@ -1562,6 +1579,39 @@
       "path": "packages/shared-schema/test/schema.test.ts",
       "requireCurrent": false,
       "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "715a82bdb8b67a3457fa635b0953c40c7fecae79",
+      "sourceBlob": "647555570480f16f1349d3469ad49d1a0ba5dec0",
+      "sourceSha256": "65d368fe67db14c104a27b2032860eb20893cf0e4244b482c10b21b331f31c59",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/test/traceOutbox.test.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "421a5ab4a0574ba885b4770753da59193297529a",
+      "sourceBlob": "40352fc2e221aa039f510a5c892212e8b148bf25",
+      "sourceSha256": "11f603e8108daf4a2f9079d590c210a30b308c3c9d39b4f7ed3da3a2a5de8289",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/src/storage/runtimeStorageWorker.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
+    },
+    {
+      "sourceCommit": "421a5ab4a0574ba885b4770753da59193297529a",
+      "sourceBlob": "e34f920e1abd679c65fe3a94543116cac2473229",
+      "sourceSha256": "95c61797de677523510040de9e0c40e946c0cad02ba63b26777636bd18e33626",
+      "sourceMode": "100644",
+      "evidenceState": "executable_source",
+      "maxRestores": 1,
+      "path": "agent-runtime/src/storage/runtimeStorageWorkerKernel.ts",
+      "requireCurrent": false,
+      "restoreAllowed": true
     }
   ],
   "secretScanDependencies": [
@@ -1591,6 +1641,7 @@
     "agent-runtime/test/serviceAuth.test.ts",
     "agent-runtime/test/terminalErrors.test.ts",
     "agent-runtime/test/traceOutbox.correction.test.ts",
+    "agent-runtime/test/traceOutbox.test.ts",
     "integration-tests/test/p0a.integration.test.ts",
     "integration-tests/test/p0b.integration.test.ts",
     "packages/shared-schema/test/schema.test.ts"

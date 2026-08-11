@@ -7,7 +7,7 @@
 
 ### 2026-08-10
 
-- 📋 proposed **refactor-gate-closure-evidence-scope** — 在 v21 C31 clean-checkout 阻塞后，将 mcpRegistry 与 traceOutbox 的 correction-only 测试从混合 dirty 文件中拆出，扩展 locked closure/provenance，显式绑定 secret-scan dependency set，并为 fresh v22-or-later allowlist 与独立 PIR 建立治理门禁。
+- 📋 proposed **refactor-gate-closure-evidence-scope** — 在 v22 C34 clean candidate 阻塞后，补齐 candidate Git-tree fail-closed secret scanning、动态 storage worker/Kernel 与 Gate-D packet closure，并为 fresh v23 allowlist 和 anchor-parent commit-diff PIR 建立治理门禁。
 
 ### 2026-07-09
 
@@ -71,7 +71,7 @@
 
 | 功能点 | 状态 | Spec | Plan | Code | Tests | Closeout |
 |---|---|---|---|---|---|---|
-| refactor-gate-closure-evidence-scope | 📋 proposed | — | — | — | — | — |
+| refactor-gate-closure-evidence-scope | 📋 proposed | — | [plan](docs/superpowers/plans/2026-08-11-gate-closure-evidence-scope-v23-remediation-plan.md) | — | — | — |
 | add-chatgpt-oauth-auth | 📋 proposed | provider-adapter, backend-gateway | [plan](docs/superpowers/plans/2026-07-10-add-chatgpt-oauth-auth.md) | — | — | — |
 | defer-anthropic-from-gate-c | ⚠️ partial | provider-adapter | — | — | — | — |
 | harden-agent-runtime-single-node-production | ⚠️ partial | agent-runtime, agent-sse, shared-schema, backend-gateway, message-history, long-term-memory, provider-adapter, mcp-tools | [plan](docs/superpowers/plans/2026-08-07-gate-closure-persistence-fix-correction-plan.md) | 20 files | 12 files | — |
@@ -573,9 +573,9 @@
 
 ### 推荐下一步
 
-- 按已批准的 correction-only scope 完成精确 staging/commit，并保持 v21 closure-only 路径不重复纳入 _(from refactor-gate-closure-evidence-scope)_
-- 在 fresh v22 allowlist 下执行 C23-C51；C39/C48 若复现已接受的 baseline 缺口则记录为 BLOCKED_BASELINE 并继续至 C51 _(from refactor-gate-closure-evidence-scope)_
-- C23-C51 后由不同 session identity 执行独立 PIR；若 baseline 阻断则结论为 BLOCKED/需修改，不宣称完成 _(from refactor-gate-closure-evidence-scope)_
+- 完成 v23 candidate-tree scanner、动态 worker/Kernel、Gate-D marker 的 closure/provenance 重锁，并保持两个原始混合测试文件不作为 correction entrypoint _(from refactor-gate-closure-evidence-scope)_
+- 发布 fresh v23 allowlist；C34 必须在 Gate-D packet closure 完整后独立通过，v22 C39/C48 仅保留 BLOCKED_BASELINE 历史记录 _(from refactor-gate-closure-evidence-scope)_
+- 在 fresh exact-path staging/commit 授权后执行 C23-C51，再由不同 session identity 做包含 HEAD^..HEAD 完整 commit diff 的独立 PIR；任一缺口保持 BLOCKED/需修改 _(from refactor-gate-closure-evidence-scope)_
 - Task 4.1: RED shared-schema tests for exactly-one message/pendingTurn/error and typed result/cancel submissions _(from add-chatgpt-oauth-auth)_
 - Task 4.2-4.5: implement the reviewed pending-turn registry/client/controller and TS-owned approval/execution continuation with TDD _(from add-chatgpt-oauth-auth)_
 - Require strict Task 4 implementation Review PASS and secret-canary evidence before provider adapter wiring _(from add-chatgpt-oauth-auth)_
